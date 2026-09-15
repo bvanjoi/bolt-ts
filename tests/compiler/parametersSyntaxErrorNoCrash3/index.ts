@@ -15,8 +15,16 @@ export function getHtml({
     //~| ERROR: Identifier expected.
     //~| ERROR: Expected ','.
     //~| ERROR: '' is an unused renaming of 'return'. Did you intend to use it as a type annotation?
+    //~| ERROR: Binding element '' implicitly has an 'any' type.
+    //~| ERROR: Binding element '' implicitly has an 'any' type.
+    //~| ERROR: Binding element '' implicitly has an 'any' type.
+    //~| ERROR: Binding element '' implicitly has an 'any' type.
 }
 //~^ ERROR: Expected ':'.
 //~| ERROR: Identifier expected.
 //~| ERROR: '' is an unused renaming of ' string'. Did you intend to use it as a type annotation?
+//~| ERROR: Binding element '' implicitly has an 'any' type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
 //~ ERROR: Expected ')'.

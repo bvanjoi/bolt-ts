@@ -120,7 +120,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 } else {
                     // parse default clause
                     let start = this.token.start();
-                    if this.expect(TokenKind::Default) {
+                    if this.token.kind == TokenKind::Default {
                         if seen_default_clause {
                             let error =
                                 errors::ADefaultClauseCannotAppearMoreThanOnceInASwitchStatement {
@@ -130,6 +130,14 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                         } else {
                             seen_default_clause = true;
                         }
+                        debug_assert!(this.token.kind == TokenKind::Default);
+                        this.next_token(); // consume `default`
+                    } else {
+                        let error = Box::new(errors::ExpectX {
+                            span: this.token.span,
+                            x: this.token.kind.as_str().to_string(),
+                        });
+                        this.push_error(error);
                     }
                     this.expect(TokenKind::Colon);
                     let stmts = this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, |this| {
@@ -630,6 +638,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 self.next_token(); // consume `export`
                 match self.token.kind {
                     Default => {
+                        debug_assert!(self.token.kind == TokenKind::Default);
                         self.check_export_default_error(self.token.span);
                         self.next_token(); // consume `default`
                         ast::StmtKind::ExportAssign(
@@ -637,6 +646,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                         )
                     }
                     Eq => {
+                        debug_assert!(self.token.kind == TokenKind::Eq);
                         self.check_export_assignment_error(self.token.span);
                         self.next_token(); // consume `eq`
                         ast::StmtKind::ExportAssign(
@@ -706,14 +716,14 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             None
         };
 
-        (self.create_named_exports_declaration(self.new_span(start), list, module)) as _
+        self.create_named_exports_declaration(self.new_span(start), list, module)
     }
 
     fn parse_glob_export(&mut self, start: u32) -> &'cx ast::GlobExport<'cx> {
         self.expect(TokenKind::From);
         let module = self.parse_module_spec();
 
-        (self.create_global_export_declaration(self.new_span(start), module)) as _
+        self.create_global_export_declaration(self.new_span(start), module)
     }
 
     fn parse_ns_export(&mut self, start: u32) -> &'cx ast::NsExport<'cx> {
@@ -721,7 +731,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         self.expect(TokenKind::From);
         let module = self.parse_module_spec();
 
-        (self.create_namespace_export_declaration(self.new_span(start), name, module)) as _
+        self.create_namespace_export_declaration(self.new_span(start), name, module)
     }
 
     fn parse_import_equals_declaration(
@@ -766,19 +776,33 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> ast::StmtKind<'cx> {
         debug_assert!(self.token.kind == TokenKind::Import);
-        if let Some(mods) = modifiers
-            && mods.flags.contains(ast::ModifierFlags::AMBIENT)
-        {
-            let m = mods
-                .list
-                .iter()
-                .find(|m| m.kind() == ast::ModifierKind::Ambient)
-                .unwrap();
-            let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
-                span: m.span(),
-                modifier: m.kind(),
-            };
-            self.push_error(Box::new(error));
+        if let Some(mods) = modifiers {
+            if mods.flags.contains(ast::ModifierFlags::AMBIENT) {
+                let m = mods
+                    .list
+                    .iter()
+                    .find(|m| m.kind() == ast::ModifierKind::Ambient)
+                    .unwrap();
+                let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
+                    span: m.span(),
+                    modifier: m.kind(),
+                };
+                self.push_error(Box::new(error));
+            }
+            if mods.flags.intersects(ast::ModifierFlags::ACCESSIBILITY) {
+                for m in mods.list {
+                    if m.kind() == ast::ModifierKind::Private
+                        || m.kind() == ast::ModifierKind::Protected
+                        || m.kind() == ast::ModifierKind::Public
+                    {
+                        let error = errors::ModifierCannotAppearOnAModuleOrNamespaceElement {
+                            modifier: m.kind().to_string(),
+                            span: m.span(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
+            }
         }
         self.check_module_element_context(|this| {
             let error = errors::AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
@@ -891,7 +915,16 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         if self.token.kind == TokenKind::String {
             self.parse_string_lit()
         } else {
-            todo!("{:#?}", self.token.kind)
+            let span = self.token.span;
+            let error = Box::new(errors::ExpectX {
+                span,
+                x: "String".to_string(),
+            });
+            self.push_error(error);
+            let lit = self.create_lit(keyword::IDENT_EMPTY, span);
+            self.insert_node(lit.id, ast::Node::StringLit(lit));
+            self.insert_node_flags(lit.id, self.node_context_flags);
+            lit
         }
     }
 
@@ -1118,7 +1151,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         });
         self.expect(TokenKind::RBrace);
 
-        (self.create_object_binding_pattern(self.new_span(start), elems)) as _
+        self.create_object_binding_pattern(self.new_span(start), elems)
     }
 
     pub(super) fn parse_array_binding_pat(&mut self) -> &'cx ast::ArrayPat<'cx> {
@@ -1133,7 +1166,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         });
         self.expect(TokenKind::RBracket);
 
-        (self.create_array_binding_pattern(self.new_span(start), elems)) as _
+        self.create_array_binding_pattern(self.new_span(start), elems)
     }
 
     fn parse_array_binding_elem(&mut self) -> PResult<&'cx ast::ArrayBindingElem<'cx>> {
@@ -1145,6 +1178,10 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
             let name = self.parse_ident_or_pat();
             let init = self.parse_init()?;
+            if init.is_some() && dotdotdot.is_some() {
+                let error = errors::ARestElementCannotHaveAnInitializer { span: name.span };
+                self.push_error(Box::new(error));
+            }
             let binding = self.create_array_binding(self.new_span(start), dotdotdot, name, init);
             ast::ArrayBindingElemKind::Binding(binding)
         };
@@ -1181,6 +1218,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         }
     }
 
+    // TODO: move to binder because we need to know is this file has module augmentation
     pub(super) fn check_strict_mode_eval_or_arguments(&mut self, n: &ast::Ident) {
         debug_assert!(self.in_strict_mode);
         if matches!(n.name, keyword::IDENT_ARGUMENTS | keyword::IDENT_EVAL) {
@@ -1200,6 +1238,19 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         {
             let span = n.name.span;
             self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
+            return;
+        }
+
+        match n.name.kind {
+            ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) => {
+                if n.init.is_none() {
+                    let error = errors::ADestructuringDeclarationMustHaveAnInitializer {
+                        span: n.name.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+            _ => {}
         }
     }
 
@@ -1209,14 +1260,21 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     ) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
         let name = self.parse_ident_or_pat();
-        if let ast::BindingKind::Ident(n) = name.kind
-            && n.name == keyword::KW_LET
-            && flags.intersects(ast::NodeFlags::LET.union(ast::NodeFlags::CONST))
-        {
-            let error =
-                errors::LetIsNotAllowedToBeUsedAsANameInLetOrConstDeclarations { span: n.span };
-            self.push_error(Box::new(error));
+
+        match name.kind {
+            ast::BindingKind::Ident(ident) => {
+                if ident.name == keyword::KW_LET
+                    && flags.intersects(ast::NodeFlags::LET.union(ast::NodeFlags::CONST))
+                {
+                    let error = errors::LetIsNotAllowedToBeUsedAsANameInLetOrConstDeclarations {
+                        span: ident.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+            ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) => {}
         }
+
         self.check_contextual_binding(name);
         if self.in_strict_mode
             && let ast::BindingKind::Ident(name) = name.kind
@@ -1238,6 +1296,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
         let span = self.new_span(start);
+
         Ok(self.create_variable_declaration(span, name, excl, ty, init, flags))
     }
 

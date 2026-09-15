@@ -50,6 +50,7 @@ with_option!(
     (strict_bind_call_apply, bool),
     (strict_property_initialization, bool),
     (no_emit, bool),
+    (no_lib, bool),
     (no_implicit_any, bool),
     (no_implicit_this, bool),
     (no_implicit_returns, bool),
@@ -140,6 +141,9 @@ impl RawCompilerOptions {
         }
         if self.no_fallthrough_cases_in_switch.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_FALLTHROUGH_CASES_IN_SWITCH);
+        }
+        if self.no_lib.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::NO_LIB);
         }
         if get_strict_option_value(self.strict_function_types) {
             flags.insert(super::CompilerOptionFlags::STRICT_FUNCTION_TYPES);
@@ -327,17 +331,18 @@ pub enum RawModule {
 
 #[derive(Debug, Clone, Default, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Lib {
+    // JavaScript only
     #[default]
     #[serde(alias = "es5")]
     ES5,
-    #[serde(alias = "es2015")]
-    ES2015,
     #[serde(alias = "es6")]
     ES6,
-    #[serde(alias = "es2016")]
-    ES2016,
+    #[serde(alias = "es2015")]
+    ES2015,
     #[serde(alias = "es7")]
     ES7,
+    #[serde(alias = "es2016")]
+    ES2016,
     #[serde(alias = "es2017")]
     ES2017,
     #[serde(alias = "es2018")]
@@ -352,16 +357,30 @@ pub enum Lib {
     ES2022,
     #[serde(alias = "es2023")]
     ES2023,
+    #[serde(alias = "es2024")]
+    ES2024,
+    #[serde(alias = "es2025")]
+    ES2025,
     #[serde(alias = "esnext")]
     ESNext,
+    // Host only
     #[serde(alias = "dom")]
     Dom,
-    #[serde(alias = "webworker")]
-    WebWorker,
-    #[serde(alias = "scripthost")]
-    ScriptHost,
     #[serde(alias = "dom.iterable")]
     DOMIterable,
+    #[serde(alias = "dom.asynciterable")]
+    DOMAsyncIterable,
+    #[serde(alias = "webworker")]
+    WebWorker,
+    #[serde(alias = "webworker.importscripts")]
+    WebWorkerImportScripts,
+    #[serde(alias = "webworker.iterable")]
+    WebWorkerIterable,
+    #[serde(alias = "webworker.asynciterable")]
+    WebWorkerAsyncIterable,
+    #[serde(alias = "scripthost")]
+    ScriptHost,
+    // ES2015 and later By-feature options
     #[serde(alias = "es2015.core")]
     ES2015Core,
     #[serde(alias = "es2015.collection")]
@@ -382,16 +401,26 @@ pub enum Lib {
     ES2015SymbolWellKnown,
     #[serde(alias = "es2016.array.include")]
     ES2016ArrayInclude,
+    #[serde(alias = "es2016.intl")]
+    ES2016Intl,
+    #[serde(alias = "es2017.arraybuffer")]
+    ES2017ArrayBuffer,
+    #[serde(alias = "es2017.date")]
+    ES2017Date,
     #[serde(alias = "es2017.object")]
     ES2017Object,
-    #[serde(alias = "es2017.intl")]
-    ES2017Intl,
     #[serde(alias = "es2017.sharedmemory")]
     ES2017SharedMemory,
     #[serde(alias = "es2017.string")]
     ES2017String,
+    #[serde(alias = "es2017.intl")]
+    ES2017Intl,
     #[serde(alias = "es2017.typedarrays")]
     ES2017TypedArrays,
+    #[serde(alias = "es2018.asyncgenerator")]
+    ES2018AsyncGenerator,
+    #[serde(alias = "es2018.asynciterable")]
+    ES2018AsyncIterable,
     #[serde(alias = "es2018.intl")]
     ES2018Intl,
     #[serde(alias = "es2018.promise")]
@@ -406,22 +435,235 @@ pub enum Lib {
     ES2019String,
     #[serde(alias = "es2019.symbol")]
     ES2019Symbol,
+    #[serde(alias = "es2019.intl")]
+    ES2019Intl,
+    #[serde(alias = "es2020.bigint")]
+    ES2020BigInt,
+    #[serde(alias = "es2020.date")]
+    ES2020Date,
+    #[serde(alias = "es2020.promise")]
+    ES2020Promise,
+    #[serde(alias = "es2020.sharedmemory")]
+    ES2020SharedMemory,
     #[serde(alias = "es2020.string")]
     ES2020String,
     #[serde(alias = "es2020.symbol.wellknown")]
     ES2020SymbolWellKnown,
     #[serde(alias = "es2020.intl")]
-    ES2021Promise,
+    ES2020Intl,
+    #[serde(alias = "es2020.number")]
+    ES2020Number,
     #[serde(alias = "es2021.promise")]
+    ES2021Promise,
+    #[serde(alias = "es2021.string")]
     ES2021String,
     #[serde(alias = "es2021.weakref")]
     ES2021WeakRef,
+    #[serde(alias = "es2021.intl")]
+    ES2021Intl,
+    #[serde(alias = "es2022.array")]
+    ES2022Array,
+    #[serde(alias = "es2022.error")]
+    ES2022Error,
+    #[serde(alias = "es2022.intl")]
+    ES2022Intl,
+    #[serde(alias = "es2022.object")]
+    ES2022Object,
+    #[serde(alias = "es2022.string")]
+    ES2022String,
+    #[serde(alias = "es2022.regexp")]
+    ES2022RegExp,
+    #[serde(alias = "es2023.array")]
+    ES2023Array,
+    #[serde(alias = "es2023.collection")]
+    ES2023Collection,
+    #[serde(alias = "es2023.intl")]
+    ES2023Intl,
+    #[serde(alias = "es2024.arraybuffer")]
+    ES2024ArrayBuffer,
+    #[serde(alias = "es2024.collection")]
+    ES2024Collection,
+    #[serde(alias = "es2024.object")]
+    ES2024Object,
+    #[serde(alias = "es2024.promise")]
+    ES2024Promise,
+    #[serde(alias = "es2024.regexp")]
+    ES2024RegExp,
+    #[serde(alias = "es2024.sharedmemory")]
+    ES2024SharedMemory,
+    #[serde(alias = "es2024.string")]
+    ES2024String,
+    #[serde(alias = "es2025.collection")]
+    ES2025Collection,
+    #[serde(alias = "es2025.float16")]
+    ES2025Float16,
+    #[serde(alias = "es2025.intl")]
+    ES2025Intl,
+    #[serde(alias = "es2025.iterator")]
+    ES2025Iterator,
+    #[serde(alias = "es2025.promise")]
+    ES2025Promise,
+    #[serde(alias = "es2025.regexp")]
+    ES2025RegExp,
+    // Fallback for backward compatibility
     #[serde(alias = "esnext.asynciterable")]
     ESNextAsyncIterable,
-    #[serde(alias = "esnext.array")]
-    ESNextArray,
-    #[serde(alias = "esnext.intl")]
-    ESNextIntl,
     #[serde(alias = "esnext.symbol")]
     ESNextSymbol,
+    #[serde(alias = "esnext.bigint")]
+    ESNextBigInt,
+    #[serde(alias = "esnext.weakref")]
+    ESNextWeakRef,
+    #[serde(alias = "esnext.object")]
+    ESNextObject,
+    #[serde(alias = "esnext.regexp")]
+    ESNextRegExp,
+    #[serde(alias = "esnext.string")]
+    ESNextString,
+    #[serde(alias = "esnext.float16")]
+    ESNextFloat16,
+    #[serde(alias = "esnext.iterator")]
+    ESNextIterator,
+    #[serde(alias = "esnext.promise")]
+    ESNextPromise,
+    // ESNext By-feature options
+    #[serde(alias = "esnext.array")]
+    ESNextArray,
+    #[serde(alias = "esnext.collection")]
+    ESNextCollection,
+    #[serde(alias = "esnext.date")]
+    ESNextDate,
+    #[serde(alias = "esnext.decorators")]
+    ESNextDecorators,
+    #[serde(alias = "esnext.disposable")]
+    ESNextDisposable,
+    #[serde(alias = "esnext.error")]
+    ESNextError,
+    #[serde(alias = "esnext.intl")]
+    ESNextIntl,
+    #[serde(alias = "esnext.sharedmemory")]
+    ESNextSharedMemory,
+    #[serde(alias = "esnext.temporal")]
+    ESNextTemporal,
+    #[serde(alias = "esnext.typedarrays")]
+    ESNextTypedArrays,
+    // Decorators
+    #[serde(alias = "decorators")]
+    Decorators,
+    #[serde(alias = "decorators.legacy")]
+    DecoratorsLegacy,
+}
+
+impl Lib {
+    pub const fn entry(&self) -> &'static str {
+        match *self {
+            Lib::ES5 => "lib.es5.d.ts",
+            Lib::ES6 => "lib.es2015.d.ts",
+            Lib::ES2015 => "lib.es2015.d.ts",
+            Lib::ES7 => "lib.es2016.d.ts",
+            Lib::ES2016 => "lib.es2016.d.ts",
+            Lib::ES2017 => "lib.es2017.d.ts",
+            Lib::ES2018 => "lib.es2018.d.ts",
+            Lib::ES2019 => "lib.es2019.d.ts",
+            Lib::ES2020 => "lib.es2020.d.ts",
+            Lib::ES2021 => "lib.es2021.d.ts",
+            Lib::ES2022 => "lib.es2022.d.ts",
+            Lib::ES2023 => "lib.es2023.d.ts",
+            Lib::ES2024 => "lib.es2024.d.ts",
+            Lib::ES2025 => "lib.es2025.d.ts",
+            Lib::ESNext => "lib.esnext.d.ts",
+            Lib::Dom => "lib.dom.d.ts",
+            Lib::DOMIterable => "lib.dom.iterable.d.ts",
+            Lib::DOMAsyncIterable => "lib.dom.asynciterable.d.ts",
+            Lib::WebWorker => "lib.webworker.d.ts",
+            Lib::WebWorkerImportScripts => "lib.webworker.importscripts.d.ts",
+            Lib::WebWorkerIterable => "lib.webworker.iterable.d.ts",
+            Lib::WebWorkerAsyncIterable => "lib.webworker.asynciterable.d.ts",
+            Lib::ScriptHost => "lib.scripthost.d.ts",
+            Lib::ES2015Core => "lib.es2015.core.d.ts",
+            Lib::ES2015Collection => "lib.es2015.collection.d.ts",
+            Lib::ES2015Generator => "lib.es2015.generator.d.ts",
+            Lib::ES2015Iterable => "lib.es2015.iterable.d.ts",
+            Lib::ES2015Promise => "lib.es2015.promise.d.ts",
+            Lib::ES2015Proxy => "lib.es2015.proxy.d.ts",
+            Lib::ES2015Reflect => "lib.es2015.reflect.d.ts",
+            Lib::ES2015Symbol => "lib.es2015.symbol.d.ts",
+            Lib::ES2015SymbolWellKnown => "lib.es2015.symbol.wellknown.d.ts",
+            Lib::ES2016ArrayInclude => "lib.es2016.array.include.d.ts",
+            Lib::ES2016Intl => "lib.es2016.intl.d.ts",
+            Lib::ES2017ArrayBuffer => "lib.es2017.arraybuffer.d.ts",
+            Lib::ES2017Date => "lib.es2017.date.d.ts",
+            Lib::ES2017Object => "lib.es2017.object.d.ts",
+            Lib::ES2017SharedMemory => "lib.es2017.sharedmemory.d.ts",
+            Lib::ES2017String => "lib.es2017.string.d.ts",
+            Lib::ES2017Intl => "lib.es2017.intl.d.ts",
+            Lib::ES2017TypedArrays => "lib.es2017.typedarrays.d.ts",
+            Lib::ES2018AsyncGenerator => "lib.es2018.asyncgenerator.d.ts",
+            Lib::ES2018AsyncIterable => "lib.es2018.asynciterable.d.ts",
+            Lib::ES2018Intl => "lib.es2018.intl.d.ts",
+            Lib::ES2018Promise => "lib.es2018.promise.d.ts",
+            Lib::ES2018RegExp => "lib.es2018.regexp.d.ts",
+            Lib::ES2019Array => "lib.es2019.array.d.ts",
+            Lib::ES2019Object => "lib.es2019.object.d.ts",
+            Lib::ES2019String => "lib.es2019.string.d.ts",
+            Lib::ES2019Symbol => "lib.es2019.symbol.d.ts",
+            Lib::ES2019Intl => "lib.es2019.intl.d.ts",
+            Lib::ES2020BigInt => "lib.es2020.bigint.d.ts",
+            Lib::ES2020Date => "lib.es2020.date.d.ts",
+            Lib::ES2020Promise => "lib.es2020.promise.d.ts",
+            Lib::ES2020SharedMemory => "lib.es2020.sharedmemory.d.ts",
+            Lib::ES2020String => "lib.es2020.string.d.ts",
+            Lib::ES2020SymbolWellKnown => "lib.es2020.symbol.wellknown.d.ts",
+            Lib::ES2020Intl => "lib.es2020.intl.d.ts",
+            Lib::ES2020Number => "lib.es2020.number.d.ts",
+            Lib::ES2021Promise => "lib.es2021.promise.d.ts",
+            Lib::ES2021String => "lib.es2021.string.d.ts",
+            Lib::ES2021WeakRef => "lib.es2021.weakref.d.ts",
+            Lib::ES2021Intl => "lib.es2021.intl.d.ts",
+            Lib::ES2022Array => "lib.es2022.array.d.ts",
+            Lib::ES2022Error => "lib.es2022.error.d.ts",
+            Lib::ES2022Intl => "lib.es2022.intl.d.ts",
+            Lib::ES2022Object => "lib.es2022.object.d.ts",
+            Lib::ES2022String => "lib.es2022.string.d.ts",
+            Lib::ES2022RegExp => "lib.es2022.regexp.d.ts",
+            Lib::ES2023Array => "lib.es2023.array.d.ts",
+            Lib::ES2023Collection => "lib.es2023.collection.d.ts",
+            Lib::ES2023Intl => "lib.es2023.intl.d.ts",
+            Lib::ES2024ArrayBuffer => "lib.es2024.arraybuffer.d.ts",
+            Lib::ES2024Collection => "lib.es2024.collection.d.ts",
+            Lib::ES2024Object => "lib.es2024.object.d.ts",
+            Lib::ES2024Promise => "lib.es2024.promise.d.ts",
+            Lib::ES2024RegExp => "lib.es2024.regexp.d.ts",
+            Lib::ES2024SharedMemory => "lib.es2024.sharedmemory.d.ts",
+            Lib::ES2024String => "lib.es2024.string.d.ts",
+            Lib::ES2025Collection => "lib.es2025.collection.d.ts",
+            Lib::ES2025Float16 => "lib.es2025.float16.d.ts",
+            Lib::ES2025Intl => "lib.es2025.intl.d.ts",
+            Lib::ES2025Iterator => "lib.es2025.iterator.d.ts",
+            Lib::ES2025Promise => "lib.es2025.promise.d.ts",
+            Lib::ES2025RegExp => "lib.es2025.regexp.d.ts",
+            Lib::ESNextAsyncIterable => "lib.es2018.asynciterable.d.ts",
+            Lib::ESNextSymbol => "lib.es2019.symbol.d.ts",
+            Lib::ESNextBigInt => "lib.es2020.bigint.d.ts",
+            Lib::ESNextWeakRef => "lib.es2021.weakref.d.ts",
+            Lib::ESNextObject => "lib.es2024.object.d.ts",
+            Lib::ESNextRegExp => "lib.es2024.regexp.d.ts",
+            Lib::ESNextString => "lib.es2024.string.d.ts",
+            Lib::ESNextFloat16 => "lib.es2025.float16.d.ts",
+            Lib::ESNextIterator => "lib.es2025.iterator.d.ts",
+            Lib::ESNextPromise => "lib.es2025.promise.d.ts",
+            Lib::ESNextArray => "lib.esnext.array.d.ts",
+            Lib::ESNextCollection => "lib.esnext.collection.d.ts",
+            Lib::ESNextDate => "lib.esnext.date.d.ts",
+            Lib::ESNextDecorators => "lib.esnext.decorators.d.ts",
+            Lib::ESNextDisposable => "lib.esnext.disposable.d.ts",
+            Lib::ESNextError => "lib.esnext.error.d.ts",
+            Lib::ESNextIntl => "lib.esnext.intl.d.ts",
+            Lib::ESNextSharedMemory => "lib.esnext.sharedmemory.d.ts",
+            Lib::ESNextTemporal => "lib.esnext.temporal.d.ts",
+            Lib::ESNextTypedArrays => "lib.esnext.typedarrays.d.ts",
+            Lib::Decorators => "lib.decorators.d.ts",
+            Lib::DecoratorsLegacy => "lib.decorators.legacy.d.ts",
+        }
+    }
 }

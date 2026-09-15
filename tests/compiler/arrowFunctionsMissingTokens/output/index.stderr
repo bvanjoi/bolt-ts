@@ -1,0 +1,269 @@
+  × Expression expected.
+   ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:8:14]
+ 8 │ )
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:8:16]
+ 8 │ {
+   · ─
+   ╰────
+
+  × A destructuring declaration must have an initializer.
+   ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:8:16]
+ 8 │ { }
+   · ───
+   ╰────
+
+  × Expected '=>'.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:10:22]
+ 10 │ {
+    · ─
+    ╰────
+
+  × Expected '=>'.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:12:17]
+ 12 │ {
+    · ─
+    ╰────
+
+  × Expected '=>'.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:14:36]
+ 14 │ {
+    · ─
+    ╰────
+
+  × Expected '=>'.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:16:42]
+ 16 │ {
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:21:23]
+ 21 │ var
+    · ───
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:21:23]
+ 21 │ var
+    · ───
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:23:29]
+ 23 │ var
+    · ───
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:23:29]
+ 23 │ var
+    · ───
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:25:24]
+ 25 │ var
+    · ───
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:25:24]
+ 25 │ var
+    · ───
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:25:35]
+ 25 │ }
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:27:43]
+ 27 │ var
+    · ───
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:27:43]
+ 27 │ var
+    · ───
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:27:54]
+ 27 │ }
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:29:49]
+ 29 │ var
+    · ───
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:29:49]
+ 29 │ var
+    · ───
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:29:60]
+ 29 │ }
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:31:23]
+ 31 │ var
+    · ───
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:31:23]
+ 31 │ var
+    · ───
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:31:34]
+ 31 │ }
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:32:5]
+ 32 │ }
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:35:23]
+ 35 │ }
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:37:29]
+ 37 │ }
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:37:29]
+ 37 │ }
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:39:24]
+ 39 │ }
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:39:24]
+ 39 │ }
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:41:43]
+ 41 │ }
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:41:43]
+ 41 │ }
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:43:49]
+ 43 │ }
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:43:49]
+ 43 │ }
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:45:23]
+ 45 │ }
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:45:23]
+ 45 │ }
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:46:5]
+ 46 │ }
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:47:1]
+ 47 │ }
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:50:14]
+ 50 │ )
+    · ─
+    ╰────
+
+  × Expected '=>'.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:52:21]
+ 52 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:52:21]
+ 52 │ ;
+    · ─
+    ╰────
+
+  × Expected '=>'.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:56:35]
+ 56 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:56:35]
+ 56 │ ;
+    · ─
+    ╰────
+
+  × Expected '=>'.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:58:41]
+ 58 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:58:41]
+ 58 │ ;
+    · ─
+    ╰────
+
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:54:14]
+ 54 │ x
+    · ─
+    ╰────

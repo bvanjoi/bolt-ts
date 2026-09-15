@@ -42,7 +42,7 @@
    ╰────
 
   × '}' expected.
-   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:18:25]
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:19:25]
    ╰────
 
 Advice: 
@@ -74,6 +74,13 @@ Advice:
    ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:22]
  5 │ z
    · ─
+   ╰────
+
+  × Export assignment cannot be used when targeting ECMAScript modules.
+  │ Consider using 'export default' or another module format instead.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:1]
+ 5 │ export =
+   · ────────
    ╰────
 
   × Type 'string' is not assignable to type 'boolean'.

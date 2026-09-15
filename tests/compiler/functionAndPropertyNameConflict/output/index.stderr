@@ -6,3 +6,9 @@
  5 │     public get aaaaa
    ·                ─────
    ╰────
+
+  × Duplicate identifier 'aaaaa'.
+   ╭─[../../tests/compiler/functionAndPropertyNameConflict/index.ts:5:16]
+ 5 │ aaaaa
+   · ─────
+   ╰────

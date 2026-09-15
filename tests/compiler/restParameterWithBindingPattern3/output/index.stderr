@@ -1,0 +1,49 @@
+  × A rest element cannot have an initializer.
+   ╭─[../../tests/compiler/restParameterWithBindingPattern3/index.ts:9:19]
+ 9 │ foo
+   · ───
+   ╰────
+
+  × A rest element cannot have a property name.
+    ╭─[../../tests/compiler/restParameterWithBindingPattern3/index.ts:18:48]
+ 18 │ rest
+    · ────
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/restParameterWithBindingPattern3/index.ts:5:16]
+ 5 │ a
+   · ─
+   ╰────
+
+  × Type 'boolean' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/restParameterWithBindingPattern3/index.ts:5:23]
+ 5 │ b
+   · ─
+   ╰────
+
+  × Tuple type '[boolean, string, number]' of length '3' has no element at
+  │ index '3'.
+    ╭─[../../tests/compiler/restParameterWithBindingPattern3/index.ts:12:30]
+ 12 │ 3
+    · ─
+    ╰────
+
+  × Tuple type '[boolean, string, number]' of length '3' has no element at
+  │ index '3'.
+    ╭─[../../tests/compiler/restParameterWithBindingPattern3/index.ts:15:23]
+ 15 │ d
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/restParameterWithBindingPattern3/index.ts:18:19]
+ 18 │ a
+    · ─
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/restParameterWithBindingPattern3/index.ts:18:29]
+ 18 │ b
+    · ─
+    ╰────

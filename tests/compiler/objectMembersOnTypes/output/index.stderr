@@ -1,0 +1,17 @@
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/objectMembersOnTypes/index.ts:8:1]
+ 8 │ x
+   · ─
+   ╰────
+
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/objectMembersOnTypes/index.ts:11:1]
+ 11 │ i
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/objectMembersOnTypes/index.ts:14:1]
+ 14 │ c
+    · ─
+    ╰────

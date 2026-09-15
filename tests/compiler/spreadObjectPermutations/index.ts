@@ -2,7 +2,9 @@
 
 //@compiler-options: target=es2015
 //@compiler-options: strict
-//@compiler-options: exactOptionalPropertyTypes=false,true
+//@[exactOptionalPropertyTypes=true]  compiler-options: exactOptionalPropertyTypes
+//@[exactOptionalPropertyTypes=false] compiler-options: exactOptionalPropertyTypes=false
+//@run-fail
 
 declare const a: { x: string | number };
 declare const b: { x?: string | number };

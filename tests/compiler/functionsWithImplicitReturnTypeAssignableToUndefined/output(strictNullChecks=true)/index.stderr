@@ -1,0 +1,27 @@
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
+    ╭─[../../tests/compiler/functionsWithImplicitReturnTypeAssignableToUndefined/index.ts:29:16]
+ 29 │ {}
+    · ──
+    ╰────
+
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
+    ╭─[../../tests/compiler/functionsWithImplicitReturnTypeAssignableToUndefined/index.ts:36:16]
+ 36 │ Record<string, any>
+    · ───────────────────
+    ╰────
+
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
+    ╭─[../../tests/compiler/functionsWithImplicitReturnTypeAssignableToUndefined/index.ts:44:16]
+ 44 │ null
+    · ────
+    ╰────
+
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
+    ╭─[../../tests/compiler/functionsWithImplicitReturnTypeAssignableToUndefined/index.ts:51:16]
+ 51 │ string | null
+    · ─────────────
+    ╰────

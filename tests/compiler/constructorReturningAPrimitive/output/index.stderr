@@ -1,0 +1,18 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/constructorReturningAPrimitive/index.ts:19:16]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Type 'T' is not assignable to type 'B<T>'.
+    ╭─[../../tests/compiler/constructorReturningAPrimitive/index.ts:19:16]
+ 19 │ x
+    · ─
+    ╰────
+
+  × 'Return type of constructor signature must be assignable to the instance
+  │ type of the class.
+    ╭─[../../tests/compiler/constructorReturningAPrimitive/index.ts:19:16]
+ 19 │ x
+    · ─
+    ╰────

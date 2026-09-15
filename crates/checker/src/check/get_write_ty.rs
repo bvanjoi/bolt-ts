@@ -1,15 +1,59 @@
 use super::ResolutionKey;
 use super::TyChecker;
-
+use super::create_ty::IntersectionFlags;
 use super::ty;
 use super::ty::CheckFlags;
 
 use bolt_ts_binder::{SymbolFlags, SymbolID};
+use bolt_ts_ty::TypeFlags;
 
 impl<'cx> TyChecker<'cx> {
+    fn get_write_ty_of_symbol_with_deferred_ty(
+        &mut self,
+        symbol: SymbolID,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let links = self.get_symbol_links(symbol);
+        if let Some(ty) = links.get_write_ty() {
+            return Some(ty);
+        }
+        let deferral_write_constituents = links.get_deferral_write_constituents()?;
+        let deferral_parent = links.get_deferral_parent().unwrap();
+        debug_assert!(links.get_deferral_constituents().is_some());
+        let ty = if deferral_parent.flags.intersects(TypeFlags::UNION) {
+            self.get_union_ty::<false>(
+                deferral_write_constituents,
+                ty::UnionReduction::Lit,
+                None,
+                None,
+                None,
+                None,
+            )
+        } else {
+            self.get_intersection_ty(
+                deferral_write_constituents,
+                IntersectionFlags::None,
+                None,
+                None,
+            )
+        };
+        self.get_mut_symbol_links(symbol).set_write_ty(ty);
+        Some(ty)
+    }
+
     pub(super) fn get_write_type_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let check_flags = self.get_check_flags(symbol)
+            && check_flags.contains(CheckFlags::SYNTHETIC_PROPERTY)
+        {
+            return if check_flags.contains(CheckFlags::DEFERRED_TYPE) {
+                self.get_write_ty_of_symbol_with_deferred_ty(symbol)
+                    .unwrap_or_else(|| self.get_type_of_symbol_with_deferred_type(symbol))
+            } else {
+                let links = self.get_transient_symbol_links(symbol);
+                links.get_write_ty().or(links.get_ty()).unwrap()
+            };
+        }
+
         let flags = self.symbol(symbol).flags;
-        // TODO: synthetic property
         if flags.contains(SymbolFlags::PROPERTY) {
             let ty = self.get_type_of_symbol(symbol);
             self.remove_missing_ty(ty, flags.contains(SymbolFlags::OPTIONAL))
@@ -47,7 +91,6 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let setter = self
-            .binder
             .symbol(symbol)
             .get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
         let write_ty = setter

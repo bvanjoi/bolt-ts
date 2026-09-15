@@ -10,7 +10,7 @@ declare const test1:
 
 test1(42, true);
 test1(42, [true]); // error
-//~^ ERROR: Argument of type '(boolean)[]' is not assignable to parameter of type 'boolean'.
+//~^ ERROR: Argument of type 'boolean[]' is not assignable to parameter of type 'boolean'.
 
 declare function test2<
   A extends readonly unknown[],

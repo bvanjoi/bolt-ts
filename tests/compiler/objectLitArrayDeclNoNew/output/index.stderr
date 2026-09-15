@@ -1,0 +1,11 @@
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/objectLitArrayDeclNoNew/index.ts:28:20]
+ 28 │ ]
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/objectLitArrayDeclNoNew/index.ts:34:1]
+ 34 │ }
+    · ─
+    ╰────

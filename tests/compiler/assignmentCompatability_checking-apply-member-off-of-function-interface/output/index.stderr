@@ -1,0 +1,49 @@
+  × Type 'string' is not assignable to type 'Applicable'.
+    ╭─[../../tests/compiler/assignmentCompatability_checking-apply-member-off-of-function-interface/index.ts:13:1]
+ 13 │ x
+    · ─
+    ╰────
+
+  × Property 'apply' is missing.
+    ╭─[../../tests/compiler/assignmentCompatability_checking-apply-member-off-of-function-interface/index.ts:15:1]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'Applicable'.
+    ╭─[../../tests/compiler/assignmentCompatability_checking-apply-member-off-of-function-interface/index.ts:17:1]
+ 17 │ x
+    · ─
+    ╰────
+
+  × Property 'apply' is missing.
+    ╭─[../../tests/compiler/assignmentCompatability_checking-apply-member-off-of-function-interface/index.ts:19:1]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type
+  │ 'Applicable'.
+    ╭─[../../tests/compiler/assignmentCompatability_checking-apply-member-off-of-function-interface/index.ts:29:4]
+ 29 │ ''
+    · ──
+    ╰────
+
+  × Property 'apply' is missing.
+    ╭─[../../tests/compiler/assignmentCompatability_checking-apply-member-off-of-function-interface/index.ts:31:4]
+ 31 │ ['']
+    · ────
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type
+  │ 'Applicable'.
+    ╭─[../../tests/compiler/assignmentCompatability_checking-apply-member-off-of-function-interface/index.ts:33:4]
+ 33 │ 4
+    · ─
+    ╰────
+
+  × Property 'apply' is missing.
+    ╭─[../../tests/compiler/assignmentCompatability_checking-apply-member-off-of-function-interface/index.ts:35:4]
+ 35 │ {}
+    · ──
+    ╰────

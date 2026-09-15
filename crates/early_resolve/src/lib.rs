@@ -963,6 +963,9 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
         match member.kind {
             Shorthand(n) => {
                 self.resolve_value_by_ident(n.name);
+                if let Some(init) = n.object_assignment_initializer {
+                    self.resolve_expr(init);
+                }
             }
             PropAssignment(n) => {
                 self.resolve_prop_name(n.name);

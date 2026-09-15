@@ -1,0 +1,5 @@
+  × Type '() => void' is not assignable to type 'ArrayLike<any>'.
+   ╭─[../../tests/compiler/functionAssignabilityWithArrayLike01/index.ts:8:7]
+ 8 │ array
+   · ─────
+   ╰────

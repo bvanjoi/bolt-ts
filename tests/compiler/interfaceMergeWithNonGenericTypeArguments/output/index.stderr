@@ -1,0 +1,11 @@
+  × Type 'SomeBaseClass' is not generic.
+   ╭─[../../tests/compiler/interfaceMergeWithNonGenericTypeArguments/index.ts:8:34]
+ 8 │ SomeBaseClass<any>
+   · ──────────────────
+   ╰────
+
+  × Call target does not contain any signatures.
+    ╭─[../../tests/compiler/interfaceMergeWithNonGenericTypeArguments/index.ts:11:3]
+ 11 │ super
+    · ─────
+    ╰────

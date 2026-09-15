@@ -33,6 +33,26 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         self.checker.p.root(module_id)
     }
 
+    pub fn leading_comment(
+        &self,
+        module_id: bolt_ts_span::ModuleID,
+        start: usize,
+    ) -> Option<&[bolt_ts_scanner::CommentId]> {
+        self.checker
+            .p
+            .get(module_id)
+            .leading_trailing_comments
+            .get_leading_comments(start as u32)
+    }
+
+    pub fn get_comment(
+        &self,
+        module_id: bolt_ts_span::ModuleID,
+        comment_id: bolt_ts_scanner::CommentId,
+    ) -> Option<&bolt_ts_scanner::Comment> {
+        self.checker.p.get(module_id).comments.get(comment_id)
+    }
+
     pub fn module_content(&self, module: bolt_ts_span::ModuleID) -> &str {
         self.checker.module_arena.get_content(module)
     }

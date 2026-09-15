@@ -59,17 +59,59 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
+    pub fn get_non_assigned_name_of_decl(
+        &self,
+        id: ast::NodeID,
+    ) -> Option<ast::DeclarationName<'cx>> {
+        let n = self.node(id);
+        use ast::Node::*;
+        match n {
+            Ident(n) => Some(ast::DeclarationName::Ident(n)),
+            AssignExpr(expr) => {
+                let kind = self.get_assignment_declaration_kind_for_assign_expr(expr);
+                match kind {
+                    AssignmentDeclarationKind::ExportsProperty
+                    | AssignmentDeclarationKind::ThisProperty
+                    | AssignmentDeclarationKind::Property
+                    | AssignmentDeclarationKind::PrototypeProperty => Some(
+                        expr.left
+                            .get_element_or_property_access_argument_expression_or_name(),
+                    ),
+                    AssignmentDeclarationKind::ObjectDefinePropertyValue => {
+                        // TODO:
+                        None
+                    }
+                    AssignmentDeclarationKind::ObjectDefinePropertyExports => {
+                        // TODO:
+                        None
+                    }
+                    AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
+                        // TODO:
+                        None
+                    }
+                    _ => None,
+                }
+            }
+            CallExpr(_) | BinExpr(_) => {
+                // TODO:
+                None
+            }
+            ExportAssign(_) => {
+                // TODO:
+                None
+            }
+            _ => n.name(),
+        }
+    }
+
     pub fn get_name_of_declaration(&self, id: ast::NodeID) -> Option<ast::DeclarationName<'cx>> {
-        self.parse_result
-            .nodes
-            .get_non_assigned_name_of_decl(id)
-            .or_else(|| {
-                use ast::Node::*;
-                let n = self.node(id);
-                matches!(n, FnExpr(_) | ArrowFnExpr(_) | ClassExpr(_))
-                    .then(|| self.get_assigned_name(id))
-                    .flatten()
-            })
+        self.get_non_assigned_name_of_decl(id).or_else(|| {
+            use ast::Node::*;
+            let n = self.node(id);
+            matches!(n, FnExpr(_) | ArrowFnExpr(_) | ClassExpr(_))
+                .then(|| self.get_assigned_name(id))
+                .flatten()
+        })
     }
 
     pub fn has_dynamic_name(&self, id: ast::NodeID) -> bool {
@@ -662,7 +704,20 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 {
                     return Some(n.id);
                 }
-                // TODO: for_in and for_of
+                ForInStmt(n) => {
+                    return if let ast::ForInitKind::Expr(expr) = n.init {
+                        (expr.id() == id).then_some(n.id)
+                    } else {
+                        None
+                    };
+                }
+                ForOfStmt(n) => {
+                    return if let ast::ForInitKind::Expr(expr) = n.init {
+                        (expr.id() == id).then_some(n.id)
+                    } else {
+                        None
+                    };
+                }
                 ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = p,
                 SpreadAssignment(_) => {
                     id = self.parent(p).unwrap();
@@ -955,25 +1010,29 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         decl_container: ast::NodeID,
     ) -> bool {
         let parent = self.parent(decl.id).unwrap();
-        match self.node(parent) {
-            ast::Node::VarStmt(_)
+        let parent_node = self.node(parent);
+        match parent_node {
+            ast::Node::VarStmt(_) | ast::Node::ForStmt(_)
                 if self.is_same_scope_descendent_of(usage, Some(decl.id), decl_container) =>
             {
                 return true;
             }
-            // TODO: handle other case
+            ast::Node::ForOfStmt(n) => {
+                if self.is_same_scope_descendent_of(usage, Some(decl.id), decl_container)
+                    || self.is_same_scope_descendent_of(usage, Some(n.expr.id()), decl_container)
+                {
+                    return true;
+                }
+            }
+            ast::Node::ForInStmt(n)
+                if self.is_same_scope_descendent_of(usage, Some(n.expr.id()), decl_container) =>
+            {
+                return true;
+            }
             _ => (),
         }
 
-        let grand = self.parent(parent).unwrap();
-        let g = self.node(grand);
-        if let Some(g) = g.as_for_in_stmt() {
-            self.is_same_scope_descendent_of(usage, Some(g.expr.id()), decl_container)
-        } else if let Some(g) = g.as_for_of_stmt() {
-            self.is_same_scope_descendent_of(usage, Some(g.expr.id()), decl_container)
-        } else {
-            false
-        }
+        false
     }
 
     fn is_same_scope_descendent_of(
@@ -1365,6 +1424,19 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         &self,
         expr: &'cx ast::AssignExpr<'cx>,
     ) -> AssignmentDeclarationKind {
+        let s = self.get_assignment_declaration_kind_for_assign_expr_worker(expr);
+        match s {
+            AssignmentDeclarationKind::Property => s,
+            _ if self.is_in_js_file(expr.id) => s,
+            _ => AssignmentDeclarationKind::None,
+        }
+    }
+
+    fn get_assignment_declaration_kind_for_assign_expr_worker(
+        &self,
+        expr: &'cx ast::AssignExpr<'cx>,
+    ) -> AssignmentDeclarationKind {
+        // TODO: access_node is call expression
         if expr.op != ast::AssignOp::Eq
             || !expr.left.kind.is_access_expr()
             || self
@@ -1434,15 +1506,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_class_instance_property(&self, node: ast::NodeID) -> bool {
-        // TODO: js
+        if self.is_in_js_file(node) {
+            todo!()
+        }
         let Some(parent) = self.parent(node) else {
             return false;
         };
-        let parent_node = self.node(parent);
-        let node = self.node(node);
-        parent_node.is_class_like()
-            && node.is_class_prop_elem()
-            && !node.has_syntactic_modifier(ast::ModifierFlags::ACCESSOR)
+        self.node(parent).is_class_like() && {
+            let node = self.node(node);
+            node.is_class_prop_elem() && !node.has_syntactic_modifier(ast::ModifierFlags::ACCESSOR)
+        }
     }
 
     pub fn is_in_right_side_of_internal_import_equals_declaration(
@@ -1660,5 +1733,29 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 None
             }
         }
+    }
+
+    pub fn get_assigned_expando_initializer(
+        &self,
+        node: ast::NodeID,
+        parent: Option<ast::NodeID>,
+    ) -> Option<&'cx ast::ExprKind<'cx>> {
+        if let Some(parent) = parent
+            && let ast::Node::AssignExpr(assign) = self.node(parent)
+            && assign.op == ast::AssignOp::Eq
+        {
+            let is_prototype_assignment = assign.left.is_prototype_access();
+            // TODO: get_defaulted_expando_initializer
+            return assign.right.kind.get_expando_init(is_prototype_assignment);
+        }
+
+        if let Some(n) = self.node(node).as_call_expr()
+            && n.is_bindable_object_define_property_call_expr()
+        {
+            // TODO: hasExpandoValueProperty
+            return None;
+        }
+
+        None
     }
 }

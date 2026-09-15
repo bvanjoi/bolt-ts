@@ -9,3 +9,6 @@ declare function call<Fn extends (...args: any[]) => any>(
 
 call(function* (a: 'a') { }); // error, 2nd argument required
 //~^ ERROR: Expected 2 arguments, but got 1.
+
+call(function* (a: 'a') { }, 'a', 'b'); // error, 2nd argument required
+//~^ ERROR: Expected 2 arguments, but got 3.

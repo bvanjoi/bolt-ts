@@ -1,0 +1,6 @@
+  × Property 'previousDiffAction' has no initializer and is not definitely
+  │ assigned in the constructor.
+   ╭─[../../tests/compiler/externalModuleQualification/index.ts:8:13]
+ 8 │ previousDiffAction
+   · ──────────────────
+   ╰────

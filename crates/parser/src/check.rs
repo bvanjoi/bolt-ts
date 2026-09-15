@@ -43,11 +43,13 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         });
     }
 
-    pub(super) fn check_module_element_context(&mut self, push_error: impl FnOnce(&mut Self)) {
-        if self
-            .parse_context
+    fn is_in_module_or_namespace(&self) -> bool {
+        self.parse_context
             .intersects(ParseContext::TOP_LEVEL.union(ParseContext::MODULE_BLOCK))
-        {
+    }
+
+    pub(super) fn check_module_element_context(&mut self, push_error: impl FnOnce(&mut Self)) {
+        if self.is_in_module_or_namespace() {
             return;
         }
 

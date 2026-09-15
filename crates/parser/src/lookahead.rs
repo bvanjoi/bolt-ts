@@ -1,4 +1,4 @@
-use super::state::is_jsx_like_variant;
+use super::const_variant::is_jsx_like_variant;
 use super::{PResult, ParserState, Tristate, utils::ParseSuccess};
 
 use bolt_ts_ast::{BinPrec, TokenKind, keyword};

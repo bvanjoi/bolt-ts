@@ -223,10 +223,8 @@ impl<'cx> TyChecker<'cx> {
                 self.check_object_prop_assignment(n, None)
             }
             // TODO: jsx
-        } else if node.is_object_shorthand_member() {
-            todo!()
         } else if let Some(n) = node.as_object_method_member() {
-            if let Some(ty) = node.ty_anno() {
+            if let Some(ty) = n.ty {
                 self.get_ty_from_type_node(ty)
             } else {
                 self.check_object_method_member(n, CheckMode::empty())
@@ -282,6 +280,13 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
         };
+        // TODO: expando
+        // if let Some(value_declaration) = self.binder.symbol(symbol).value_decl {
+        //     self.getsymbolofex
+        // } else {
+        //     None;
+        // };
+
         let mut ty =
             self.create_anonymous_ty(Some(symbol), ObjectFlags::empty(), None, None, None, None);
 
@@ -314,32 +319,79 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
             return self.error_ty;
         }
-        let s = self.binder.symbol(symbol);
-        let getter = s.get_declaration_of_kind(|id| self.p.node(id).is_getter_decl());
-        let setter = s.get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
-        let ty = if let Some(getter_ty) = getter
-            .and_then(|getter| {
-                let getter = self.p.node(getter).expect_getter_decl();
-                getter.ty
-            })
-            .map(|getter_ty| self.get_ty_from_type_node(getter_ty))
-        {
-            Some(getter_ty)
-        } else {
-            setter
-                .and_then(|setter| {
-                    let setter = self.p.node(setter).expect_setter_decl();
-                    setter.params[0].ty
-                })
-                .map(|setter_ty| self.get_ty_from_type_node(setter_ty))
-        };
+        let s = self.symbol(symbol);
+        let mut getter = None;
+        let mut setter = None;
+        let mut accessor = None;
+        if let Some(decls) = &s.decls {
+            for decl in decls {
+                let n = self.p.node(*decl);
+                match n {
+                    ast::Node::GetterDecl(_) => {
+                        getter = Some(*decl);
+                    }
+                    ast::Node::SetterDecl(_) => {
+                        setter = Some(*decl);
+                    }
+                    ast::Node::ClassPropElem(n)
+                        if n.modifiers
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ACCESSOR)) =>
+                    {
+                        accessor = Some(*decl);
+                    }
+                    _ => {}
+                }
+            }
+        }
 
-        let mut ty = if let Some(ty) = ty {
+        let mut ty = if let Some(getter) = getter
+            && let Some(ty) = self.get_annotated_accessor_ty(getter)
+        {
             ty
+        } else if let Some(setter) = setter
+            && let Some(ty) = self.get_annotated_accessor_ty(setter)
+        {
+            ty
+            // TODO: accessor
+        } else if let Some(getter) = getter
+            && self.p.node(getter).expect_getter_decl().body.is_some()
+        {
+            self.get_return_type_from_body(getter, None)
         } else {
-            // TODO: throw error
+            if let Some(setter) = setter
+                && !self.is_private_within_ambient(setter)
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let name = self.p.node(setter).name().unwrap();
+                let error = errors::PropertyXImplicitlyHasTypeAnyBecauseItsSetAccessorLacksAParameterTypeAnnotation {
+                    span: name.span(),
+                    property: name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            } else if let Some(getter) = getter
+                && !self.is_private_within_ambient(getter)
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let name = self.p.node(getter).name().unwrap();
+                let error = errors::PropertyXImplicitlyHasTypeAnyBecauseItsGetAccessorLacksAReturnTypeAnnotation {
+                    span: name.span(),
+                    property: name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            } else if let Some(accessor) = accessor
+                && !self.is_private_within_ambient(accessor)
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let name = self.p.node(accessor).name().unwrap();
+                let error = errors::PropertyXImplicitlyHasTypeAnyBecauseItsGetAccessorLacksAReturnTypeAnnotation {
+                    span: name.span(),
+                    property: name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
             self.any_ty
         };
+
         if self.pop_ty_resolution().has_cycle() {
             if let Some(getter) = getter
                 && self.p.get_annotated_accessor_ty_node(getter).is_some()
@@ -381,7 +433,10 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_type_of_symbol_with_deferred_type(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+    pub(super) fn get_type_of_symbol_with_deferred_type(
+        &mut self,
+        symbol: SymbolID,
+    ) -> &'cx Ty<'cx> {
         let links = self.get_symbol_links(symbol);
         if let Some(ty) = links.get_ty() {
             return ty;
@@ -445,7 +500,7 @@ impl<'cx> TyChecker<'cx> {
             self.append_ty_mapping(mapped_ty.mapper, source, key_ty)
         };
         let prop_ty = self.instantiate_ty_worker(template_ty, mapper);
-        let ty = if self.config.compiler_options().strict_null_checks()
+        let mut prop_ty = if self.config.compiler_options().strict_null_checks()
             && self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))
         {
@@ -456,11 +511,16 @@ impl<'cx> TyChecker<'cx> {
             prop_ty
         };
         if self.pop_ty_resolution().has_cycle() {
-            // TODO: error report
-            return self.error_ty;
+            let error = errors::TypeOfPropertyXCircularlyReferencesItselfInMappedTypeY {
+                span: self.p.node(self.current_node.unwrap()).span(),
+                property: self.symbol(symbol).name.to_string(&self.atoms),
+                ty: self.print_ty(ty, None).to_string(),
+            };
+            self.push_error(Box::new(error));
+            prop_ty = self.error_ty;
         }
-        self.get_mut_symbol_links(symbol).set_ty(ty);
-        ty
+        self.get_mut_symbol_links(symbol).set_ty(prop_ty);
+        prop_ty
     }
 
     fn get_type_of_reverse_mapped_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -693,7 +753,7 @@ impl<'cx> TyChecker<'cx> {
             return self.get_implied_constraint(ty, check_ty, extends_ty);
         }
         let ty_of_check_ty = self.get_ty_from_type_node(check_ty);
-        if self.get_actual_ty_variable(ty_of_check_ty) == ty {
+        if self.get_actual_ty_variable(ty_of_check_ty) == self.get_actual_ty_variable(ty) {
             Some(self.get_ty_from_type_node(extends_ty))
         } else {
             None
@@ -738,7 +798,7 @@ impl<'cx> TyChecker<'cx> {
                 if self.get_ty_param_from_mapped_ty(mapped_ty) == self.get_actual_ty_variable(ty)
                     && let Some(type_parameter) = self.get_homomorphic_ty_var(mapped_ty)
                     && let Some(constraint) = self.get_constraint_of_ty_param(type_parameter)
-                    && self.every_type(constraint, |this, c| this.is_array_or_tuple(c))
+                    && self.every_type(constraint, |this, c| this.is_array_or_tuple_ty(c))
                 {
                     let tys = &[self.number_ty, self.numeric_string_ty()];
                     let t = self.get_union_ty::<false>(
@@ -1416,7 +1476,7 @@ impl<'cx> TyChecker<'cx> {
         if access_flags.contains(AccessFlags::ALLOWING_MISSING) && object_ty.is_object_literal() {
             return Some(self.undefined_ty);
         }
-        // TODO: js
+        // TODO: is js literal type
 
         if let Some(access_node) = access_node {
             let index_node = self.get_index_node_for_access_expression(access_node);
@@ -1449,6 +1509,10 @@ impl<'cx> TyChecker<'cx> {
                 })
             };
             self.push_error(error);
+        }
+
+        if self.is_type_any(index_ty) {
+            return Some(index_ty);
         }
 
         None
@@ -1968,12 +2032,16 @@ impl<'cx> TyChecker<'cx> {
             let check_ty_deferred = self.is_deferred_ty(check_ty, check_tuples);
             let mut combined_mapper = None;
             if let Some(infer_ty_params) = root.infer_ty_params {
-                let context =
-                    self.create_inference_context(infer_ty_params, None, InferenceFlags::empty());
+                let context = self.create_inference_context(
+                    infer_ty_params,
+                    None,
+                    InferenceFlags::empty(),
+                    None,
+                );
                 if let Some(mapper) = mapper {
                     let non_fixing_mapper = self.inference(context).non_fixing_mapper;
                     let m = self.combine_ty_mappers_worker(non_fixing_mapper, mapper);
-                    self.inferences[context.as_usize()].non_fixing_mapper = m;
+                    self.inferences.set_non_fixing_mapper(context, m);
                 }
                 if !check_ty_deferred {
                     const PRIORITY: InferencePriority =
@@ -2463,7 +2531,7 @@ impl<'cx> TyChecker<'cx> {
                     error_reported |= self.report_widening_errors_in_ty(ty);
                 }
             }
-        } else if self.is_array_or_tuple(ty) {
+        } else if self.is_array_or_tuple_ty(ty) {
             for t in self.get_ty_arguments(ty) {
                 if error_reported {
                     break;
@@ -2616,7 +2684,43 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.push_error(Box::new(error));
                 } else {
-                    // todo!()
+                    // TODO:
+                }
+            }
+            ast::Node::ArrayBinding(n) => {
+                if !no_implicit_any {
+                    return;
+                }
+                let span = n.name.span;
+                let error = errors::BindingElementXImplicitlyHasAnYType {
+                    span,
+                    element: pprint_binding(n.name, &self.atoms),
+                    ty: self.print_ty(ty, None).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
+            ast::Node::ObjectBindingElem(n) => {
+                if !no_implicit_any {
+                    return;
+                }
+                let ty = self.print_ty(ty, None).to_string();
+                match n.name {
+                    ast::ObjectBindingName::Shorthand(ident) => {
+                        let error = errors::BindingElementXImplicitlyHasAnYType {
+                            span: ident.span,
+                            element: self.atoms.get(ident.name).to_string(),
+                            ty,
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                    ast::ObjectBindingName::Prop { name, .. } => {
+                        let error = errors::BindingElementXImplicitlyHasAnYType {
+                            span: name.span,
+                            element: pprint_binding(name, &self.atoms),
+                            ty,
+                        };
+                        self.push_error(Box::new(error));
+                    }
                 }
             }
             _ => {
@@ -2629,7 +2733,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.push_error(Box::new(error));
                 } else {
-                    // todo!()
+                    // TODO:
                 }
             }
         }

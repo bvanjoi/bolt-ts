@@ -35,7 +35,7 @@
    ╰────
 
   × Expected ')'.
-   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:21:25]
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:29:25]
    ╰────
 
   × '' is an unused renaming of 'return'. Did you intend to use it as a type
@@ -64,6 +64,54 @@
    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:25]
  9 │ getThing
    · ────────
+   ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:44]
+ 9 │ 'thing'
+   · ───────
+   ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:51]
+ 9 │ ;
+   · ─
+   ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:44]
+ 9 │ 'thing'
+   · ───────
+   ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:51]
+ 9 │ ;
+   · ─
+   ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:44]
+ 9 │ 'thing'
+   · ───────
+   ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:51]
+ 9 │ ;
+   · ─
+   ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:44]
+ 9 │ 'thing'
+   · ───────
+   ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:51]
+ 9 │ ;
+   · ─
    ╰────
 
   × 'getThing', which lacks return-type annotation, implicitly has an 'any'

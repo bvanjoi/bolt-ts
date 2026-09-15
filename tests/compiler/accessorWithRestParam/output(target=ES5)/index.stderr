@@ -1,0 +1,11 @@
+  × A 'set' accessor cannot have rest parameter.
+   ╭─[../../tests/compiler/accessorWithRestParam/index.ts:8:11]
+ 8 │ ...
+   · ───
+   ╰────
+
+  × A 'set' accessor cannot have rest parameter.
+    ╭─[../../tests/compiler/accessorWithRestParam/index.ts:10:18]
+ 10 │ ...
+    · ───
+    ╰────

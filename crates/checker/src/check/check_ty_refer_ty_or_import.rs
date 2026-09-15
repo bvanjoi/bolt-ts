@@ -474,7 +474,7 @@ impl<'cx> TyChecker<'cx> {
                         };
                         if let Some(constraint) = constraint
                             && checker.every_type(constraint, |this, c| {
-                                this.is_array_or_tuple(c) && !c.kind.is_generic_tuple_type()
+                                this.is_array_or_tuple_ty(c) && !c.kind.is_generic_tuple_type()
                             })
                         {
                             constraint

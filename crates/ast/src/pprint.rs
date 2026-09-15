@@ -26,6 +26,7 @@ pub fn print_declaration_name(node: &super::DeclarationName, atoms: &AtomIntern)
         Computed(_) => "todo: computed name".to_string(),
         PrivateIdent(_n) => todo!(),
         BigIntLit(_n) => todo!(),
+        ElementAccess(_) => todo!(),
     }
 }
 

@@ -11,6 +11,8 @@ use super::RelationComparisonResult;
 use super::create_ty::IntersectionFlags;
 use super::errors;
 use super::get_variances::VarianceFlags;
+use super::infer::InferenceCompare;
+use super::infer::{InferenceFlags, InferencePriority};
 use super::relation::RelationKey;
 use super::relation::{RelationKind, SigCheckMode};
 use super::ty::{self, Ty, TyKind, TypeFlags};
@@ -523,6 +525,26 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         true
     }
 
+    fn can_elaborate_array_like_errors(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+    ) -> bool {
+        if let Some(s) = source.as_tuple() {
+            if s.readonly && self.c.is_mutable_array_like_ty(target) {
+                true
+            } else {
+                !self.c.is_array_or_tuple_ty(target)
+            }
+        } else if source.is_readonly_array(self.c) && self.c.is_mutable_array_or_tuple_ty(target) {
+            true
+        } else if target.is_tuple() {
+            !source.kind.is_array(self.c)
+        } else {
+            false
+        }
+    }
+
     fn properties_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -539,7 +561,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let mut result = Ternary::TRUE;
 
         if let Some(t_tuple) = target.as_tuple() {
-            if self.c.is_array_or_tuple(source) {
+            if self.c.is_array_or_tuple_ty(source) {
+                if !t_tuple.readonly
+                    && (source.is_readonly_array(self.c)
+                        || source.as_tuple().is_some_and(|t| t.readonly))
+                {
+                    return Ternary::FALSE;
+                }
                 let source_arity = TyChecker::get_ty_reference_arity(source);
                 let target_arity = TyChecker::get_ty_reference_arity(target);
                 let source_rest_flags = if let Some(s_tuple) = source.as_tuple() {
@@ -651,9 +679,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         {
             debug_assert!(!unmatched.is_empty());
             if report_error && self.should_report_unmatched_prop_error(source, target) {
-                if source.symbol().is_none() {
-                    // TODO: unreachable!()
-                    return Ternary::TRUE;
+                if self.can_elaborate_array_like_errors(source, target) {
+                    return Ternary::FALSE;
                 }
                 // report unmatched properties
                 unmatched.sort_by(|a, b| {
@@ -1199,7 +1226,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         );
                     }
                 } else if self.c.is_non_generic_object_ty(target)
-                    && !self.c.is_array_or_tuple(target)
+                    && !self.c.is_array_or_tuple_ty(target)
                     && let Some(s) = source.kind.as_intersection()
                     && self
                         .c
@@ -1661,6 +1688,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         None,
                     );
                     if let Some(constraint) = constraint {
+                        // TODO: reset_error_info
                         result = self.is_related_to(
                             source,
                             constraint,
@@ -1955,9 +1983,26 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if self.c.is_deeply_nested_type(source, &self.source_stack, 10) {
                 return Ternary::MAYBE;
             } else if let Some(target_cond) = target.kind.as_cond_ty() {
-                let source_extends = source_cond.extends_ty;
-                let mapper = None;
-                // TODO: source_params
+                let mut source_extends = source_cond.extends_ty;
+                let mut mapper: Option<&'cx dyn ty::TyMap<'cx>> = None;
+                if let Some(source_params) = source_cond.root.infer_ty_params {
+                    let ctx = self.c.create_inference_context(
+                        source_params,
+                        None,
+                        InferenceFlags::empty(),
+                        Some(InferenceCompare::IsRelatedTo(self.relation)),
+                    );
+                    let inferences = self.c.inference(ctx).inferences;
+                    self.c.infer_tys::<false>(
+                        inferences,
+                        target_cond.extends_ty,
+                        source_extends,
+                        InferencePriority::NO_CONSTRAINTS.union(InferencePriority::ALWAYS_STRICT),
+                    );
+                    let ctx_mapper = self.c.inference(ctx).mapper;
+                    source_extends = self.c.instantiate_ty_worker(source_extends, ctx_mapper);
+                    mapper = Some(ctx_mapper);
+                }
 
                 if self
                     .c
@@ -2108,7 +2153,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
             if if target.is_readonly_array(self.c) {
                 self.c
-                    .every_type(source, |this, t| this.is_array_or_tuple(t))
+                    .every_type(source, |this, t| this.is_array_or_tuple_ty(t))
             } else if target.kind.is_array(self.c) {
                 self.c
                     .every_type(source, |_, t| t.as_tuple().is_some_and(|t| !t.readonly))
@@ -2963,6 +3008,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     intersection_state,
                 )
             },
+            InferenceCompare::IsRelatedTo(self.relation),
         )
     }
 
@@ -2973,6 +3019,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         check_mode: SigCheckMode,
         report_error: bool,
         compare: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>, bool) -> Ternary + Copy,
+        inference_compare: InferenceCompare,
     ) -> Ternary {
         if source == target {
             return Ternary::TRUE;
@@ -3039,7 +3086,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             // `<G>() => G` and `<T>() => T`
             // we should canonical the type parameters `G` and `T` into the same type parameter
             target = self.c.get_canonical_sig(target);
-            source = self.c.instantiate_sig_in_context_of(source, target, None);
+            source =
+                self.c
+                    .instantiate_sig_in_context_of(source, target, None, Some(inference_compare));
         }
         let source_count = source.get_param_count(self.c);
         let source_rest_ty = source.get_non_array_rest_ty(self.c);
@@ -3095,14 +3144,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 this.c.is_generic_ty(ty)
             };
         for i in 0..param_count {
-            let source_ty;
-            let target_ty;
-            if i == rest_index {
-                source_ty = Some(self.c.get_rest_or_any_ty_at_pos(source, i));
-                target_ty = Some(self.c.get_rest_or_any_ty_at_pos(target, i));
+            let (source_ty, target_ty) = if i == rest_index {
+                let source_ty = Some(self.c.get_rest_or_any_ty_at_pos(source, i));
+                let target_ty = Some(self.c.get_rest_or_any_ty_at_pos(target, i));
+                (source_ty, target_ty)
             } else {
-                source_ty = self.c.try_get_ty_at_pos(source, i);
-                target_ty = self.c.try_get_ty_at_pos(target, i);
+                let source_ty = self.c.try_get_ty_at_pos(source, i);
+                let target_ty = self.c.try_get_ty_at_pos(target, i);
+                (source_ty, target_ty)
             };
             if let Some(source_ty) = source_ty
                 && let Some(target_ty) = target_ty
@@ -3146,6 +3195,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             },
                         report_error,
                         compare,
+                        inference_compare,
                     )
                 } else if !check_mode.intersects(SigCheckMode::CALLBACK) && !strict_variance {
                     let res = compare(self, source_ty, target_ty, false);

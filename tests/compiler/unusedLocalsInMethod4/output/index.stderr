@@ -1,0 +1,89 @@
+  × Declarations must be initialized.
+     ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:118:11]
+ 118 │ x
+     · ─
+     ╰────
+
+  × Variable 'x1' is used before being assigned.
+    ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:20:21]
+ 20 │ x1
+    · ──
+    ╰────
+
+  × Variable 'x2' is used before being assigned.
+    ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:22:21]
+ 22 │ x2
+    · ──
+    ╰────
+
+  × Variable 'x8' is used before being assigned.
+    ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:29:21]
+ 29 │ x8
+    · ──
+    ╰────
+
+  × Variable 'x9' is used before being assigned.
+    ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:31:21]
+ 31 │ x9
+    · ──
+    ╰────
+
+  × Variable 'x1' is used before being assigned.
+    ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:53:17]
+ 53 │ x1
+    · ──
+    ╰────
+
+  × Variable 'x2' is used before being assigned.
+    ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:55:17]
+ 55 │ x2
+    · ──
+    ╰────
+
+  × Variable 'x8' is used before being assigned.
+    ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:62:17]
+ 62 │ x8
+    · ──
+    ╰────
+
+  × Variable 'x9' is used before being assigned.
+    ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:64:17]
+ 64 │ x9
+    · ──
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:71:9]
+ 71 │ x
+    · ─
+    ╰────
+
+  × Variable 'i' is used before being assigned.
+     ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:129:9]
+ 129 │ i
+     · ─
+     ╰────
+
+  × Variable 'i' is used before being assigned.
+     ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:131:21]
+ 131 │ i
+     · ─
+     ╰────
+
+  × Variable 'enabledSubstitutions' is used before being assigned.
+     ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:157:9]
+ 157 │ enabledSubstitutions
+     · ────────────────────
+     ╰────
+
+  × Variable 'enabledSubstitutions' is used before being assigned.
+     ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:160:9]
+ 160 │ enabledSubstitutions
+     · ────────────────────
+     ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/unusedLocalsInMethod4/index.ts:81:20]
+ 81 │ x
+    · ─
+    ╰────

@@ -1,0 +1,42 @@
+  × Duplicate identifier 'foo'.
+    ╭─[../../tests/compiler/errorElaboration/index.ts:14:18]
+ 14 │ foo
+    · ─┬─
+    ·  ╰── Previous definition here
+    ╰────
+    ╭─[../../tests/compiler/errorElaboration/index.ts:28:7]
+ 28 │ foo
+    · ───
+    ╰────
+
+  × Argument of type '() => Container<Ref<string>>' is not assignable to
+  │ parameter of type '() => Container<Ref<number>>'.
+    ╭─[../../tests/compiler/errorElaboration/index.ts:16:5]
+ 16 │ a
+    · ─
+    ╰────
+
+  × Type '"bar"' is not assignable to type '"foo"'.
+    ╭─[../../tests/compiler/errorElaboration/index.ts:22:11]
+ 22 │ foo
+    · ───
+    ╰────
+
+  × Property 'bar' does not exist on type '(x: () => Container<Ref<number>>)
+  │ => void'.
+    ╭─[../../tests/compiler/errorElaboration/index.ts:30:19]
+ 30 │ bar
+    · ───
+    ╰────
+
+  × Type 'error' cannot be used as an index type.
+    ╭─[../../tests/compiler/errorElaboration/index.ts:30:14]
+ 30 │ [foo.bar]
+    · ─────────
+    ╰────
+
+  × Type 'error' cannot be used as an index type.
+    ╭─[../../tests/compiler/errorElaboration/index.ts:30:14]
+ 30 │ [foo.bar]
+    · ─────────
+    ╰────

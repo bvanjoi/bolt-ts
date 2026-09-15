@@ -80,6 +80,18 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
 
+        if let ast::ExprKind::Ident(n) = node.expr.kind {
+            let symbol = self.resolve_ident::<true, true>(n, SymbolFlags::all());
+            let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+            if symbol != Symbol::ERR
+                && self
+                    .get_symbol_flags::<false>(symbol)
+                    .intersects(SymbolFlags::VALUE)
+            {
+                self.check_expression_cached(node.expr, None);
+            }
+        }
+
         self.check_external_module_exports(container);
     }
 
@@ -461,6 +473,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>) {
+        // TODO: skip ambient var decl when under for-in or for-of
+        self.check_ambient_initializer(decl);
+
         self.check_var_like_decl(decl);
     }
 
@@ -983,21 +998,17 @@ impl<'cx> TyChecker<'cx> {
             expr_ty
         };
 
-        if !(ret_ty.kind.is_indexed_access() || ret_ty.kind.is_cond_ty())
-            || !self.could_contain_ty_var(ret_ty)
-        {
-            let error_node = match self.p.node(node) {
-                _ if let Some(ret_expr) = ret_expr => Some(ret_expr.id()),
-                ast::Node::RetStmt(n) => Some(n.id),
-                _ => unreachable!(),
-            };
-            self.check_type_assignable_to_and_optionally_elaborate(
-                unwrapped_expr_ty,
-                ret_ty,
-                error_node,
-                error_node,
-            );
-        }
+        let error_node = match self.p.node(node) {
+            _ if let Some(ret_expr) = ret_expr => Some(ret_expr.id()),
+            ast::Node::RetStmt(n) => Some(n.id),
+            _ => unreachable!(),
+        };
+        self.check_type_assignable_to_and_optionally_elaborate(
+            unwrapped_expr_ty,
+            ret_ty,
+            error_node,
+            error_node,
+        );
     }
 
     fn check_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
@@ -1033,15 +1044,12 @@ impl<'cx> TyChecker<'cx> {
         if let ast::PropNameKind::Computed(name) = n.name().kind {
             self.check_computed_property_name(name);
         }
-        if let Some(body) = n.body() {
-            self.check_block(body);
-        }
         let id = n.id();
         self.check_sig_decl(id);
 
         if self.has_bindable_name(id) {
             let symbol = self.get_symbol_of_declaration(id);
-            let s = self.binder.symbol(symbol);
+            let s = self.symbol(symbol);
             if let Some(getter) = s.get_declaration_of_kind(|n| self.p.node(n).is_getter_decl())
                 && let Some(setter) = s.get_declaration_of_kind(|n| self.p.node(n).is_setter_decl())
                 && self
@@ -1081,6 +1089,15 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
             }
+        }
+        let s = self.get_symbol_of_declaration(id);
+        let ret_ty = self.get_ty_of_accessor(s);
+        if let Some(getter) = self.p.node(id).as_getter_decl() {
+            self.check_all_code_paths_in_non_void_fn_ret_or_throw(getter, Some(ret_ty));
+        }
+
+        if let Some(body) = n.body() {
+            self.check_block(body);
         }
     }
 }

@@ -1,0 +1,61 @@
+  × Value of type '() => { timeout: number; }' has no properties in common
+  │ with type 'Settings'. Did you mean to call it?
+    ╭─[../../tests/compiler/weakType/index.ts:19:13]
+ 19 │ getDefaultSettings
+    · ──────────────────
+    ╰────
+
+  × Value of type '() => { timeout: number; }' has no properties in common
+  │ with type 'Settings'. Did you mean to call it?
+    ╭─[../../tests/compiler/weakType/index.ts:21:13]
+ 21 │ () => ({ timeout: 1000 })
+    · ─────────────────────────
+    ╰────
+
+  × Value of type 'CtorOnly' has no properties in common with type 'Settings'.
+  │ Did you mean to call it?
+    ╭─[../../tests/compiler/weakType/index.ts:23:13]
+ 23 │ null as CtorOnly
+    · ────────────────
+    ╰────
+
+  × Type '12' has no properties in common with type 'Settings'.
+    ╭─[../../tests/compiler/weakType/index.ts:26:13]
+ 26 │ 12
+    · ──
+    ╰────
+
+  × Type '"completely wrong"' has no properties in common with type
+  │ 'Settings'.
+    ╭─[../../tests/compiler/weakType/index.ts:28:13]
+ 28 │ 'completely wrong'
+    · ──────────────────
+    ╰────
+
+  × Type 'false' has no properties in common with type 'Settings'.
+    ╭─[../../tests/compiler/weakType/index.ts:30:13]
+ 30 │ false
+    · ─────
+    ╰────
+
+  × Type '{ error: undefined | number; }' has no properties in common with
+  │ type 'ChangeOptions'.
+    ╭─[../../tests/compiler/weakType/index.ts:48:18]
+ 48 │ error
+    · ─────
+    ╰────
+
+  × Type '{ wrong: string; }' has no properties in common with type '{ b:
+  │ undefined | number; }'.
+    ╭─[../../tests/compiler/weakType/index.ts:74:5]
+ 74 │ weak
+    · ────
+    ╰────
+
+  × Conversion of type 'null' to type 'CtorOnly' may be a mistake because
+  │ neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/weakType/index.ts:23:13]
+ 23 │ null as CtorOnly
+    · ────────────────
+    ╰────

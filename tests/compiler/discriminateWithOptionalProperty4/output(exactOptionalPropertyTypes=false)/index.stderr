@@ -1,0 +1,5 @@
+  × 'z.a' is possibly 'undefined'.
+    ╭─[../../tests/compiler/discriminateWithOptionalProperty4/index.ts:24:14]
+ 24 │ z.a
+    · ───
+    ╰────

@@ -1,0 +1,6 @@
+  × Property 'prop3' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/divergentAccessorsTypes3/index.ts:13:3]
+ 13 │ prop3
+    · ─────
+    ╰────

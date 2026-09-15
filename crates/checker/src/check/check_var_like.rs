@@ -86,13 +86,27 @@ impl<'cx> TyChecker<'cx> {
                 && !is_assignment
             {
                 let name = self.p.node(name_id).ident_name().unwrap();
-                let error = errors::SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfTypeXButHereHasTypeY {
-                    span: self.p.node(name_id).span(),
-                    var: self.atoms.get(name.name).to_string(),
-                    ty1: self.print_ty(ty, None).to_string(),
-                    ty2: self.print_ty(decl_ty, None).to_string(),
+                let error: bolt_ts_errors::BoxedDiag = if matches!(
+                    self.p.node(decl_id),
+                    ast::Node::ClassPropElem(_) | ast::Node::PropSignature(_)
+                ) {
+                    let error = errors::SubsequentPropertyDeclarationsMustHaveTheSameTypePropertyXMustBeOfTypeYButHereHasTypeZ {
+                        span: self.p.node(name_id).span(),
+                        property: self.atoms.get(name.name).to_string(),
+                        ty1: self.print_ty(ty, None).to_string(),
+                        ty2: self.print_ty(decl_ty, None).to_string(),
+                    };
+                    Box::new(error)
+                } else {
+                    let error = errors::SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfTypeXButHereHasTypeY {
+                        span: self.p.node(name_id).span(),
+                        var: self.atoms.get(name.name).to_string(),
+                        ty1: self.print_ty(ty, None).to_string(),
+                        ty2: self.print_ty(decl_ty, None).to_string(),
+                    };
+                    Box::new(error)
                 };
-                self.push_error(Box::new(error));
+                self.push_error(error);
             }
         }
 
@@ -125,6 +139,13 @@ impl<'cx> TyChecker<'cx> {
                             match elem.kind {
                                 ast::ArrayBindingElemKind::Omit(_) => {}
                                 ast::ArrayBindingElemKind::Binding(binding) => {
+                                    let parent_check_mode = if binding.dotdotdot.is_some() {
+                                        super::CheckMode::REST_BINDING_ELEMENT
+                                    } else {
+                                        super::CheckMode::empty()
+                                    };
+                                    let _parent_ty = self
+                                        .get_ty_for_binding_element_parent(n.id, parent_check_mode);
                                     self.check_var_like_decl(binding);
                                 }
                             }
@@ -142,8 +163,9 @@ impl<'cx> TyChecker<'cx> {
                             } else {
                                 super::CheckMode::empty()
                             };
-                            if let Some(parent_ty) =
-                                self.get_ty_for_binding_element_parent(n.id, parent_check_mode)
+                            let parent_ty =
+                                self.get_ty_for_binding_element_parent(n.id, parent_check_mode);
+                            if let Some(parent_ty) = parent_ty
                                 && let name = elem.name.name()
                                 && let expr_ty = self.get_literal_ty_from_prop_name(&name)
                                 && expr_ty.usable_as_prop_name()

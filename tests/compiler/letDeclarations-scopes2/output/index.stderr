@@ -1,0 +1,23 @@
+  × Cannot find name 'local2'.
+    ╭─[../../tests/compiler/letDeclarations-scopes2/index.ts:12:5]
+ 12 │ local2
+    · ──────
+    ╰────
+
+  × Cannot find name 'local2'.
+    ╭─[../../tests/compiler/letDeclarations-scopes2/index.ts:25:5]
+ 25 │ local2
+    · ──────
+    ╰────
+
+  × Cannot find name 'local'.
+    ╭─[../../tests/compiler/letDeclarations-scopes2/index.ts:29:1]
+ 29 │ local
+    · ─────
+    ╰────
+
+  × Cannot find name 'local2'.
+    ╭─[../../tests/compiler/letDeclarations-scopes2/index.ts:32:1]
+ 32 │ local2
+    · ──────
+    ╰────

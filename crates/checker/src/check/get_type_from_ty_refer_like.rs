@@ -137,8 +137,7 @@ impl<'cx> TyChecker<'cx> {
                 .ty_args_from_ty_refer_node(node.ty_args())
                 .unwrap_or_default();
 
-            (self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args))
-                as _
+            self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args)
         } else if self.check_no_ty_args(node.span(), node.ty_args(), Some(node.name()), None) {
             ty
         } else {
@@ -300,9 +299,15 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         let symbol = self.resolve_ty_refer_name::<false>(name, SymbolFlags::TYPE);
-        self.get_mut_node_links(id).set_resolved_symbol(symbol);
         let ty = self.get_ty_refer_type(node, symbol);
-        self.get_mut_node_links(id).set_resolved_ty(ty);
+        // TODO: remove cycle check
+        if let Some(old) = self.get_node_links(id).get_resolved_symbol() {
+            debug_assert!(old == symbol);
+            debug_assert!(self.get_node_links(id).get_resolved_ty() == Some(ty));
+        } else {
+            self.get_mut_node_links(id).set_resolved_symbol(symbol);
+            self.get_mut_node_links(id).set_resolved_ty(ty);
+        }
         ty
     }
 }

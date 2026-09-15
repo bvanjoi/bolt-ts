@@ -1,0 +1,17 @@
+  × Object is of type 'unknown'.
+    ╭─[../../tests/compiler/useUnknownInCatchVariables01/index.ts:12:10]
+ 12 │ e
+    · ─
+    ╰────
+
+  × Object is of type 'unknown'.
+    ╭─[../../tests/compiler/useUnknownInCatchVariables01/index.ts:14:10]
+ 14 │ e
+    · ─
+    ╰────
+
+  × Object is of type 'unknown'.
+    ╭─[../../tests/compiler/useUnknownInCatchVariables01/index.ts:16:10]
+ 16 │ e
+    · ─
+    ╰────

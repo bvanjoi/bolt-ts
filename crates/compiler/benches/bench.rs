@@ -110,7 +110,7 @@ fn compile(input_dir: std::path::PathBuf) {
             .join("src")
             .join("declared_file")
     };
-    let default_libs = bolt_ts_libs::DEFAULT_LIBS
+    let default_libs = bolt_ts_libs::LIBS
         .iter()
         .map(|filename| default_lib_dir.join(filename))
         .collect::<Vec<_>>();
@@ -142,13 +142,14 @@ fn parse(input: std::path::PathBuf) {
     );
     let atoms = std::sync::Arc::new(std::sync::Mutex::new(atoms));
     let input = module_arena.get_content(module_id);
+    let flags = bolt_ts_config::CompilerOptionFlags::ALWAYS_STRICT;
     let result = bolt_ts_parser::parse(
         atoms,
         &parser_arena.get(),
         input.as_bytes(),
         module_id,
         &module_arena,
-        true,
+        flags,
     );
     assert!(result.diags.is_empty());
 }

@@ -64,7 +64,7 @@ pub fn build_graph<'cx>(
     fs: Arc<Mutex<impl bolt_ts_fs::CachedFileSystem>>,
     options: &bolt_ts_config::NormalizedTsConfig,
 ) -> ModuleGraph {
-    let always_strict = options.compiler_options().always_strict();
+    let compiler_option_flags = *options.compiler_options().flags();
     // resolve
     let mut flags = ResolveFlags::empty();
     if options.compiler_options().preserve_symlinks() {
@@ -104,7 +104,7 @@ pub fn build_graph<'cx>(
             resolving.as_slice(),
             module_arena,
             default_lib_dir,
-            always_strict,
+            compiler_option_flags,
         )
         .map(|(module_id, mut parse_result)| {
             let file_path = module_arena.get_path(module_id);

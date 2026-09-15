@@ -132,6 +132,10 @@ impl<'cx> Expr<'cx> {
         self.kind.is_string_or_number_lit_like()
     }
 
+    pub fn is_bigint_lit(&self) -> bool {
+        self.kind.is_bigint_lit()
+    }
+
     pub fn is_entity_name_expr(&self) -> bool {
         matches!(self.kind, ExprKind::Ident(n) if !is_prim_value_name(n.name))
             || self.is_prop_access_entity_name_expr()
@@ -332,6 +336,21 @@ impl<'cx> Expr<'cx> {
                 | ExprKind::StringLit(_)
         )
     }
+
+    pub fn get_element_or_property_access_argument_expression_or_name(
+        &'cx self,
+    ) -> self::DeclarationName<'cx> {
+        if let self::ExprKind::PropAccess(n) = self.kind {
+            return self::DeclarationName::Ident(n.name);
+        }
+        let arg = self::Expr::skip_parens(self);
+        match arg.kind {
+            self::ExprKind::EleAccess(n) => self::DeclarationName::ElementAccess(n),
+            self::ExprKind::StringLit(n) => self::DeclarationName::StringLit { raw: n, key: n.val },
+            self::ExprKind::NumLit(n) => self::DeclarationName::NumLit(n),
+            _ => unreachable!(),
+        }
+    }
 }
 
 pub const SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS: u8 = 1 << 0;
@@ -398,6 +417,22 @@ pub enum ExprKind<'cx> {
 }
 
 impl<'cx> ExprKind<'cx> {
+    pub fn get_right_most_assigned_expr(&'cx self) -> &'cx ExprKind<'cx> {
+        match self {
+            ExprKind::Assign(n) => n.right.kind.get_right_most_assigned_expr(),
+            _ => self,
+        }
+    }
+
+    pub fn is_bigint_lit(&self) -> bool {
+        match self {
+            ExprKind::BigIntLit(_) => true,
+            ExprKind::PrefixUnary(n) if matches!(n.op, PrefixUnaryOp::Minus) => {
+                matches!(n.expr.kind, ExprKind::BigIntLit(_))
+            }
+            _ => false,
+        }
+    }
     pub fn is_string_literal_like(&self) -> bool {
         matches!(
             self,
@@ -537,6 +572,10 @@ impl<'cx> ExprKind<'cx> {
             // TODO: jsx
             _ => false,
         }
+    }
+
+    pub fn is_fn_like(&self) -> bool {
+        matches!(self, ExprKind::Fn(_) | ExprKind::ArrowFn(_))
     }
 }
 
@@ -744,6 +783,15 @@ pub enum ArrowFnExprBody<'cx> {
     Expr(&'cx Expr<'cx>),
 }
 
+impl ArrowFnExprBody<'_> {
+    pub fn span(&self) -> bolt_ts_span::Span {
+        match self {
+            ArrowFnExprBody::Block(b) => b.span,
+            ArrowFnExprBody::Expr(e) => e.span(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ArrowFnExpr<'cx> {
     pub id: NodeID,
@@ -786,6 +834,7 @@ pub enum AssignOp {
     LogicalAndEq,
     LogicalOrEq,
     NullishEq,
+    AsteriskAsteriskEq,
 }
 
 impl From<AssignOp> for TokenKind {
@@ -807,6 +856,7 @@ impl From<AssignOp> for TokenKind {
             LogicalAndEq => todo!(),
             LogicalOrEq => todo!(),
             NullishEq => TokenKind::QuestionQuestionEq,
+            AsteriskAsteriskEq => TokenKind::AsteriskAsteriskEq,
         }
     }
 }
@@ -830,6 +880,7 @@ impl AssignOp {
             LogicalAndEq => "&&=",
             LogicalOrEq => "||=",
             NullishEq => "??=",
+            AsteriskAsteriskEq => "**=",
         }
     }
 
@@ -1164,6 +1215,31 @@ impl<'cx> CallExpr<'cx> {
             } else {
                 true
             }
+        } else {
+            false
+        }
+    }
+
+    pub fn is_bindable_object_define_property_call_expr(&self) -> bool {
+        if self.args.len() != 3 {
+            return false;
+        }
+        let ExprKind::PropAccess(expr) = &self.expr.kind else {
+            return false;
+        };
+        if let ExprKind::Ident(i) = &expr.expr.kind
+            && i.name == keyword::IDENT_OBJECT_CLASS
+            && expr.name.name == keyword::IDENT_DEFINE_PROPERTY
+            && self
+                .args
+                .get(1)
+                .is_some_and(|arg| arg.is_string_or_number_lit_like())
+            && self
+                .args
+                .first()
+                .is_some_and(|arg| arg.is_bindable_static_name_expr::<true>())
+        {
+            true
         } else {
             false
         }

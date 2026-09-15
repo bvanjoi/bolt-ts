@@ -18,4 +18,12 @@ export default function getThing( { return 'thing'; }
 //~| ERROR: Function implementation is missing or not immediately following the declaration.
 //~| ERROR: Function implementation is missing or not immediately following the declaration.
 //~| ERROR: 'getThing', which lacks return-type annotation, implicitly has an 'any' return type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
+//~| ERROR: Binding element '' implicitly has an 'any' type.
 //~ ERROR: Expected ')'.

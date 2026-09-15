@@ -199,7 +199,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
-        if self.instantiation_count >= 5_000_000 || self.instantiation_depth == 1000 {
+        if self.instantiation_count >= 5_000_000 || self.instantiation_depth == 100 {
             let current_node = self.current_node.unwrap();
             let error = errors::TypeInstantiationIsExcessivelyDeepAndPossiblyInfinite {
                 span: self.p.node(current_node).span(),
@@ -623,7 +623,9 @@ impl<'cx> TyChecker<'cx> {
                             .is_none()
                             && c.get_constraint_of_ty_param(ty_var)
                                 .is_some_and(|constraint| {
-                                    c.every_type(constraint, |this, ty| this.is_array_or_tuple(ty))
+                                    c.every_type(constraint, |this, ty| {
+                                        this.is_array_or_tuple_ty(ty)
+                                    })
                                 }))
                     {
                         let mapper = c.prepend_ty_mapping(ty_var, mapped_ty_var, Some(mapper));
@@ -1118,7 +1120,7 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx ty::Sig<'cx>,
         ty_args: Option<ty::Tys<'cx>>,
         _is_js: bool,
-        context: Option<super::InferenceContextId>,
+        context: Option<super::InferenceId<'cx>>,
     ) -> &'cx ty::Sig<'cx> {
         let sig_ty_params = self.get_sig_links(sig.id).get_ty_params();
         let ty_args = self.fill_missing_ty_args(
@@ -1154,7 +1156,7 @@ impl<'cx> TyChecker<'cx> {
             let new_ret_sig = self.new_sig(new_ret_sig);
             let prev = self.sig_links.insert(new_ret_sig.id, new_links);
             debug_assert!(prev.is_none());
-            let new_ret_ty = self.get_or_create_ty_from_sig(new_ret_sig, sig.mapper);
+            let new_ret_ty = self.get_or_create_ty_from_sig(new_ret_sig);
             let new_instantiated_sig = self.clone_sig(sig);
             self.get_mut_sig_links(new_instantiated_sig.id)
                 .set_resolved_ret_ty(new_ret_ty);
@@ -1356,7 +1358,12 @@ impl<'cx> TyChecker<'cx> {
         let ty_args = self.fill_missing_ty_args(Some(ty_args), Some(ty_params), min_params_count);
         let mapper = self.create_ty_mapper_with_optional_target(ty_params, ty_args);
         let ty = self.instantiate_ty_with_alias(ty, mapper, alias_symbol, alias_ty_args);
-        self.ty_alias_instantiation_map.insert(id, ty);
+        // TODO: remove cycle check
+        if let Some(old) = self.ty_alias_instantiation_map.get(id) {
+            debug_assert!(old == ty);
+        } else {
+            self.ty_alias_instantiation_map.insert(id, ty);
+        }
         ty
     }
 
@@ -1486,7 +1493,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         ty_param: &'cx ty::ParamTy<'cx>,
     ) -> Option<&[bolt_ts_ast::NodeID]> {
-        let symbol = self.binder.symbol(ty_param.symbol?);
+        let symbol = self.symbol(ty_param.symbol?);
         symbol.decls.as_ref().map(|decls| decls.as_slice())
     }
 }

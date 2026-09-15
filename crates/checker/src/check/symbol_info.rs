@@ -512,6 +512,32 @@ impl<'cx> super::TyChecker<'cx> {
             };
         }
 
+        if let Some(assignments) = self
+            .get_fn_expr_parent_symbol_or_symbol(symbol)
+            .and_then(|s| self.symbol(s).assignment_declaration_members.as_ref())
+        {
+            for member in assignments.clone() {
+                let m = match self.p.node(member) {
+                    ast::Node::AssignExpr(m) => m,
+                    _ => unreachable!(),
+                };
+                let assignment_kind = self
+                    .node_query(member.module())
+                    .get_assignment_declaration_kind_for_assign_expr(m);
+                let is_instance_member = match assignment_kind {
+                    bolt_ts_binder::AssignmentDeclarationKind::PrototypeProperty
+                    | bolt_ts_binder::AssignmentDeclarationKind::Prototype
+                    | bolt_ts_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
+                        true
+                    }
+                    _ => self.is_possibly_aliased_this_property(m, Some(assignment_kind)),
+                };
+                if is_static == !is_instance_member && self.has_late_bindable_name(member) {
+                    self.late_bind_member(symbol, early_symbols, &mut late_symbols, member);
+                }
+            }
+        }
+
         let combined = if early_symbols.0.is_empty() {
             self.alloc(late_symbols)
         } else if late_symbols.0.is_empty() {
@@ -532,6 +558,19 @@ impl<'cx> super::TyChecker<'cx> {
             }
         }
         combined
+    }
+
+    fn get_fn_expr_parent_symbol_or_symbol(&self, symbol: SymbolID) -> Option<SymbolID> {
+        let s = self.symbol(symbol);
+        let Some(d) = s.value_decl else {
+            return Some(symbol);
+        };
+        let n = self.p.node(d);
+        if matches!(n, ast::Node::ArrowFnExpr(_) | ast::Node::FnExpr(_)) {
+            self.get_symbol_of_node(self.parent(d).unwrap())
+        } else {
+            Some(symbol)
+        }
     }
 
     fn merge_symbol_table_owner(
@@ -898,7 +937,7 @@ impl<'cx> super::TyChecker<'cx> {
     fn late_bind_member(
         &mut self,
         parent: SymbolID,
-        _early_symbolss: &'cx SymbolTable,
+        _early_symbols: &'cx SymbolTable,
         late_symbols: &mut SymbolTable,
         decl: ast::NodeID,
     ) -> SymbolID {

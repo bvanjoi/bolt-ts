@@ -1,9 +1,9 @@
 use super::SignatureFlags;
+use super::const_variant::is_jsx_like_variant;
+use super::const_variant::is_ts_like_variant;
 use super::lookahead::Lookahead;
 use super::parse_fn_like::ParseFnExpr;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::is_jsx_like_variant;
-use super::state::is_ts_like_variant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
@@ -231,13 +231,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             };
             let block = self.parse_fn_block(flags);
             Ok(ast::ArrowFnExprBody::Block(block))
-        } else if !matches!(
-            self.token.kind,
-            TokenKind::Semi | TokenKind::Function | TokenKind::Class
-        ) && self.is_start_of_stmt()
-            && !self.is_start_of_expr_stmt()
-        {
-            todo!()
         } else {
             let saved_yield_context = self.in_yield_context();
             // TODO: top_level
@@ -303,9 +296,12 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     fn parse_yield_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         debug_assert!(self.token.kind == TokenKind::Yield);
         if !self.in_yield_context() {
-            let error = errors::AYieldExpressionIsOnlyAllowedInAGeneratorBody {
-                span: self.token.span,
-            };
+            let span = self.token.span;
+            let error = errors::AYieldExpressionIsOnlyAllowedInAGeneratorBody { span };
+            self.push_error(Box::new(error));
+        } else if self.parsing_context.contains(ParsingContext::PARAMETERS) {
+            let span = self.token.span;
+            let error = errors::YieldExpressionsCannotBeUsedInAParameterInitializer { span };
             self.push_error(Box::new(error));
         }
         let start = self.token.start();
@@ -485,6 +481,12 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     // parse_await_expression
                     debug_assert!(self.token.kind == TokenKind::Await);
                     let start = self.token.start();
+                    if self.parsing_context.contains(ParsingContext::PARAMETERS) {
+                        let span = self.token.span;
+                        let error =
+                            errors::AwaitExpressionsCannotBeUsedInAParameterInitializer { span };
+                        self.push_error(Box::new(error));
+                    }
                     self.next_token(); // consume `await`
                     let expr = self.parse_simple_unary_expr()?;
                     let expr = self.create_await_expression(self.new_span(start), expr);
@@ -1276,6 +1278,15 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let name = self.parse_right_side_of_dot::<true>();
         let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
         let span = self.new_span(start as u32);
+
+        if let ast::ExprKind::ExprWithTyArgs(n) = expr.kind
+            && n.ty_args.is_some_and(|ty_args| !ty_args.list.is_empty())
+        {
+            let error =
+                errors::AnInstantiationExpressionCannotBeFollowedByAPropertyAccess { span: n.span };
+            self.push_error(Box::new(error));
+        }
+
         if is_optional_chain {
             self.create_property_access_chain(span, expr, question_dot, name)
         } else {

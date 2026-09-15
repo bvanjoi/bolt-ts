@@ -591,6 +591,7 @@ impl<'cx> Node<'cx> {
             self::Node::ClassMethodElem(f) => f.body.map(super::ArrowFnExprBody::Block),
             self::Node::ClassCtor(f) => f.body.map(super::ArrowFnExprBody::Block),
             self::Node::GetterDecl(f) => f.body.map(super::ArrowFnExprBody::Block),
+            self::Node::SetterDecl(f) => f.body.map(super::ArrowFnExprBody::Block),
             _ => None,
         }
     }

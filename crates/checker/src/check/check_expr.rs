@@ -7,6 +7,7 @@ use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::{SymbolFlags, SymbolName};
 use bolt_ts_config::AllowUnreachableCode;
 use bolt_ts_config::Target;
+use bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver;
 use bolt_ts_span::Span;
 use bolt_ts_ty::TypeFacts;
 use bolt_ts_utils::FxIndexMap;
@@ -15,6 +16,7 @@ use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
 use rustc_hash::FxHashMap;
 
+use super::InferenceId;
 use super::IterationTypeKind;
 use super::ObjectFlags;
 use super::TyChecker;
@@ -28,7 +30,7 @@ use super::ty;
 use super::ty::AccessFlags;
 use super::ty::CheckFlags;
 use super::ty::TypeFlags;
-use super::{CheckMode, InferenceContextId, SymbolLinks, TyLinks};
+use super::{CheckMode, SymbolLinks, TyLinks};
 
 fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
     match op {
@@ -840,6 +842,23 @@ impl<'cx> TyChecker<'cx> {
             let error =
                 errors::TheOperandOfADeleteOperatorCannotBeAReadOnlyProperty { span: expr.span() };
             self.push_error(Box::new(error));
+        } else {
+            // check_delete_expression_must_be_optional
+            let ty = self.get_type_of_symbol(symbol);
+            let o = self.options();
+            if o.strict_null_checks()
+                && !ty
+                    .flags
+                    .intersects(TypeFlags::ANY_OR_UNKNOWN.union(TypeFlags::NEVER))
+                && !(if o.exact_optional_property_types() {
+                    self.symbol(symbol).flags.contains(SymbolFlags::OPTIONAL)
+                } else {
+                    self.has_type_facts(ty, TypeFacts::IS_UNDEFINED)
+                })
+            {
+                let error = errors::TheOperandOfADeleteOperatorMustBeOptional { span: expr.span() };
+                self.push_error(Box::new(error));
+            }
         }
 
         self.boolean_ty()
@@ -1050,23 +1069,6 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or(self.any_ty)
     }
 
-    fn report_ty_not_iterable_error(
-        &mut self,
-        error_node: ast::NodeID,
-        ty: &'cx ty::Ty<'cx>,
-        allow_async_iterables: bool,
-    ) {
-        if allow_async_iterables {
-            todo!()
-        } else {
-            let error = errors::TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
-                span: self.p.node(error_node).span(),
-                ty: self.print_ty(ty, None).to_string(),
-            };
-            self.push_error(Box::new(error));
-        };
-    }
-
     pub(super) fn get_iterated_ty_or_element_ty(
         &mut self,
         mode: IterationUse,
@@ -1078,7 +1080,7 @@ impl<'cx> TyChecker<'cx> {
         let allow_async_iterables = mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
         if input_ty == self.never_ty {
             if let Some(error_node) = error_node {
-                self.report_ty_not_iterable_error(error_node, input_ty, allow_async_iterables);
+                self.report_ty_not_iterable_error(input_ty, error_node, allow_async_iterables);
             }
             return None;
         }
@@ -1242,9 +1244,8 @@ impl<'cx> TyChecker<'cx> {
 
         let object_flags = ty.get_object_flags() & !ObjectFlags::FRESH_LITERAL;
         let resolved = self.get_ty_links(ty.id).get_structured_members().unwrap();
-        assert!(resolved.call_sigs.is_empty());
-        assert!(resolved.ctor_sigs.is_empty());
-        assert!(resolved.index_infos.is_empty());
+        assert!(std::ptr::eq(resolved.call_sigs, self.empty_array()));
+        assert!(std::ptr::eq(resolved.ctor_sigs, self.empty_array()));
         let regular = self.create_anonymous_ty_with_resolved(
             a.symbol,
             object_flags,
@@ -1354,9 +1355,9 @@ impl<'cx> TyChecker<'cx> {
             let flags = flow_node.flags;
             if flags.intersects(FlowFlags::SHARED) {
                 if !no_cache_check {
-                    // TODO:
+                    // TODO: cache
                 }
-                no_cache_check = true;
+                no_cache_check = false;
             }
             if flags.intersects(
                 FlowFlags::ASSIGNMENT
@@ -1395,7 +1396,7 @@ impl<'cx> TyChecker<'cx> {
             } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
                 todo!()
             } else {
-                return flags.intersects(FlowFlags::UNREACHABLE);
+                return flags.contains(FlowFlags::UNREACHABLE);
             }
         }
     }
@@ -1471,6 +1472,9 @@ impl<'cx> TyChecker<'cx> {
         } else if container.is_module_declaration() {
             let error = errors::ThisCannotBeReferencedInAModuleOrNamespaceBody { span: expr_span };
             self.push_error(Box::new(error));
+        } else if container.is_enum_decl() {
+            let error = errors::ThisCannotBeReferencedInCurrentLocation { span: expr_span };
+            self.push_error(Box::new(error));
         }
 
         let ty = self.try_get_this_ty_at::<true>(expr_id, Some(container_id));
@@ -1512,7 +1516,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &'cx ast::Expr,
         contextual_ty: &'cx ty::Ty<'cx>,
-        inference: Option<InferenceContextId>,
+        inference: Option<InferenceId<'cx>>,
         check_mode: CheckMode,
     ) -> &'cx ty::Ty<'cx> {
         let node = expr.id();
@@ -1679,6 +1683,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 this.check_expression::<false>(loc, None)
             };
+
             if ty.flags.contains(TypeFlags::ENUM_LITERAL)
                 && let ast::ExprKind::PropAccess(access) = loc.kind
                 && let s = this.final_res(access.expr.id())
@@ -1697,6 +1702,14 @@ impl<'cx> TyChecker<'cx> {
                 this.push_error(Box::new(error));
                 return;
             }
+            if !this.has_type_facts(ty, TypeFacts::TRUTHY) {
+                return;
+            }
+
+            match loc.kind {
+                ast::ExprKind::PropAccess(n) if n.expr.kind.is_type_assertion() => return,
+                _ => (),
+            };
 
             let call_signatures = this.get_signatures_of_type(ty, ty::SigKind::Call);
             let is_promise = this.get_awaited_ty_of_promise(ty).is_some();
@@ -2004,37 +2017,38 @@ impl<'cx> TyChecker<'cx> {
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
 
-        let push_properties_table = |this: &mut TyChecker<'cx>,
-                                     computed_named_ty: Option<&'cx ty::Ty<'cx>>,
-                                     has_computed_string_property: &mut bool,
-                                     has_computed_number_property: &mut bool,
-                                     has_computed_symbol_property: &mut bool,
-                                     pattern_with_computed_properties: &mut bool,
-                                     properties_table: &mut FxIndexMap<SymbolName, SymbolID>,
-                                     in_destructuring_pattern: bool,
-                                     name: SymbolName,
-                                     member: SymbolID| {
-            if let Some(computed_named_ty) = computed_named_ty
-                && !computed_named_ty
-                    .flags
-                    .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
-            {
-                if this.is_type_assignable_to(computed_named_ty, this.string_number_symbol_ty()) {
-                    if this.is_type_assignable_to(computed_named_ty, this.number_ty) {
-                        *has_computed_number_property = true;
-                    } else if this.is_type_assignable_to(computed_named_ty, this.es_symbol_ty) {
-                        *has_computed_symbol_property = true;
-                    } else {
-                        *has_computed_string_property = true;
+        let try_push_computed_name_property =
+            |this: &mut TyChecker<'cx>,
+             computed_named_ty: Option<&'cx ty::Ty<'cx>>,
+             has_computed_string_property: &mut bool,
+             has_computed_number_property: &mut bool,
+             has_computed_symbol_property: &mut bool,
+             pattern_with_computed_properties: &mut bool| {
+                if let Some(computed_named_ty) = computed_named_ty
+                    && !computed_named_ty
+                        .flags
+                        .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
+                {
+                    if this.is_type_assignable_to(computed_named_ty, this.string_number_symbol_ty())
+                    {
+                        if this.is_type_assignable_to(computed_named_ty, this.number_ty) {
+                            *has_computed_number_property = true;
+                        } else if this.is_type_assignable_to(computed_named_ty, this.es_symbol_ty) {
+                            *has_computed_symbol_property = true;
+                        } else {
+                            *has_computed_string_property = true;
+                        }
+
+                        if in_destructuring_pattern {
+                            *pattern_with_computed_properties = true;
+                        }
                     }
-                    if in_destructuring_pattern {
-                        *pattern_with_computed_properties = true;
-                    }
+                    true
+                } else {
+                    false
                 }
-            } else {
-                properties_table.insert(name, member);
-            }
-        };
+            };
+
         let symbol = std::cell::OnceCell::new();
         let mut offset = 0;
         for member in node.members {
@@ -2142,18 +2156,19 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(p) = all_properties_table.as_mut() {
                         p.insert(name, prop);
                     }
-                    push_properties_table(
+                    if try_push_computed_name_property(
                         self,
                         computed_named_ty,
                         &mut has_computed_string_property,
                         &mut has_computed_number_property,
                         &mut has_computed_symbol_property,
                         &mut pattern_with_computed_properties,
-                        &mut properties_table,
-                        in_destructuring_pattern,
-                        name,
-                        prop,
-                    );
+                    ) {
+                        // nothing
+                    } else {
+                        properties_table.insert(name, prop);
+                    }
+
                     properties_array.push(member_symbol);
 
                     if let Some(_contextual_ty) = contextual_ty
@@ -2234,24 +2249,24 @@ impl<'cx> TyChecker<'cx> {
                 Setter(ast::SetterDecl { id, .. }) | Getter(ast::GetterDecl { id, .. }) => {
                     self.check_node_deferred(*id);
 
-                    let name = match member.kind {
-                        Setter(n) => bolt_ts_binder::prop_name(n.name),
-                        Getter(n) => bolt_ts_binder::prop_name(n.name),
-                        _ => unreachable!(),
-                    };
                     let member_symbol = self.get_symbol_of_declaration(*id);
-                    push_properties_table(
+                    if try_push_computed_name_property(
                         self,
                         computed_named_ty,
                         &mut has_computed_string_property,
                         &mut has_computed_number_property,
                         &mut has_computed_symbol_property,
                         &mut pattern_with_computed_properties,
-                        &mut properties_table,
-                        in_destructuring_pattern,
-                        name,
-                        member_symbol,
-                    );
+                    ) {
+                        // nothing
+                    } else {
+                        let name = match member.kind {
+                            Setter(n) => bolt_ts_binder::prop_name(n.name),
+                            Getter(n) => bolt_ts_binder::prop_name(n.name),
+                            _ => unreachable!(),
+                        };
+                        properties_table.insert(name, member_symbol);
+                    }
                     properties_array.push(member_symbol);
                 }
             }
@@ -2582,6 +2597,7 @@ impl<'cx> TyChecker<'cx> {
             ShlEq => self.undefined_ty,
             ShrEq => self.undefined_ty,
             UShrEq => self.undefined_ty,
+            AsteriskAsteriskEq => self.undefined_ty,
             BitOrEq | BitAndEq | BitXorEq => self.check_bin_expr_for_normal(
                 assign.span,
                 l,

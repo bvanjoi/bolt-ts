@@ -54,7 +54,7 @@ struct Result {
 
 fn run(atoms: bolt_ts_atom::AtomIntern, fs: bolt_ts_fs::LocalFS, tsconfig: RawTsConfig) -> Result {
     let exe_dir = current_exe_dir();
-    let libs = bolt_ts_libs::DEFAULT_LIBS
+    let libs = bolt_ts_libs::LIBS
         .iter()
         .map(|filename| exe_dir.join(filename))
         .collect::<Vec<_>>();
@@ -96,30 +96,30 @@ fn check_for_test_default_lib_file_count(target: bolt_ts_config::RawTarget) -> u
 #[test]
 fn check_for_test_default_lib_file_count_list() {
     use bolt_ts_config::RawTarget::*;
-    let es2015 = check_for_test_default_lib_file_count(ES2015);
-    assert_eq!(es2015, bolt_ts_compiler::ES2015_DEFAULT_LIBS_PRESERVE_LEN);
     let es5 = check_for_test_default_lib_file_count(ES5);
-    assert_eq!(es5, bolt_ts_compiler::ES5_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["3"].assert_eq(&es5.to_string());
+    let es2015 = check_for_test_default_lib_file_count(ES2015);
+    expect_test::expect!["19"].assert_eq(&es2015.to_string());
     let es2016 = check_for_test_default_lib_file_count(ES2016);
-    assert_eq!(es2016, bolt_ts_compiler::ES2016_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["22"].assert_eq(&es2016.to_string());
     let es2017 = check_for_test_default_lib_file_count(ES2017);
-    assert_eq!(es2017, bolt_ts_compiler::ES2017_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["30"].assert_eq(&es2017.to_string());
     let es2018 = check_for_test_default_lib_file_count(ES2018);
-    assert_eq!(es2018, bolt_ts_compiler::ES2018_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["36"].assert_eq(&es2018.to_string());
     let es2019 = check_for_test_default_lib_file_count(ES2019);
-    assert_eq!(es2019, bolt_ts_compiler::ES2019_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["42"].assert_eq(&es2019.to_string());
     let es2020 = check_for_test_default_lib_file_count(ES2020);
-    assert_eq!(es2020, bolt_ts_compiler::ES2020_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["51"].assert_eq(&es2020.to_string());
     let es2021 = check_for_test_default_lib_file_count(ES2021);
-    assert_eq!(es2021, bolt_ts_compiler::ES2021_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["56"].assert_eq(&es2021.to_string());
     let es2022 = check_for_test_default_lib_file_count(ES2022);
-    assert_eq!(es2022, bolt_ts_compiler::ES2022_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["63"].assert_eq(&es2022.to_string());
     let es2023 = check_for_test_default_lib_file_count(ES2023);
-    assert_eq!(es2023, bolt_ts_compiler::ES2023_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["67"].assert_eq(&es2023.to_string());
     let es2024 = check_for_test_default_lib_file_count(ES2024);
-    assert_eq!(es2024, bolt_ts_compiler::ES2024_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["75"].assert_eq(&es2024.to_string());
     let es2025 = check_for_test_default_lib_file_count(ES2025);
-    assert_eq!(es2025, bolt_ts_compiler::ES2025_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["82"].assert_eq(&es2025.to_string());
     let esnext = check_for_test_default_lib_file_count(ESNext);
-    assert_eq!(esnext, bolt_ts_compiler::ESNEXT_DEFAULT_LIBS_PRESERVE_LEN);
+    expect_test::expect!["93"].assert_eq(&esnext.to_string());
 }

@@ -2,9 +2,8 @@ use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
-use crate::state::is_ts_like_variant;
-
 use super::CheckParameterFlags;
+use super::const_variant::is_ts_like_variant;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
@@ -251,13 +250,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     | At
                     | Pipe
             )
-    }
-
-    pub(super) fn is_start_of_expr_stmt(&mut self) -> bool {
-        !matches!(
-            self.token.kind,
-            TokenKind::LBrace | TokenKind::Function | TokenKind::Class | TokenKind::At
-        ) && self.is_start_of_expr()
     }
 
     pub(super) fn is_start_of_stmt(&mut self) -> bool {

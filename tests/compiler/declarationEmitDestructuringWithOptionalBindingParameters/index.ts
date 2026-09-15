@@ -11,7 +11,43 @@ function foo1( { x, y, z }?: { x: string; y: number; z: boolean }) {
 }
 function foo2( {x, y, z}? ) {
   //~^ ERROR: A binding pattern parameter cannot be optional in an implementation signature.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
 }
 function foo3( [x, y, z]? ) {
   //~^ ERROR: A binding pattern parameter cannot be optional in an implementation signature.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'x' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'y' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'z' implicitly has an 'any' type.
 }

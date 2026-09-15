@@ -1,3 +1,9 @@
   × Identifier expected.
-   ╭─[../../tests/compiler/genericCallWithoutArgs/index.ts:8:49]
+   ╭─[../../tests/compiler/genericCallWithoutArgs/index.ts:10:32]
+   ╰────
+
+  × An instantiation expression cannot be followed by a property access.
+   ╭─[../../tests/compiler/genericCallWithoutArgs/index.ts:8:1]
+ 8 │ f<number,string>
+   · ────────────────
    ╰────

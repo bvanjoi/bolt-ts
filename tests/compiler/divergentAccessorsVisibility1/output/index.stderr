@@ -1,0 +1,344 @@
+  × A get accessor must be at least as accessible as the setter.
+    ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:16:19]
+ 16 │ ProtectedPublic() { return 0; }
+    · ───────────────
+ 17 │     //~^ ERROR: A get accessor must be at least as accessible as the setter.
+ 18 │     set ProtectedPublic
+    ·         ───────┬───────
+    ·                ╰── Setter declaration is defined here.
+    ╰────
+
+  × A get accessor must be at least as accessible as the setter.
+    ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:26:17]
+ 26 │ PrivatePublic() { return 0; }
+    · ─────────────
+ 27 │     //~^ ERROR: A get accessor must be at least as accessible as the setter.
+ 28 │     set PrivatePublic
+    ·         ──────┬──────
+    ·               ╰── Setter declaration is defined here.
+    ╰────
+
+  × A get accessor must be at least as accessible as the setter.
+    ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:30:17]
+ 30 │ PrivateProtected() { return 0; }
+    · ────────────────
+ 31 │     //~^ ERROR: A get accessor must be at least as accessible as the setter.
+ 32 │     protected set PrivateProtected
+    ·                   ────────┬───────
+    ·                           ╰── Setter declaration is defined here.
+    ╰────
+
+  × Property 'PublicPrivate' is private and only accessible within class
+  │ 'Base'.
+    ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:74:9]
+ 74 │ this.PublicPrivate
+    · ──────────────────
+    ╰────
+
+  × Property 'ProtectedPrivate' is private and only accessible within class
+  │ 'Base'.
+    ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:78:9]
+ 78 │ this.ProtectedPrivate
+    · ─────────────────────
+    ╰────
+
+  × Property 'PrivatePrivate' is private and only accessible within class
+  │ 'Base'.
+    ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:82:9]
+ 82 │ this.PrivatePrivate
+    · ───────────────────
+    ╰────
+
+  × Property 'PublicPrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:100:9]
+ 100 │ this.PublicPrivate
+     · ──────────────────
+     ╰────
+
+  × Property 'ProtectedPrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:104:9]
+ 104 │ this.ProtectedPrivate
+     · ─────────────────────
+     ╰────
+
+  × Property 'PrivatePrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:108:9]
+ 108 │ this.PrivatePrivate
+     · ───────────────────
+     ╰────
+
+  × Property 'PublicProtected' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:116:5]
+ 116 │ base.PublicProtected
+     · ────────────────────
+     ╰────
+
+  × Property 'PublicPrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:118:5]
+ 118 │ base.PublicPrivate
+     · ──────────────────
+     ╰────
+
+  × Property 'ProtectedProtected' is protected and only accessible within
+  │ class 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:121:5]
+ 121 │ base.ProtectedProtected
+     · ───────────────────────
+     ╰────
+
+  × Property 'ProtectedPrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:123:5]
+ 123 │ base.ProtectedPrivate
+     · ─────────────────────
+     ╰────
+
+  × Property 'PrivateProtected' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:126:5]
+ 126 │ base.PrivateProtected
+     · ─────────────────────
+     ╰────
+
+  × Property 'PrivatePrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:128:5]
+ 128 │ base.PrivatePrivate
+     · ───────────────────
+     ╰────
+
+  × Property 'PublicProtected' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:148:5]
+ 148 │ base.PublicProtected
+     · ────────────────────
+     ╰────
+
+  × Property 'PublicPrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:150:5]
+ 150 │ base.PublicPrivate
+     · ──────────────────
+     ╰────
+
+  × Property 'ProtectedProtected' is protected and only accessible within
+  │ class 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:153:5]
+ 153 │ base.ProtectedProtected
+     · ───────────────────────
+     ╰────
+
+  × Property 'ProtectedPrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:155:5]
+ 155 │ base.ProtectedPrivate
+     · ─────────────────────
+     ╰────
+
+  × Property 'PrivateProtected' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:158:5]
+ 158 │ base.PrivateProtected
+     · ─────────────────────
+     ╰────
+
+  × Property 'PrivatePrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:160:5]
+ 160 │ base.PrivatePrivate
+     · ───────────────────
+     ╰────
+
+  × Property 'PublicProtected' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:164:5]
+ 164 │ deriv.PublicProtected
+     · ─────────────────────
+     ╰────
+
+  × Property 'PublicPrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:166:5]
+ 166 │ deriv.PublicPrivate
+     · ───────────────────
+     ╰────
+
+  × Property 'ProtectedProtected' is protected and only accessible within
+  │ class 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:169:5]
+ 169 │ deriv.ProtectedProtected
+     · ────────────────────────
+     ╰────
+
+  × Property 'ProtectedPrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:171:5]
+ 171 │ deriv.ProtectedPrivate
+     · ──────────────────────
+     ╰────
+
+  × Property 'PrivateProtected' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:174:5]
+ 174 │ deriv.PrivateProtected
+     · ──────────────────────
+     ╰────
+
+  × Property 'PrivatePrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:176:5]
+ 176 │ deriv.PrivatePrivate
+     · ────────────────────
+     ╰────
+
+  × Property 'PublicProtected' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:196:5]
+ 196 │ deriv.PublicProtected
+     · ─────────────────────
+     ╰────
+
+  × Property 'PublicPrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:198:5]
+ 198 │ deriv.PublicPrivate
+     · ───────────────────
+     ╰────
+
+  × Property 'ProtectedProtected' is protected and only accessible within
+  │ class 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:201:5]
+ 201 │ deriv.ProtectedProtected
+     · ────────────────────────
+     ╰────
+
+  × Property 'ProtectedPrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:203:5]
+ 203 │ deriv.ProtectedPrivate
+     · ──────────────────────
+     ╰────
+
+  × Property 'PrivateProtected' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:206:5]
+ 206 │ deriv.PrivateProtected
+     · ──────────────────────
+     ╰────
+
+  × Property 'PrivatePrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:208:5]
+ 208 │ deriv.PrivatePrivate
+     · ────────────────────
+     ╰────
+
+  × Property 'PrivatePublic' is private and only accessible within class
+  │ 'Base'.
+    ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:91:14]
+ 91 │ this.PrivatePublic
+    · ──────────────────
+    ╰────
+
+  × Property 'PrivateProtected' is private and only accessible within class
+  │ 'Base'.
+    ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:93:14]
+ 93 │ this.PrivateProtected
+    · ─────────────────────
+    ╰────
+
+  × Property 'PrivatePrivate' is private and only accessible within class
+  │ 'Base'.
+    ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:95:14]
+ 95 │ this.PrivatePrivate
+    · ───────────────────
+    ╰────
+
+  × Property 'ProtectedPublic' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:134:10]
+ 134 │ base.ProtectedPublic
+     · ────────────────────
+     ╰────
+
+  × Property 'ProtectedProtected' is protected and only accessible within
+  │ class 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:136:10]
+ 136 │ base.ProtectedProtected
+     · ───────────────────────
+     ╰────
+
+  × Property 'ProtectedPrivate' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:138:10]
+ 138 │ base.ProtectedPrivate
+     · ─────────────────────
+     ╰────
+
+  × Property 'PrivatePublic' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:140:10]
+ 140 │ base.PrivatePublic
+     · ──────────────────
+     ╰────
+
+  × Property 'PrivateProtected' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:142:10]
+ 142 │ base.PrivateProtected
+     · ─────────────────────
+     ╰────
+
+  × Property 'PrivatePrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:144:10]
+ 144 │ base.PrivatePrivate
+     · ───────────────────
+     ╰────
+
+  × Property 'ProtectedPublic' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:182:10]
+ 182 │ deriv.ProtectedPublic
+     · ─────────────────────
+     ╰────
+
+  × Property 'ProtectedProtected' is protected and only accessible within
+  │ class 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:184:10]
+ 184 │ deriv.ProtectedProtected
+     · ────────────────────────
+     ╰────
+
+  × Property 'ProtectedPrivate' is protected and only accessible within class
+  │ 'Base' and its subclasses.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:186:10]
+ 186 │ deriv.ProtectedPrivate
+     · ──────────────────────
+     ╰────
+
+  × Property 'PrivatePublic' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:188:10]
+ 188 │ deriv.PrivatePublic
+     · ───────────────────
+     ╰────
+
+  × Property 'PrivateProtected' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:190:10]
+ 190 │ deriv.PrivateProtected
+     · ──────────────────────
+     ╰────
+
+  × Property 'PrivatePrivate' is private and only accessible within class
+  │ 'Base'.
+     ╭─[../../tests/compiler/divergentAccessorsVisibility1/index.ts:192:10]
+ 192 │ deriv.PrivatePrivate
+     · ────────────────────
+     ╰────

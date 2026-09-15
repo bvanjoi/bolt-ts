@@ -1054,6 +1054,18 @@ pub struct SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfType
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Subsequent property declarations must have the same type. Property '{property}' must be of type '{ty1}', but here has type '{ty2}'."
+)]
+pub struct SubsequentPropertyDeclarationsMustHaveTheSameTypePropertyXMustBeOfTypeYButHereHasTypeZ {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Type '{ty1}' is not comparable to type '{ty2}'.")]
 pub struct TypeXIsNotComparableToTypeY {
     #[label(primary)]
@@ -1441,8 +1453,19 @@ pub struct XImplicitlyHasAnYReturnTypeButABetterTypeMayBeInferredFromUsage {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-#[error("'{field}' defined by the parent class is not accessible in the child class via super.")]
-pub struct AbstractMethod0InClass1CannotBeAccessedViaSuperExpression {
+#[error("Abstract method '{method}' in class '{class}' cannot be accessed via super expression.")]
+pub struct AbstractMethodXInClassYCannotBeAccessedViaSuperExpression {
+    #[label(primary)]
+    pub span: Span,
+    pub method: String,
+    pub class: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Class field '{field}' defined by the parent class is not accessible in the child class via super."
+)]
+pub struct ClassFieldXDefinedByTheParentClassIsNotAccessibleInTheChildClassViaSuper {
     #[label(primary)]
     pub span: Span,
     pub field: String,
@@ -1495,7 +1518,7 @@ pub struct AccessorsMustBothBeAbstractOrNonAbstract {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-#[error("Get accessor must be at least as accessible as the set accessor.")]
+#[error("A get accessor must be at least as accessible as the setter.")]
 pub struct AGetAccessorMustBeAtLeastAsAccessibleAsTheSetter {
     #[label(primary)]
     pub getter_span: Span,
@@ -1543,6 +1566,18 @@ pub struct XImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotationAndIsReferenc
     #[label(primary)]
     pub span: Span,
     pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Class '{class_name}' defines instance member function '{function_name}', but extended class '{extended_class_name}' defines it as instance member accessor."
+)]
+pub struct ClassDefinesInstanceMemberFunctionButExtendedClassDefinesItAsInstanceMemberAccessor {
+    #[label(primary)]
+    pub span: Span,
+    pub class_name: String,
+    pub function_name: String,
+    pub extended_class_name: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
@@ -2136,4 +2171,73 @@ pub struct ReturnTypeOfConstructorSignatureMustBeAssignableToTheInstanceTypeOfTh
 pub struct SpreadTypesMayOnlyBeCreatedFromObjectTypes {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'this' cannot be referenced in current location.")]
+pub struct ThisCannotBeReferencedInCurrentLocation {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type of property '{property}' circularly references itself in mapped type '{ty}'.")]
+pub struct TypeOfPropertyXCircularlyReferencesItselfInMappedTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type '{ty}' has no signatures for which the type argument list is applicable.")]
+pub struct TypeHasNoSignaturesForWhichTheTypeArgumentListIsApplicable {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+)]
+pub struct AConstInitializerInAnAmbientContextMustBeAStringOrNumericLiteralOrLiteralEnumReference {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Property '{property}' implicitly has type 'any', because its set accessor lacks a parameter type annotation."
+)]
+pub struct PropertyXImplicitlyHasTypeAnyBecauseItsSetAccessorLacksAParameterTypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Property '{property}' implicitly has type 'any', because its get accessor lacks a return type annotation."
+)]
+pub struct PropertyXImplicitlyHasTypeAnyBecauseItsGetAccessorLacksAReturnTypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("The operand of a 'delete' operator must be optional.")]
+pub struct TheOperandOfADeleteOperatorMustBeOptional {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Binding element '{element}' implicitly has an '{ty}' type.")]
+pub struct BindingElementXImplicitlyHasAnYType {
+    #[label(primary)]
+    pub span: Span,
+    pub element: String,
+    pub ty: String,
 }

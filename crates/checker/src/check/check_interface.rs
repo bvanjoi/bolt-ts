@@ -159,7 +159,7 @@ impl<'cx> TyChecker<'cx> {
                     _ => continue,
                 };
                 if let Some(old) = names.get(&member_name).copied() {
-                    let error = bolt_ts_binder::errors::DuplicateIdentifier {
+                    let error = bolt_ts_binder_errors::DuplicateIdentifier {
                         span: p.span,
                         name: self.atoms.get(member_name).to_string(),
                         original_span: old,

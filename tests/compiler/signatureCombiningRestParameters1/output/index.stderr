@@ -1,0 +1,5 @@
+  × Argument of type 'any' is not assignable to parameter of type 'never'.
+    ╭─[../../tests/compiler/signatureCombiningRestParameters1/index.ts:24:6]
+ 24 │ ...args
+    · ───────
+    ╰────

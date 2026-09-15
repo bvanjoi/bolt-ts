@@ -344,6 +344,7 @@ impl TokenKind {
             AsteriskEq => "*=",
             SlashEq => "/=",
             PercentEq => "%=",
+            AsteriskAsteriskEq => "**=",
             LessLess => "<<",
             LessEq => "<=",
             LessLessEq => "<<=",
@@ -554,6 +555,7 @@ impl From<TokenKind> for super::AssignOp {
             TokenKind::GreatGreatGreatEq => UShrEq,
             TokenKind::CaretEq => BitXorEq,
             TokenKind::QuestionQuestionEq => NullishEq,
+            TokenKind::AsteriskAsteriskEq => AsteriskAsteriskEq,
             _ => unreachable!(),
         }
     }
@@ -692,6 +694,7 @@ impl TokenKind {
                 | GreatGreatEq
                 | GreatGreatGreatEq
                 | QuestionQuestionEq
+                | AsteriskAsteriskEq
         )
     }
 

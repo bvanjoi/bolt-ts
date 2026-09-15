@@ -9,7 +9,7 @@ declare const c1: boolean = true;
 declare const c2: number = 0;
 //~^ ERROR: Initializers are not allowed in ambient contexts.
 declare const c3 = null, c4 :string = "", c5: any = 0;
-//~^ ERROR: Initializers are not allowed in ambient contexts.
+//~^ ERROR: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.
 //~| ERROR: Initializers are not allowed in ambient contexts.
 //~| ERROR: Initializers are not allowed in ambient contexts.
 

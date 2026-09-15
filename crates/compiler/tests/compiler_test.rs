@@ -4,6 +4,7 @@ use bolt_ts_fs::LocalFS;
 use bolt_ts_utils::path::NormalizePath;
 use compile_test::run_tests::run;
 use compile_test::{ensure_node_exist, run_node};
+
 use std::path::PathBuf;
 
 #[test]
@@ -34,7 +35,7 @@ fn eval_in_test<'cx>(
     // ==== fs init ====
     let fs = LocalFS::new(&mut atoms);
     let exe_dir = bolt_ts_compiler::current_exe_dir();
-    let default_libs = bolt_ts_libs::DEFAULT_LIBS
+    let default_libs = bolt_ts_libs::LIBS
         .iter()
         .map(|filename| exe_dir.join(filename))
         .collect::<Vec<_>>();
@@ -54,7 +55,7 @@ fn eval_in_test<'cx>(
 fn run_test_with(
     dir: &std::path::Path,
     file_name: &str,
-    option: serde_json::Map<String, serde_json::Value>,
+    options: serde_json::Map<String, serde_json::Value>,
     output: String,
     try_run_node: bool,
 ) -> Result<(), Vec<compile_test::errors::Error>> {
@@ -68,10 +69,12 @@ fn run_test_with(
         vec!["./*.tsx".to_string(), "./*.ts".to_string()]
     } else if file_name == "index.js" {
         vec!["./*.js".to_string(), "./*.ts".to_string()]
+    } else if file_name == "index.d.ts" {
+        vec!["./*.d.ts".to_string(), "./*.ts".to_string()]
     } else {
         unreachable!()
     };
-    let compiler_options: RawCompilerOptions = serde_json::from_value(option.into()).unwrap();
+    let compiler_options: RawCompilerOptions = serde_json::from_value(options.into()).unwrap();
     let tsconfig = RawTsConfig::default()
         .with_compiler_options(compiler_options)
         .with_include_if_none(default_include)
@@ -175,29 +178,12 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
     run(entry, |test_ctx| {
         let file_name = test_ctx.test_file().file_name().unwrap().to_str().unwrap();
         let dir = test_ctx.test_file().parent().unwrap();
-        let mut options = test_ctx.compiler_options().to_serde_json();
-        if options.len() == 1 {
-            run_test_with(
-                dir,
-                file_name,
-                options.pop().unwrap().0,
-                "output".to_string(),
-                try_run_node,
-            )
-        } else {
-            let mut errors = vec![];
-            for (option, output) in options {
-                let output = format!("output{}", output.unwrap());
-                if let Err(err) = run_test_with(dir, file_name, option, output, try_run_node) {
-                    errors.extend(err);
-                }
-            }
-            if errors.is_empty() {
-                Ok(())
-            } else {
-                Err(errors)
-            }
-        }
+        let options = test_ctx.compiler_options().as_serde_json();
+        let output = match test_ctx.revision() {
+            compile_test::TestPropsKey::Base => "output".to_string(),
+            compile_test::TestPropsKey::Custom(revision) => format!("output({revision})",),
+        };
+        run_test_with(dir, file_name, options.clone(), output, try_run_node)
     });
 }
 
@@ -224,6 +210,15 @@ fn run_index_tsx_test(arg: dir_test::Fixture<&str>) {
     glob: "*/index.js",
 )]
 fn run_index_js_test(arg: dir_test::Fixture<&str>) {
+    let entry = std::path::Path::new(arg.path());
+    run_test(entry, false);
+}
+
+#[dir_test::dir_test(
+    dir: "$CARGO_MANIFEST_DIR/../../tests/compiler",
+    glob: "*/index.d.ts",
+)]
+fn run_index_dts_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
     run_test(entry, false);
 }

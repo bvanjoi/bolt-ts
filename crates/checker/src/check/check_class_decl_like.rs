@@ -245,7 +245,8 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_class_prop_ele(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
+    fn check_class_prop_elem(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
+        self.check_ambient_initializer(prop);
         let decl_name = ast::DeclarationName::from_prop_name(prop.name);
         self.check_invalid_dynamic_name(decl_name, |this| {
             let error = errors::AComputedPropertyNameInAClassPropertyDeclarationMustHaveASimpleLiteralTypeOrAUniqueSymbolType {
@@ -348,7 +349,11 @@ impl<'cx> TyChecker<'cx> {
                         let is_method = meaning.contains(DeclarationMeaning::METHOD);
                         if prev_is_method || is_method {
                             if prev_is_method != is_method {
-                                // todo!("error handle")
+                                let error = errors::DuplicateIdentifier {
+                                    span: prop_name_span,
+                                    ident: this.atoms.get(prop_name_atom).to_string(),
+                                };
+                                this.push_error(Box::new(error));
                             }
                         } else if prev
                             .intersection(meaning)
@@ -719,7 +724,24 @@ impl<'cx> TyChecker<'cx> {
                             // correct case
                             continue;
                         } else if self.is_prototype_prop(base) {
-                            // TODO:
+                            if self.is_prototype_prop(derived)
+                                || self.symbol(derived).flags.contains(SymbolFlags::PROPERTY)
+                            {
+                                continue;
+                            } else {
+                                let span = if let Some(decl) = derived_symbol.value_decl {
+                                    self.p.node(decl).name().unwrap().span()
+                                } else {
+                                    unreachable!()
+                                };
+                                let error = errors::ClassDefinesInstanceMemberFunctionButExtendedClassDefinesItAsInstanceMemberAccessor {
+                                    span,
+                                    class_name: self.print_ty(base_ty, None).to_string(),
+                                    function_name: base_s_name.to_string(&self.atoms),
+                                    extended_class_name: self.atoms.get(class.name().unwrap().name).to_string(),
+                                };
+                                self.push_error(Box::new(error));
+                            }
                         } else if base_flags.intersects(SymbolFlags::ACCESSOR) {
                             let span = if let Some(decl) = derived_symbol.value_decl {
                                 self.p.node(decl).name().unwrap().span()
@@ -830,7 +852,7 @@ impl<'cx> TyChecker<'cx> {
         for element in class.elems().list {
             use bolt_ts_ast::ClassElemKind::*;
             match element.kind {
-                Prop(n) => self.check_class_prop_ele(n),
+                Prop(n) => self.check_class_prop_elem(n),
                 Method(n) => self.check_class_method_element(n),
                 Ctor(n) => self.check_class_ctor(n),
                 IndexSig(_) => {}

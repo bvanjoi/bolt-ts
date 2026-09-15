@@ -1,0 +1,34 @@
+  × A 'get' accessor cannot have parameters.
+    ╭─[../../tests/compiler/gettersAndSettersErrors/index.ts:12:16]
+ 12 │ Goo
+    · ───
+    ╰────
+
+  × Duplicate identifier 'Foo'.
+   ╭─[../../tests/compiler/gettersAndSettersErrors/index.ts:9:12]
+ 9 │ Foo
+   · ───
+   ╰────
+
+  × Subsequent property declarations must have the same type. Property 'Foo'
+  │ must be of type 'string', but here has type 'number'.
+   ╭─[../../tests/compiler/gettersAndSettersErrors/index.ts:9:12]
+ 9 │ Foo
+   · ───
+   ╰────
+
+  × Type 'null' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/gettersAndSettersErrors/index.ts:12:45]
+ 12 │ null
+    · ────
+    ╰────
+
+  × A get accessor must be at least as accessible as the setter.
+    ╭─[../../tests/compiler/gettersAndSettersErrors/index.ts:19:17]
+ 19 │ Baz():number { return 0; }
+    · ───
+ 20 │     //~^ ERROR: A get accessor must be at least as accessible as the setter.
+ 21 │     public set Baz
+    ·                ─┬─
+    ·                 ╰── Setter declaration is defined here.
+    ╰────
