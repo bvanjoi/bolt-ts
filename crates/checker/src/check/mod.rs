@@ -7326,7 +7326,7 @@ impl<'cx> TyChecker<'cx> {
         }
         for e in missing_elements {
             let name = self.get_prop_name_from_object_binding_element(e).unwrap();
-            let ty = self.get_ty_from_object_binding::<false>(e);
+            let ty = self.get_ty_from_object_binding::<false, false>(e);
             let links = SymbolLinks::default().with_ty(ty);
             let symbol = self.create_transient_symbol(
                 name,

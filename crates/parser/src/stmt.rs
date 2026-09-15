@@ -1238,6 +1238,19 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         {
             let span = n.name.span;
             self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
+            return;
+        }
+
+        match n.name.kind {
+            ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) => {
+                if n.init.is_none() {
+                    let error = errors::ADestructuringDeclarationMustHaveAnInitializer {
+                        span: n.name.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+            _ => {}
         }
     }
 
@@ -1247,14 +1260,21 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     ) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
         let name = self.parse_ident_or_pat();
-        if let ast::BindingKind::Ident(n) = name.kind
-            && n.name == keyword::KW_LET
-            && flags.intersects(ast::NodeFlags::LET.union(ast::NodeFlags::CONST))
-        {
-            let error =
-                errors::LetIsNotAllowedToBeUsedAsANameInLetOrConstDeclarations { span: n.span };
-            self.push_error(Box::new(error));
+
+        match name.kind {
+            ast::BindingKind::Ident(ident) => {
+                if ident.name == keyword::KW_LET
+                    && flags.intersects(ast::NodeFlags::LET.union(ast::NodeFlags::CONST))
+                {
+                    let error = errors::LetIsNotAllowedToBeUsedAsANameInLetOrConstDeclarations {
+                        span: ident.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+            ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) => {}
         }
+
         self.check_contextual_binding(name);
         if self.in_strict_mode
             && let ast::BindingKind::Ident(name) = name.kind
@@ -1276,6 +1296,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
         let span = self.new_span(start);
+
         Ok(self.create_variable_declaration(span, name, excl, ty, init, flags))
     }
 

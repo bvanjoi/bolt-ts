@@ -2232,3 +2232,12 @@ pub struct TheOperandOfADeleteOperatorMustBeOptional {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Binding element '{element}' implicitly has an '{ty}' type.")]
+pub struct BindingElementXImplicitlyHasAnYType {
+    #[label(primary)]
+    pub span: Span,
+    pub element: String,
+    pub ty: String,
+}

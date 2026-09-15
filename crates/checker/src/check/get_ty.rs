@@ -753,7 +753,7 @@ impl<'cx> TyChecker<'cx> {
             return self.get_implied_constraint(ty, check_ty, extends_ty);
         }
         let ty_of_check_ty = self.get_ty_from_type_node(check_ty);
-        if self.get_actual_ty_variable(ty_of_check_ty) == ty {
+        if self.get_actual_ty_variable(ty_of_check_ty) == self.get_actual_ty_variable(ty) {
             Some(self.get_ty_from_type_node(extends_ty))
         } else {
             None
@@ -2684,7 +2684,43 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.push_error(Box::new(error));
                 } else {
-                    // todo!()
+                    // TODO:
+                }
+            }
+            ast::Node::ArrayBinding(n) => {
+                if !no_implicit_any {
+                    return;
+                }
+                let span = n.name.span;
+                let error = errors::BindingElementXImplicitlyHasAnYType {
+                    span,
+                    element: pprint_binding(n.name, &self.atoms),
+                    ty: self.print_ty(ty, None).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
+            ast::Node::ObjectBindingElem(n) => {
+                if !no_implicit_any {
+                    return;
+                }
+                let ty = self.print_ty(ty, None).to_string();
+                match n.name {
+                    ast::ObjectBindingName::Shorthand(ident) => {
+                        let error = errors::BindingElementXImplicitlyHasAnYType {
+                            span: ident.span,
+                            element: self.atoms.get(ident.name).to_string(),
+                            ty,
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                    ast::ObjectBindingName::Prop { name, .. } => {
+                        let error = errors::BindingElementXImplicitlyHasAnYType {
+                            span: name.span,
+                            element: pprint_binding(name, &self.atoms),
+                            ty,
+                        };
+                        self.push_error(Box::new(error));
+                    }
                 }
             }
             _ => {
@@ -2697,7 +2733,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.push_error(Box::new(error));
                 } else {
-                    // todo!()
+                    // TODO:
                 }
             }
         }

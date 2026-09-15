@@ -754,9 +754,11 @@ impl<'cx> TyChecker<'cx> {
         // TODO: jsx
 
         match decl.name() {
-            ast::r#trait::VarLikeName::ArrayPat(n) => Some(self.get_ty_from_array_pat::<false>(n)),
+            ast::r#trait::VarLikeName::ArrayPat(n) => {
+                Some(self.get_ty_from_array_pat::<false, true>(n))
+            }
             ast::r#trait::VarLikeName::ObjectPat(n) => {
-                Some(self.get_ty_from_object_pat::<false>(n))
+                Some(self.get_ty_from_object_pat::<false, true>(n))
             }
             _ => None,
         }
@@ -799,7 +801,58 @@ impl<'cx> TyChecker<'cx> {
             .get_immediately_invoked_fn_expr(func)
             && !iife.args.is_empty()
         {
-            // TODO:
+            let args = self.get_effective_call_arguments(iife);
+            let index_of_parameter = self
+                .p
+                .node(func)
+                .params()
+                .unwrap()
+                .iter()
+                .position(|p| p.id == param_decl.id)
+                .unwrap();
+            return if param_decl.dotdotdot.is_some() {
+                Some(self.get_spread_argument_ty(
+                    &args,
+                    index_of_parameter,
+                    args.len(),
+                    self.any_ty,
+                    None,
+                    CheckMode::empty(),
+                ))
+            } else {
+                let cached = self.get_node_links(iife.id).get_resolved_sig();
+                if cached.is_some() {
+                    let sig = self.any_sig();
+                    self.get_mut_node_links(iife.id).override_resolved_sig(sig);
+                } else {
+                    let sig = self.any_sig();
+                    self.get_mut_node_links(iife.id).set_resolved_sig(sig);
+                }
+
+                let ty = if index_of_parameter < args.len() {
+                    let Some(expr) = args.get(index_of_parameter) else {
+                        unreachable!()
+                    };
+                    let ty = match expr.as_ref() {
+                        super::get_effective_node::EffectiveCallArgument::Expression(expr) => {
+                            self.check_expression::<false>(expr, None)
+                        }
+                        super::get_effective_node::EffectiveCallArgument::Synthetic(_) => todo!(),
+                    };
+                    Some(self.get_widened_literal_ty(ty))
+                } else if param_decl.init.is_some() {
+                    None
+                } else {
+                    Some(self.undefined_widening_ty)
+                };
+                if let Some(cached) = cached {
+                    self.get_mut_node_links(iife.id)
+                        .override_resolved_sig(cached);
+                } else {
+                    self.get_mut_node_links(iife.id).clear_resolved_sig();
+                }
+                ty
+            };
         }
 
         if let Some(contextual_sig) = self.get_contextual_sig(func) {
@@ -859,7 +912,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn declaration_belongs_to_private_ambient_member(&self, decl: &impl VarLike<'cx>) -> bool {
+    pub(super) fn declaration_belongs_to_private_ambient_member(
+        &self,
+        decl: &impl VarLike<'cx>,
+    ) -> bool {
         let decl_id = decl.id();
         let root = self.node_query(decl_id.module()).get_root_decl(decl_id);
         let member_declaration = if self.p.node(root).is_param_decl() {

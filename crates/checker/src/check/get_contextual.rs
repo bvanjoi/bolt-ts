@@ -639,10 +639,10 @@ impl<'cx> TyChecker<'cx> {
             {
                 match parent.name.kind {
                     ast::BindingKind::ObjectPat(pat) if !pat.elems.is_empty() => {
-                        return Some(self.get_ty_from_binding_pattern::<true>(parent.name));
+                        return Some(self.get_ty_from_binding_pattern::<true, false>(parent.name));
                     }
                     ast::BindingKind::ArrayPat(pat) if !pat.elems.is_empty() => {
-                        return Some(self.get_ty_from_binding_pattern::<true>(parent.name));
+                        return Some(self.get_ty_from_binding_pattern::<true, false>(parent.name));
                     }
                     _ => {}
                 }
@@ -667,10 +667,10 @@ impl<'cx> TyChecker<'cx> {
             {
                 match parent.name.kind {
                     ast::BindingKind::ObjectPat(pat) if !pat.elems.is_empty() => {
-                        return Some(self.get_ty_from_binding_pattern::<true>(parent.name));
+                        return Some(self.get_ty_from_binding_pattern::<true, false>(parent.name));
                     }
                     ast::BindingKind::ArrayPat(pat) if !pat.elems.is_empty() => {
-                        return Some(self.get_ty_from_binding_pattern::<true>(parent.name));
+                        return Some(self.get_ty_from_binding_pattern::<true, false>(parent.name));
                     }
                     _ => {}
                 }

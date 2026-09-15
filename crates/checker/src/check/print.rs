@@ -188,7 +188,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 format!("keyof {ty}")
             }
             ty::TyKind::Intrinsic(i) => self.c.atoms.get(i.name).to_string(),
-            ty::TyKind::Substitution(_) => "substitution".to_string(),
+            ty::TyKind::Substitution(ty) => self.print_ty(ty.base_ty),
             ty::TyKind::StringMapping(s) => {
                 let name = self.c.binder.symbol(s.symbol).name;
                 self.c.atoms.get(name.expect_atom()).to_string()

@@ -975,3 +975,10 @@ pub struct AwaitExpressionsCannotBeUsedInAParameterInitializer {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A destructuring declaration must have an initializer.")]
+pub struct ADestructuringDeclarationMustHaveAnInitializer {
+    #[label(primary)]
+    pub span: Span,
+}

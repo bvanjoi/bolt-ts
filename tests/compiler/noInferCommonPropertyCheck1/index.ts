@@ -11,7 +11,7 @@ declare const someObj1: { x: string };
 declare function test1<T>(a: T, b: NoInfer<T> & { prop?: unknown }): void;
 
 test1(partialObj1, someObj1);
-//~^ ERROR: Type '{ x: string; }' has no properties in common with type 'substitution & { prop: unknown; }'.
+//~^ ERROR: Type '{ x: string; }' has no properties in common with type 'Partial<{ a: unknown; b: unknown; }> & { prop: unknown; }'.
 
 declare function test2<T1, T2>(
   a: T1,
@@ -20,7 +20,7 @@ declare function test2<T1, T2>(
 ): void;
 
 test2(partialObj1, partialObj2, someObj1);
-//~^ ERROR: Type '{ x: string; }' has no properties in common with type 'substitution & substitution'.
+//~^ ERROR: Type '{ x: string; }' has no properties in common with type 'Partial<{ a: unknown; b: unknown; }> & Partial<{ c: unknown; d: unknown; }>'.
 
 declare function test3<T1, T2>(
   a: T1,

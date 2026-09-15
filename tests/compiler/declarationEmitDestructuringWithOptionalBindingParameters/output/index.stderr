@@ -21,7 +21,223 @@
 
   × A binding pattern parameter cannot be optional in an implementation
   │ signature.
-    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:15:25]
- 15 │ ?
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:25]
+ 33 │ ?
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:17]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:20]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:23]
+ 12 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:17]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:20]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:23]
+ 12 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:17]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:20]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:23]
+ 12 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:17]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:20]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:23]
+ 12 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:17]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:20]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:23]
+ 12 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:17]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:20]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:23]
+ 12 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:17]
+ 33 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:20]
+ 33 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:23]
+ 33 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:17]
+ 33 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:20]
+ 33 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:23]
+ 33 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:17]
+ 33 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:20]
+ 33 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:23]
+ 33 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:17]
+ 33 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:20]
+ 33 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:23]
+ 33 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:17]
+ 33 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:20]
+ 33 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:23]
+ 33 │ z
+    · ─
+    ╰────
+
+  × Binding element 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:17]
+ 33 │ x
+    · ─
+    ╰────
+
+  × Binding element 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:20]
+ 33 │ y
+    · ─
+    ╰────
+
+  × Binding element 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:33:23]
+ 33 │ z
     · ─
     ╰────

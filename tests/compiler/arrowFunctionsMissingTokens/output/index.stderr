@@ -10,6 +10,12 @@
    · ─
    ╰────
 
+  × A destructuring declaration must have an initializer.
+   ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:8:16]
+ 8 │ { }
+   · ───
+   ╰────
+
   × Expected '=>'.
     ╭─[../../tests/compiler/arrowFunctionsMissingTokens/index.ts:10:22]
  10 │ {
