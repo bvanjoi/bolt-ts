@@ -1,0 +1,11 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/thisInTupleTypeParameterConstraints/index.ts:24:3]
+ 24 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/thisInTupleTypeParameterConstraints/index.ts:24:3]
+ 24 │ x
+    · ─
+    ╰────

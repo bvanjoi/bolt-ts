@@ -50,15 +50,15 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 }
             }
             Interface => {
-                if self.is_start_of_decl() {
+                if self.is_start_of_declaration_when_current_token_is_type_or_interface_kw() {
                     ast::StmtKind::Interface(self.parse_interface_decl(None))
                 } else {
                     self.parse_expr_or_labeled_stmt()?
                 }
             }
             Type => {
-                if self.is_start_of_decl() {
-                    ast::StmtKind::TypeAlias(self.parse_type_alias_decl(None)?)
+                if self.is_start_of_declaration_when_current_token_is_type_or_interface_kw() {
+                    ast::StmtKind::TypeAlias(self.parse_type_alias_decl::<false>(None)?)
                 } else {
                     self.parse_expr_or_labeled_stmt()?
                 }
@@ -569,13 +569,21 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         ast::StmtKind::BlockModule(module)
     }
 
-    fn parse_type_alias_decl(
+    fn parse_type_alias_decl<const NEXT_TOKEN_MAYBE_LINE_BREAK: bool>(
         &mut self,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::TypeAliasDecl<'cx>> {
         debug_assert!(self.token.kind == TokenKind::Type);
         let start = self.token.start();
         self.next_token(); // consume `type`
+        if !NEXT_TOKEN_MAYBE_LINE_BREAK {
+            debug_assert!(!self.has_preceding_line_break());
+        } else if self.has_preceding_line_break() {
+            let error = errors::LineBreakNotPermittedHere {
+                span: self.token.span,
+            };
+            self.push_error(Box::new(error));
+        }
         let name = self.parse_ident_name();
         let ty_params = self.parse_ty_params();
         self.expect(TokenKind::Eq);
@@ -660,7 +668,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     }
                 }
             }
-            Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(mods)?),
+            Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl::<true>(mods)?),
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });

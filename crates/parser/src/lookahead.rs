@@ -431,6 +431,16 @@ impl<'a, 'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         self.lookahead(Lookahead::is_decl)
     }
 
+    pub(super) fn is_start_of_declaration_when_current_token_is_type_or_interface_kw(
+        &mut self,
+    ) -> bool {
+        debug_assert!(matches!(
+            self.token.kind,
+            TokenKind::Type | TokenKind::Interface
+        ));
+        self.lookahead(|this| this.next_token_is_identifier_on_same_line())
+    }
+
     pub(super) fn is_paren_arrow_fn_expr(&mut self) -> Tristate {
         let t = self.token.kind;
 

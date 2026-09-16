@@ -48,39 +48,6 @@ impl<'cx> TyChecker<'cx> {
         };
         self.p.node(id).is_expression() && self.is_context_sensitive(id)
     }
-
-    pub fn get_ty_names_for_error_display(
-        &mut self,
-        left: &'cx ty::Ty<'cx>,
-        right: &'cx ty::Ty<'cx>,
-    ) -> (String, String) {
-        let left = if left
-            .symbol()
-            .is_some_and(|symbol| self.symbol_value_declaration_is_context_sensitive(symbol))
-        {
-            let s = left.symbol().unwrap();
-            let decl = self.symbol(s).value_decl;
-            debug_assert!(decl.is_some());
-            self.print_ty(left, decl)
-        } else {
-            self.print_ty(left, None)
-        }
-        .to_string();
-        let right = if right
-            .symbol()
-            .is_some_and(|symbol| self.symbol_value_declaration_is_context_sensitive(symbol))
-        {
-            let s = right.symbol().unwrap();
-            let decl = self.symbol(s).value_decl;
-            debug_assert!(decl.is_some());
-            self.print_ty(right, decl)
-        } else {
-            self.print_ty(right, None)
-        }
-        .to_string();
-        // TODO: left_str == right_str
-        (left, right)
-    }
 }
 
 struct Ctx<'a, 'cx> {
@@ -93,7 +60,13 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
         debug_assert!(ty.kind.is_array(self.c));
         let tys = self.c.get_ty_arguments(ty);
         let ele = tys[0];
-        if ele.kind.is_union_or_intersection() && ele != self.c.boolean_ty() {
+        let paren = match ele.kind {
+            ty::TyKind::Intersection(_) => true,
+            ty::TyKind::Union(_) if ele != self.c.boolean_ty() => true,
+            ty::TyKind::Index(_) => true,
+            _ => false,
+        };
+        if paren {
             let ele = self.c.print_ty(ele, self.enclosing_declaration);
             format!("{}({ele})[]", if IS_READONLY { "readonly " } else { "" })
         } else {

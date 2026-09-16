@@ -40,15 +40,19 @@ impl<'cx> TyChecker<'cx> {
             Intersection(_nn) => (),
             Typeof(n) => self.check_type_query(n),
             Paren(_nn) => (),
-            Infer(_nn) => (),
+            Infer(n) => self.check_infer_ty(n),
             Intrinsic(_nn) => (),
             Nullable(_nn) => (),
             TemplateLit(_nn) => (),
             This(_nn) => (),
             Import(_) => (),
-            Optional(_) => {}
+            Optional(_) => (),
         };
         self.current_node = saved_current_node;
+    }
+
+    fn check_infer_ty(&mut self, n: &'cx ast::InferTy<'cx>) {
+        self.register_potentially_unused_infer_type_node(n);
     }
 
     fn check_array_ty(&mut self, n: &'cx ast::ArrayTy<'cx>) {

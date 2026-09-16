@@ -2883,8 +2883,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return self.sigs_identical_to(source, target, kind, self.relation, self.error_node);
         };
 
-        if source == self.c.any_fn_ty() || target == self.c.any_fn_ty() {
+        if source == self.c.any_fn_ty() {
             return Ternary::TRUE;
+        } else if target == self.c.any_fn_ty() {
+            return Ternary::FALSE;
         }
 
         let source_sigs = self.c.get_signatures_of_type(source, kind);
