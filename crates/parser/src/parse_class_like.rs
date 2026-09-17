@@ -295,7 +295,16 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         {
             let error = errors::ClassesMayNotHaveAFieldNamedConstructor { span: name.span() };
             self.push_error(Box::new(error));
+        } else if self.target < bolt_ts_config::Target::ES2015
+            && !self.node_context_flags.contains(ast::NodeFlags::AMBIENT)
+            && modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ACCESSOR))
+        {
+            let error = errors::PropertiesWithTheAccessorModifierAreOnlyAvailableWhenTargetingEcmascript2015AndHigher {
+                span: name.span()
+            };
+            self.push_error(Box::new(error));
         }
+
         self.do_inside_of_parse_context(ParseContext::CLASS_FIELD_DEFINITION, |this| {
             let excl = if question_token.is_none() && !this.has_preceding_line_break() {
                 this.parse_optional(TokenKind::Excl)

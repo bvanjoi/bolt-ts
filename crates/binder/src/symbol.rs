@@ -228,6 +228,7 @@ pub struct Symbol {
     pub is_replaceable_by_method: Option<bool>,
     pub last_assignment_position: Option<isize>,
     pub assignment_declaration_members: Option<FxHashSet<NodeID>>,
+    pub is_referenced: Option<SymbolFlags>,
 }
 
 impl Symbol {
@@ -246,6 +247,7 @@ impl Symbol {
             is_replaceable_by_method: None,
             last_assignment_position: None,
             assignment_declaration_members: None,
+            is_referenced: None,
         }
     }
 }

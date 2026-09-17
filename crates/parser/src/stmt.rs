@@ -1250,13 +1250,10 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         }
 
         match n.name.kind {
-            ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) => {
-                if n.init.is_none() {
-                    let error = errors::ADestructuringDeclarationMustHaveAnInitializer {
-                        span: n.name.span,
-                    };
-                    self.push_error(Box::new(error));
-                }
+            ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) if n.init.is_none() => {
+                let error =
+                    errors::ADestructuringDeclarationMustHaveAnInitializer { span: n.name.span };
+                self.push_error(Box::new(error));
             }
             _ => {}
         }

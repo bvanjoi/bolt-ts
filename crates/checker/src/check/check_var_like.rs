@@ -173,7 +173,7 @@ impl<'cx> TyChecker<'cx> {
                                 && let Some(property) =
                                     self.get_prop_of_ty::<false, false>(parent_ty, name_text)
                             {
-                                // TODO: mark_property
+                                self.mark_property_as_referenced(property);
                                 let is_super = decl.init().is_some_and(|init| {
                                     matches!(init.kind, ast::ExprKind::Super(_))
                                 });

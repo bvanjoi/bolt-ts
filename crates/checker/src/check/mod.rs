@@ -68,7 +68,7 @@ mod symbol_info;
 mod transient_symbol;
 mod type_assignable;
 mod type_predicate;
-mod unused_identifier;
+mod unused;
 mod unwrap_ty;
 mod utils;
 
@@ -97,6 +97,8 @@ use bolt_ts_wf_check::InvalidInitializerInAmbientContextUnderConstOrReadonlyAndN
 use bolt_ts_wf_check::{InvalidInitializerInAmbientContext, IssueExternalExportDeclarations};
 use nohash_hasher::IntMap;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+
+use crate::check::unused::PotentiallyUnusedIdentifiers;
 
 use self::check_expr::IterationUse;
 use self::check_type_related_to::NOOP_HEADING_ERROR;
@@ -143,7 +145,6 @@ use self::relation::UnionOrIntersectionTyPropertyKey;
 use self::transient_symbol::create_transient_symbol;
 use self::type_predicate::TyPred;
 use self::type_predicate::TyPredKind;
-use self::unused_identifier::AllPotentiallyUnusedIdentifiers;
 use self::utils::contains_ty;
 
 use super::ty::TyMapper;
@@ -215,7 +216,7 @@ pub struct TyChecker<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
     pub module_arena: bolt_ts_span::ModuleArena,
     pub config: NormalizedTsConfig,
-    all_potentially_unused_identifiers: AllPotentiallyUnusedIdentifiers<'cx>,
+    potentially_unused_identifiers: PotentiallyUnusedIdentifiers<'cx>,
     emit_standard_class_fields: bool,
     arena: &'cx bolt_ts_arena::bumpalo::Bump,
     tys: Vec<&'cx ty::Ty<'cx>>,
@@ -710,9 +711,7 @@ impl<'cx> TyChecker<'cx> {
             );
 
         let mut this = Self {
-            all_potentially_unused_identifiers: AllPotentiallyUnusedIdentifiers::new(
-                p.module_count(),
-            ),
+            potentially_unused_identifiers: PotentiallyUnusedIdentifiers::new(),
             issue_external_export_declarations,
             invalid_initializer_in_ambient_context,
             invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl,

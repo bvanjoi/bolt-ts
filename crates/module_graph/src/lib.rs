@@ -65,6 +65,7 @@ pub fn build_graph<'cx>(
     options: &bolt_ts_config::NormalizedTsConfig,
 ) -> ModuleGraph {
     let compiler_option_flags = *options.compiler_options().flags();
+    let target = *options.compiler_options().target();
     // resolve
     let mut flags = ResolveFlags::empty();
     if options.compiler_options().preserve_symlinks() {
@@ -105,6 +106,7 @@ pub fn build_graph<'cx>(
             module_arena,
             default_lib_dir,
             compiler_option_flags,
+            target,
         )
         .map(|(module_id, mut parse_result)| {
             let file_path = module_arena.get_path(module_id);

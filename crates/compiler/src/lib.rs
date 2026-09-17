@@ -407,6 +407,19 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         options,
     );
 
+    // update referenced
+    for result in &early_resolve_result {
+        for (s, referenced) in &result.referenced_symbol {
+            let m = s.module();
+            if p.get(m).is_declaration {
+                continue;
+            }
+            let s = bind_list[m.as_usize()].symbols.get_mut(*s);
+            debug_assert!(s.is_referenced.is_none());
+            s.is_referenced = Some(*referenced);
+        }
+    }
+
     let states = module_arena
         .modules()
         .iter()
@@ -484,6 +497,8 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
             checker.module_arena.get_path(*item)
         );
     }
+
+    checker.check_unused_identifiers();
 
     let diags = diags
         .into_iter()

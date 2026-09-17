@@ -64,6 +64,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_class_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
         self.check_sig_decl(ctor.id);
+        self.register_potentially_unused_class_constructor_declaration(ctor);
         let symbol = self.get_symbol_of_declaration(ctor.id);
         let first_fn_decl = self
             .symbol(symbol)
@@ -84,7 +85,7 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::ClassDecl(c) => c.extends,
             _ => unreachable!(),
         };
-        if let Some(_extendss) = extends {
+        if let Some(_extends) = extends {
             let extends_null = self.class_decl_extends_null(containing_class_decl);
             if let Some(first_super_call) = self.find_first_super_call_in_ctor_body(ctor) {
                 if extends_null {

@@ -2,6 +2,7 @@ use bolt_ts_ast::{self as ast, NodeFlags, NodeID, is_strict_mode_reserved_atom, 
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_atom::{Atom, AtomIntern};
+use bolt_ts_config::Target;
 use bolt_ts_scanner::{Comments, LeadingTrailingComments};
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::FxIndexSet;
@@ -50,17 +51,18 @@ pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) parse_context: ParseContext,
     pub(super) in_strict_mode: bool,
     pub(super) labels: FxIndexSet<Atom>,
+    pub(super) target: Target,
 }
 
 impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
-    pub(super) fn new(
+    pub(super) fn new<const ALWAYS_STRICT: bool>(
         atoms: Arc<Mutex<AtomIntern>>,
         arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
         nodes: Nodes<'cx>,
         input: &'p [u8],
         module_id: ModuleID,
         file_path: &std::path::Path,
-        always_strict: bool,
+        target: Target,
     ) -> Self {
         debug_assert!(file_path.is_normalized());
         let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
@@ -105,8 +107,9 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             has_no_default_lib: false,
             parsing_context: ParsingContext::default(),
             parse_context: ParseContext::TOP_LEVEL,
-            in_strict_mode: always_strict,
+            in_strict_mode: ALWAYS_STRICT,
             labels: Default::default(),
+            target,
         }
     }
 

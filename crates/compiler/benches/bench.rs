@@ -150,6 +150,7 @@ fn parse(input: std::path::PathBuf) {
         module_id,
         &module_arena,
         flags,
+        bolt_ts_config::Target::ES2015,
     );
     assert!(result.diags.is_empty());
 }

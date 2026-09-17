@@ -2241,3 +2241,11 @@ pub struct BindingElementXImplicitlyHasAnYType {
     pub element: String,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{name}' is declared but its value is never read.")]
+pub struct XIsDeclaredButItsValueIsNeverRead {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

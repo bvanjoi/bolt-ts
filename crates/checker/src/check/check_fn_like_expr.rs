@@ -301,7 +301,7 @@ impl<'cx> TyChecker<'cx> {
             if fn_flags.intersection(ast::FnFlags::INVALID.union(ast::FnFlags::GENERATOR))
                 == ast::FnFlags::GENERATOR
             {
-                let _ret_tyy = self.get_ty_from_type_node(ret_ty_node);
+                let _ret_ty = self.get_ty_from_type_node(ret_ty_node);
                 // TODO:
             } else if fn_flags.intersection(ast::FnFlags::ASYNC_GENERATOR) == ast::FnFlags::ASYNC {
                 self.check_async_fn_ret_ty(id, ret_ty_node, ret_ty_error_location);

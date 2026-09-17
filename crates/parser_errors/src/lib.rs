@@ -611,6 +611,15 @@ pub struct ClassesMayNotHaveAFieldNamedConstructor {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Properties with the 'accessor' modifier are only available when targeting ECMAScript 2015 and higher."
+)]
+pub struct PropertiesWithTheAccessorModifierAreOnlyAvailableWhenTargetingEcmascript2015AndHigher {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Only ambient modules can use quoted names.")]
 pub struct OnlyAmbientModulesCanUseQuotedNames {
     #[label(primary)]

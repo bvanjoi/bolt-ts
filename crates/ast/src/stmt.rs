@@ -1064,6 +1064,14 @@ impl ParamDecl<'_> {
     pub fn is_rest(&self) -> bool {
         self.dotdotdot.is_some()
     }
+
+    pub fn is_parameter_property_declaration(&self) -> bool {
+        // TODO: can we ignore the parent is class constructor?
+        self.modifiers.is_some_and(|ms| {
+            ms.flags
+                .intersects(ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+        })
+    }
 }
 
 pub type ParamsDecl<'cx> = &'cx [&'cx ParamDecl<'cx>];

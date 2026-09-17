@@ -25,7 +25,7 @@ mod visitor_collect_dependencies;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_config::CompilerOptionFlags;
+use bolt_ts_config::{CompilerOptionFlags, Target};
 use bolt_ts_middle::Extension;
 use bolt_ts_parser_errors as errors;
 use bolt_ts_scanner::{Comments, LeadingTrailingComments, TokenValue};
@@ -169,9 +169,8 @@ pub fn parse_parallel<'cx, 'p>(
     module_arena: &'p ModuleArena,
     default_lib_dir: &'p std::path::Path,
     flags: CompilerOptionFlags,
+    target: Target,
 ) -> impl ParallelIterator<Item = (ModuleID, ParseResultForGraph<'cx>)> {
-    // ) -> impl Iterator<Item = (ModuleID, ParseResult<'cx>)> {
-
     let lib_references =
         |p: &ParseResult, atoms: Arc<Mutex<AtomIntern>>, module_id: ModuleID| -> Vec<PathBuf> {
             if !p.lib_reference_directives.is_empty() {
@@ -199,6 +198,7 @@ pub fn parse_parallel<'cx, 'p>(
                 *module_id,
                 module_arena,
                 flags,
+                target,
             );
             debug_assert!(
                 !module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty()
@@ -223,41 +223,20 @@ pub fn parse_parallel<'cx, 'p>(
             (*module_id, p)
         },
     )
-
-    // list.iter().map(move |module_id| {
-    //     let bump = herd.get();
-    //     let input = module_arena.get_content(*module_id);
-    //     let result = parse(
-    //         atoms.clone(),
-    //         &bump,
-    //         input.as_bytes(),
-    //         *module_id,
-    //         module_arena,
-    //         default_lib_dir,
-    //     );
-    //     assert!(!module_arena.get_module(*module_id).is_default_lib() || result.diags.is_empty());
-    //     (*module_id, result)
-    // })
 }
 
-fn parser_state_parse<'cx, 'p, const VARIANT: u8>(
+fn parser_state_parse<'cx, 'p, const VARIANT: u8, const ALWAYS_STRICT: bool>(
     atoms: Arc<Mutex<AtomIntern>>,
     arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
     nodes: Nodes<'cx>,
     input: &'p [u8],
     module_id: ModuleID,
     file_path: &std::path::Path,
-    always_strict: bool,
+    target: Target,
 ) -> ParseResult<'cx> {
     debug_assert!(VARIANT != 0);
-    let mut s = ParserState::<{ VARIANT }>::new(
-        atoms,
-        arena,
-        nodes,
-        input,
-        module_id,
-        file_path,
-        always_strict,
+    let mut s = ParserState::<{ VARIANT }>::new::<ALWAYS_STRICT>(
+        atoms, arena, nodes, input, module_id, file_path, target,
     );
     s.parse();
 
@@ -300,6 +279,7 @@ pub fn parse<'cx, 'p>(
     module_id: ModuleID,
     module_arena: &'p ModuleArena,
     flags: CompilerOptionFlags,
+    target: Target,
 ) -> ParseResult<'cx> {
     let nodes = Nodes(Vec::with_capacity(1024 * 8));
     let file_path = module_arena.get_path(module_id);
@@ -307,26 +287,19 @@ pub fn parse<'cx, 'p>(
     let preserve_comment = !flags.contains(CompilerOptionFlags::REMOVE_COMMENTS);
     macro_rules! parse_with_variant {
         ($variant:expr) => {
-            if preserve_comment {
-                parser_state_parse::<{ $variant | PRESERVE_COMMENT }>(
-                    atoms,
-                    arena,
-                    nodes,
-                    input,
-                    module_id,
-                    file_path,
-                    always_strict,
-                )
-            } else {
-                parser_state_parse::<{ $variant }>(
-                    atoms,
-                    arena,
-                    nodes,
-                    input,
-                    module_id,
-                    file_path,
-                    always_strict,
-                )
+            match (always_strict, preserve_comment) {
+                (true, true) => parser_state_parse::<{ $variant | PRESERVE_COMMENT }, true>(
+                    atoms, arena, nodes, input, module_id, file_path, target,
+                ),
+                (true, false) => parser_state_parse::<{ $variant }, true>(
+                    atoms, arena, nodes, input, module_id, file_path, target,
+                ),
+                (false, true) => parser_state_parse::<{ $variant | PRESERVE_COMMENT }, false>(
+                    atoms, arena, nodes, input, module_id, file_path, target,
+                ),
+                (false, false) => parser_state_parse::<{ $variant }, false>(
+                    atoms, arena, nodes, input, module_id, file_path, target,
+                ),
             }
         };
     }

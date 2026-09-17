@@ -1,0 +1,6 @@
+  × Property 'shouldError' has no initializer and is not definitely assigned
+  │ in the constructor.
+    ╭─[../../tests/compiler/accessorInAmbientContextES5/index.ts:30:14]
+ 30 │ shouldError
+    · ───────────
+    ╰────

@@ -1,0 +1,13 @@
+  × Properties with the 'accessor' modifier are only available when targeting
+  │ ECMAScript 2015 and higher.
+    ╭─[../../tests/compiler/accessorInAmbientContextES5/index.ts:30:14]
+ 30 │ shouldError
+    · ───────────
+    ╰────
+
+  × Property 'shouldError' has no initializer and is not definitely assigned
+  │ in the constructor.
+    ╭─[../../tests/compiler/accessorInAmbientContextES5/index.ts:30:14]
+ 30 │ shouldError
+    · ───────────
+    ╰────
