@@ -865,6 +865,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
+    pub fn is_write_only_access(&self, id: ast::NodeID) -> bool {
+        self.access_kind(id) == AccessKind::Write
+    }
+
     pub fn is_method_access_for_call(&self, id: ast::NodeID) -> bool {
         let mut id = id;
         while let Some(parent) = self.parent(id) {

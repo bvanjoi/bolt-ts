@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword::IDENT_LENGTH;
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver;
 use bolt_ts_ty::TypeFacts;
 use bolt_ts_utils::{FxIndexSet, fx_hashset_with_capacity, fx_indexset_with_capacity};
 use rustc_hash::FxHashSet;
@@ -2504,14 +2505,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         );
         if res == Ternary::FALSE && report_error {
             if source.key_ty == target.key_ty {
-                if let Some(decl) = self.c.symbol(source.symbol).opt_decl() {
-                    let span = self.c.p.node(decl).expect_index_sig_decl().ty.span();
-                    let error = errors::IndexSignaturesAreIncompatible {
-                        span,
-                        ty: self.c.print_ty(target.val_ty, None).to_string(),
-                    };
-                    self.c.push_error(Box::new(error));
-                }
+                let error_node = self.error_node.unwrap();
+                let error_node = self.c.node(error_node);
+                let span = error_node.name().map_or(error_node.span(), |n| n.span());
+                let error = errors::IndexSignaturesAreIncompatible {
+                    span,
+                    ty: self.c.print_ty(source.val_ty, None).to_string(),
+                };
+                self.c.push_error(Box::new(error));
             } else {
                 todo!()
             }

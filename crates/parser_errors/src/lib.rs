@@ -991,3 +991,10 @@ pub struct ADestructuringDeclarationMustHaveAnInitializer {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'super' must be followed by an argument list or member access.")]
+pub struct SuperMustBeFollowedByAnArgumentListOrMemberAccess {
+    #[label(primary)]
+    pub span: Span,
+}

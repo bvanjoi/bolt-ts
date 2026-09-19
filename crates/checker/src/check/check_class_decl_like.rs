@@ -4,7 +4,7 @@ use super::ty::TypeFlags;
 use super::{TyChecker, errors};
 
 use bolt_ts_ast::r#trait::ClassLike;
-use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident, print_prop_name};
+use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident, pprint_prop_name};
 use bolt_ts_ast_visitor::{noop_visit_function_like_node, noop_visit_type_node};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{SymbolFlags, SymbolID};
@@ -224,8 +224,9 @@ impl<'cx> TyChecker<'cx> {
         v.ret
     }
 
-    fn check_class_method_element(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
-        self.check_fn_like_decl(method);
+    fn check_class_method_element(&mut self, n: &'cx ast::ClassMethodElem<'cx>) {
+        self.check_fn_like_decl(n);
+        self.register_potentially_unused_class_method_element(n);
     }
 
     pub(super) fn check_invalid_dynamic_name(
@@ -243,6 +244,22 @@ impl<'cx> TyChecker<'cx> {
         };
         if !expr.is_entity_name_expr() {
             push_error(self);
+        }
+    }
+
+    pub(super) fn check_class_elements(&mut self, n: &'cx ast::ClassElems<'cx>) {
+        for element in n.list {
+            use bolt_ts_ast::ClassElemKind::*;
+            match element.kind {
+                Prop(n) => self.check_class_prop_elem(n),
+                Method(n) => self.check_class_method_element(n),
+                Ctor(n) => self.check_class_ctor(n),
+                IndexSig(_) => {}
+                Getter(n) => self.check_getter_decl(n),
+                Setter(n) => self.check_accessor_decl(n),
+                StaticBlockDecl(n) => self.check_block(n.body),
+                Semi(_) => {}
+            }
         }
     }
 
@@ -301,7 +318,7 @@ impl<'cx> TyChecker<'cx> {
                     Some(|this: &mut Self| {
                         let name = member_name.unwrap();
                         let span = name.kind.span();
-                        let prop = print_prop_name(&name.kind, &this.atoms);
+                        let prop = pprint_prop_name(&name.kind, &this.atoms);
                         let error =
                             errors::PropertyAInTypeXIsNotAssignableToTheSamePropertyInBaseTypeY {
                                 span,
@@ -414,6 +431,60 @@ impl<'cx> TyChecker<'cx> {
                     _ => unreachable!(),
                 };
                 add_name(self, names, name.span(), member_name, meaning)
+            }
+        }
+    }
+
+    /// `check_property_initializer` should be called after `check_class_elements` to
+    /// ensure the constructor is checked.
+    pub(super) fn check_property_initializer(&mut self, class: &impl ClassLike<'cx>) {
+        if self.config.compiler_options().strict_null_checks()
+            && self
+                .config
+                .compiler_options()
+                .strict_property_initialization()
+            && let class_id = class.id()
+            && !self
+                .p
+                .node_flags(class_id)
+                .contains(ast::NodeFlags::AMBIENT)
+        {
+            let ctor = class.find_ctor_decl();
+            for elem in class.elems().list {
+                if elem
+                    .kind
+                    .modifiers()
+                    .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
+                {
+                    continue;
+                }
+                if !elem.kind.is_static() && elem.kind.is_kind_without_init() {
+                    let ast::ClassElemKind::Prop(prop) = elem.kind else {
+                        unreachable!()
+                    };
+                    let prop_name = prop.name;
+                    if matches!(
+                        prop.name.kind,
+                        ast::PropNameKind::Ident(_)
+                            | ast::PropNameKind::PrivateIdent(_)
+                            | ast::PropNameKind::Computed(_)
+                    ) {
+                        let symbol = self.get_symbol_of_declaration(prop.id);
+                        let prop_ty = self.get_type_of_symbol(symbol);
+                        if !(prop_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
+                            || prop_ty.contains_undefined_ty())
+                            && ctor.is_none_or(|ctor| {
+                                !self.is_property_initialized_in_constructor(prop.id, ctor)
+                            })
+                        {
+                            let error = errors::PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
+                                    span: prop_name.span(),
+                                    property: prop_name.kind.to_string(&self.atoms),
+                                };
+                            self.push_error(Box::new(error));
+                        }
+                    }
+                }
             }
         }
     }
@@ -846,70 +917,6 @@ impl<'cx> TyChecker<'cx> {
                         span: ty_ref_node.span,
                     };
                     self.push_error(Box::new(error));
-                }
-            }
-        }
-
-        for element in class.elems().list {
-            use bolt_ts_ast::ClassElemKind::*;
-            match element.kind {
-                Prop(n) => self.check_class_prop_elem(n),
-                Method(n) => self.check_class_method_element(n),
-                Ctor(n) => self.check_class_ctor(n),
-                IndexSig(_) => {}
-                Getter(n) => self.check_getter_decl(n),
-                Setter(n) => self.check_accessor_decl(n),
-                StaticBlockDecl(n) => self.check_block(n.body),
-                Semi(_) => {}
-            }
-        }
-
-        // check_property_initialization
-        if self.config.compiler_options().strict_null_checks()
-            && self
-                .config
-                .compiler_options()
-                .strict_property_initialization()
-            && !self
-                .p
-                .node_flags(class_id)
-                .contains(ast::NodeFlags::AMBIENT)
-        {
-            let ctor = class.find_ctor_decl();
-            for elem in class.elems().list {
-                if elem
-                    .kind
-                    .modifiers()
-                    .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
-                {
-                    continue;
-                }
-                if !elem.kind.is_static() && elem.kind.is_kind_without_init() {
-                    let ast::ClassElemKind::Prop(prop) = elem.kind else {
-                        unreachable!()
-                    };
-                    let prop_name = prop.name;
-                    if matches!(
-                        prop.name.kind,
-                        ast::PropNameKind::Ident(_)
-                            | ast::PropNameKind::PrivateIdent(_)
-                            | ast::PropNameKind::Computed(_)
-                    ) {
-                        let symbol = self.get_symbol_of_declaration(prop.id);
-                        let prop_ty = self.get_type_of_symbol(symbol);
-                        if !(prop_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
-                            || prop_ty.contains_undefined_ty())
-                            && ctor.is_none_or(|ctor| {
-                                !self.is_property_initialized_in_constructor(prop.id, ctor)
-                            })
-                        {
-                            let error = errors::PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
-                                    span: prop_name.span(),
-                                    property: prop_name.kind.to_string(&self.atoms),
-                                };
-                            self.push_error(Box::new(error));
-                        }
-                    }
                 }
             }
         }

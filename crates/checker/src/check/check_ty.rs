@@ -52,7 +52,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_infer_ty(&mut self, n: &'cx ast::InferTy<'cx>) {
-        self.register_potentially_unused_infer_type_node(n);
+        self.register_potentially_unused_infer_type(n);
     }
 
     fn check_array_ty(&mut self, n: &'cx ast::ArrayTy<'cx>) {

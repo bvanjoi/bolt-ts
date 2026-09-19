@@ -5,7 +5,7 @@ pub fn pprint_ident(ident: &super::Ident, atoms: &AtomIntern) -> String {
     atoms.get(ident.name).to_string()
 }
 
-pub fn print_prop_name(node: &super::PropNameKind<'_>, atoms: &AtomIntern) -> String {
+pub fn pprint_prop_name(node: &super::PropNameKind<'_>, atoms: &AtomIntern) -> String {
     use super::PropNameKind::*;
     match node {
         Ident(ident) => pprint_ident(ident, atoms),

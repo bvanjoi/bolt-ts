@@ -594,6 +594,68 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn check_function_expression(
+        &mut self,
+        n: &'cx ast::FnExpr<'cx>,
+        check_mode: Option<CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
+        self.check_node_deferred(n.id);
+
+        if let Some(ty) =
+            self.try_check_context_free_fn_expr_or_object_literal_method(n.id, check_mode)
+        {
+            ty
+        } else {
+            // contextually_check_fn_expr_or_object_literal_method
+            let flags = |this: &mut Self| this.get_node_links(n.id).flags();
+            if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
+                let contextual_sig = self.get_contextual_sig(n.id);
+                if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
+                    self.contextually_check_fn_expr_or_object_literal_method_worker(
+                        n.id,
+                        check_mode,
+                        contextual_sig,
+                    );
+                    self.register_potentially_unused_function_expression(n);
+                    self.check_sig_decl(n.id);
+                }
+            }
+            let symbol = self.get_symbol_of_declaration(n.id);
+            self.get_type_of_symbol(symbol)
+        }
+    }
+
+    fn check_arrow_function_expression(
+        &mut self,
+        n: &'cx ast::ArrowFnExpr<'cx>,
+        check_mode: Option<CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
+        self.check_node_deferred(n.id);
+
+        if let Some(ty) =
+            self.try_check_context_free_fn_expr_or_object_literal_method(n.id, check_mode)
+        {
+            ty
+        } else {
+            // contextually_check_fn_expr_or_object_literal_method
+            let flags = |this: &mut Self| this.get_node_links(n.id).flags();
+            if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
+                let contextual_sig = self.get_contextual_sig(n.id);
+                if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
+                    self.contextually_check_fn_expr_or_object_literal_method_worker(
+                        n.id,
+                        check_mode,
+                        contextual_sig,
+                    );
+                    // TODO: self.register_potentially_unused_function_expression(n);
+                    self.check_sig_decl(n.id);
+                }
+            }
+            let symbol = self.get_symbol_of_declaration(n.id);
+            self.get_type_of_symbol(symbol)
+        }
+    }
+
     pub(super) fn check_expression<const FORCE_TUPLE: bool>(
         &mut self,
         expr: &'cx ast::Expr<'cx>,
@@ -628,13 +690,15 @@ impl<'cx> TyChecker<'cx> {
             }
             Call(call) => self.check_call_like_expr::<true>(call, check_mode),
             New(call) => self.check_call_like_expr::<false>(call, check_mode),
-            Fn(f) => self.check_fn_like_expr(f, check_mode),
-            ArrowFn(f) => self.check_fn_like_expr(f, check_mode),
+            Fn(n) => self.check_function_expression(n, check_mode),
+            ArrowFn(n) => self.check_arrow_function_expression(n, check_mode),
             Assign(assign) => self.check_assignment_expression(assign, check_mode),
             PrefixUnary(unary) => self.check_prefix_unary_expr(unary),
             PostfixUnary(unary) => self.check_postfix_unary_expr(unary),
             Class(class) => {
                 self.check_class_like_decl(class);
+                self.check_node_deferred(class.id);
+                // TODO:
                 let id = self.get_symbol_of_declaration(class.id);
                 self.get_type_of_symbol(id)
             }

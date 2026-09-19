@@ -86,6 +86,7 @@ use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_binder::{param_index_in_parameter_list, symbol_name_from_enum_member_name};
 use bolt_ts_checker_errors as errors;
 use bolt_ts_config::NormalizedTsConfig;
+use bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver;
 use bolt_ts_middle::F64Represent;
 use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
 use bolt_ts_parser::ParsedMap;
@@ -2383,7 +2384,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let prop_ty = if let Some(prop) = prop {
             self.check_prop_not_used_before_declaration(prop, node, right);
-            // TODO: mark_prop_as_referenced
+            self.mark_property_as_referenced(prop);
             if self.get_node_links(node).get_resolved_symbol().is_none() {
                 self.get_mut_node_links(node).set_resolved_symbol(prop);
             }
@@ -3236,14 +3237,37 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_object_method_member(
         &mut self,
-        member: &'cx ast::ObjectMethodMember<'cx>,
+        n: &'cx ast::ObjectMethodMember<'cx>,
         check_mode: CheckMode,
     ) -> &'cx ty::Ty<'cx> {
-        if let ast::PropNameKind::Computed(n) = member.name.kind {
+        if let ast::PropNameKind::Computed(n) = n.name.kind {
             self.check_computed_property_name(n);
         }
-        let ty = self.check_fn_like_expr_or_object_literal_method(member.id, Some(check_mode));
-        self.instantiate_ty_with_single_generic_call_sig(member.id, ty, Some(check_mode))
+        // check_fn_like_expr_or_object_literal_method
+        self.check_node_deferred(n.id);
+        let ty = if let Some(ty) =
+            self.try_check_context_free_fn_expr_or_object_literal_method(n.id, Some(check_mode))
+        {
+            ty
+        } else {
+            // contextually_check_fn_expr_or_object_literal_method
+            let flags = |this: &mut Self| this.get_node_links(n.id).flags();
+            if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
+                let contextual_sig = self.get_contextual_sig(n.id);
+                if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
+                    self.contextually_check_fn_expr_or_object_literal_method_worker(
+                        n.id,
+                        Some(check_mode),
+                        contextual_sig,
+                    );
+                    // TODO: register potentially_unused_
+                    self.check_sig_decl(n.id);
+                }
+            }
+            let symbol = self.get_symbol_of_declaration(n.id);
+            self.get_type_of_symbol(symbol)
+        };
+        self.instantiate_ty_with_single_generic_call_sig(n.id, ty, Some(check_mode))
     }
 
     fn check_array_literal<const FORCE_TUPLE: bool>(
@@ -9132,6 +9156,32 @@ impl<'cx> TyChecker<'cx> {
                 span: init.span(),
             };
             self.push_error(Box::new(error));
+        }
+    }
+
+    pub fn is_optional_parameter(&mut self, n: &'cx ast::ParamDecl<'cx>) -> bool {
+        if self.get_effective_question_token(n.id).is_some() {
+            true
+        } else if n.init.is_some() {
+            let parent = self.parent(n.id).unwrap();
+            let params = self.node(parent).params().unwrap();
+            let parameter_index = params.iter().position(|p| std::ptr::eq(*p, n)).unwrap();
+            let sig = self.get_sig_from_decl(parent);
+            let min_count = self.get_min_arg_count(sig);
+            parameter_index >= min_count
+        } else if let parent = self.parent(n.id).unwrap()
+            && let Some(iife) = self
+                .node_query(n.id.module())
+                .get_immediately_invoked_fn_expr(parent)
+        {
+            n.ty.is_none() && n.dotdotdot.is_none() && {
+                let params = self.node(parent).params().unwrap();
+                let parameter_index = params.iter().position(|p| std::ptr::eq(*p, n)).unwrap();
+                let call_args_count = self.get_effective_call_arguments(iife).len();
+                parameter_index >= call_args_count
+            }
+        } else {
+            false
         }
     }
 }

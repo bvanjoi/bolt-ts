@@ -1,5 +1,5 @@
 use bolt_ts_ast::keyword::is_reserved_type_name;
-use bolt_ts_ast::{self as ast, keyword, pprint_ident, print_prop_name};
+use bolt_ts_ast::{self as ast, keyword, pprint_ident, pprint_prop_name};
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_checker_errors::DeclKind;
 use bolt_ts_config::{NormalizedCompilerOptions, Target};
@@ -504,7 +504,7 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
                         errors::XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
                             span: name.span,
                             x: pprint_ident(name, self.atoms),
-                            y: print_prop_name(&prop_name.kind, self.atoms),
+                            y: pprint_prop_name(&prop_name.kind, self.atoms),
                         },
                     );
                     self.push_error(error);

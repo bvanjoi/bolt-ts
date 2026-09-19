@@ -1,0 +1,17 @@
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/libMembers/index.ts:15:17]
+ 15 │ ]
+    · ─
+    ╰────
+
+  × Property 'subby' does not exist on type 'string'.
+   ╭─[../../tests/compiler/libMembers/index.ts:9:3]
+ 9 │ subby
+   · ─────
+   ╰────
+
+  × Property 'prototype' does not exist on type 'M.C'.
+    ╭─[../../tests/compiler/libMembers/index.ts:19:15]
+ 19 │ prototype
+    · ─────────
+    ╰────

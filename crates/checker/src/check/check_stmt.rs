@@ -27,22 +27,37 @@ impl<'cx> TyChecker<'cx> {
             Ret(node) => self.check_return_statement(node),
             Class(node) => self.check_class_decl(node),
             Interface(node) => self.check_interface_declaration(node),
-            NestedModule(n) => self.check_module_declaration_worker(
-                n.id,
-                n.span,
-                &ast::ModuleName::Ident(n.name),
-                Some(n.block.module_block()),
-                false,
-                false,
-            ),
-            BlockModule(n) => self.check_module_declaration_worker(
-                n.id,
-                n.span,
-                &n.name,
-                n.block,
-                n.is_global_argument,
-                n.is_ambient(),
-            ),
+            NestedModule(n) => {
+                for item in n.block.module_block().stmts {
+                    self.check_stmt(item);
+                }
+                self.check_module_declaration_worker(
+                    n.id,
+                    n.span,
+                    &ast::ModuleName::Ident(n.name),
+                    Some(n.block.module_block()),
+                    false,
+                    false,
+                )
+            }
+            BlockModule(n) => {
+                if let Some(block) = n.block {
+                    for item in block.stmts {
+                        self.check_stmt(item);
+                    }
+                    if !n.is_global_argument {
+                        self.register_potentially_unused_block_module_declaration(n);
+                    }
+                }
+                self.check_module_declaration_worker(
+                    n.id,
+                    n.span,
+                    &n.name,
+                    n.block,
+                    n.is_global_argument,
+                    n.is_ambient(),
+                )
+            }
             TypeAlias(node) => self.check_type_alias_decl(node),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
@@ -391,22 +406,23 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_for_of_stmt(&mut self, node: &'cx ast::ForOfStmt<'cx>) {
-        match node.init {
+    fn check_for_of_stmt(&mut self, n: &'cx ast::ForOfStmt<'cx>) {
+        match n.init {
             ast::ForInitKind::Var(var) => {
                 self.check_var_decl_list(var);
             }
             ast::ForInitKind::Expr(_) => {}
         };
-        self.check_stmt(node.body);
+        self.check_stmt(n.body);
+        self.register_potentially_unused_for_of_statement(n);
     }
 
-    fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {
+    fn check_for_in_stmt(&mut self, n: &'cx ast::ForInStmt<'cx>) {
         let right_ty = {
-            let ty = self.check_expression::<false>(node.expr, None);
+            let ty = self.check_expression::<false>(n.expr, None);
             self.get_non_nullable_ty(ty)
         };
-        match node.init {
+        match n.init {
             ast::ForInitKind::Var(declarations) => {
                 // TODO:
                 self.check_var_decl_list(declarations);
@@ -432,14 +448,14 @@ impl<'cx> TyChecker<'cx> {
             )
         {
             let error = errors::TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType {
-                span: node.expr.span(),
+                span: n.expr.span(),
                 ty: self.print_ty(right_ty, None).to_string(),
             };
             self.push_error(Box::new(error));
         }
 
-        self.check_stmt(node.body);
-        // TODO: node.locals
+        self.check_stmt(n.body);
+        self.register_potentially_unused_for_in_statement(n);
     }
 
     fn check_for_stmt(&mut self, node: &'cx ast::ForStmt<'cx>) {
@@ -538,12 +554,6 @@ impl<'cx> TyChecker<'cx> {
         is_global_augmentation: bool,
         is_ambient_external_module: bool,
     ) {
-        if let Some(block) = module_block {
-            for item in block.stmts {
-                self.check_stmt(item);
-            }
-        }
-
         let in_ambient_context = self.p.node_flags(id).contains(NodeFlags::AMBIENT);
 
         self.check_exports_on_merged_decls(id);
@@ -1012,13 +1022,25 @@ impl<'cx> TyChecker<'cx> {
         );
     }
 
-    fn check_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
-        self.check_class_like_decl(class)
+    fn check_class_decl(&mut self, n: &'cx ast::ClassDecl<'cx>) {
+        self.check_class_like_decl(n);
+        self.check_class_elements(n.elems);
+        self.check_property_initializer(n);
+        self.register_potentially_unused_class_declaration(n);
     }
 
     fn check_type_alias_decl(&mut self, n: &'cx ast::TypeAliasDecl<'cx>) {
         self.check_type_parameters(n.ty_params);
-        self.check_ty(n.ty);
+
+        match n.ty.kind {
+            ast::TyKind::Intrinsic(_) => {
+                // TODO:
+            }
+            _ => {
+                self.check_ty(n.ty);
+                self.register_potentially_unused_type_alias_declaration(n);
+            }
+        }
     }
 
     pub(super) fn check_setter_decl(&mut self, n: &'cx ast::SetterDecl<'cx>) {

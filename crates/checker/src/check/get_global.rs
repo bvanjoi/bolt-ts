@@ -157,7 +157,8 @@ macro_rules! deferred_global_ty0 {
         $(
             [$name: ident, $ident_name: ident, $fallback: expr, $arity: literal]
         ),*
-        $(,)?) => {
+        $(,)?
+    ) => {
         impl<'cx> TyChecker<'cx> {
             $(
                 paste::paste! {

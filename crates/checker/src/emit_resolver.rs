@@ -146,4 +146,7 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
     pub fn print_type(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
         self.checker.print_ty(ty, None).to_string()
     }
+    pub fn is_optional_parameter(&mut self, n: &'cx ast::ParamDecl<'cx>) -> bool {
+        self.checker.is_optional_parameter(n)
+    }
 }

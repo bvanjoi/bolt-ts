@@ -2249,3 +2249,18 @@ pub struct XIsDeclaredButItsValueIsNeverRead {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{name}' is declared but never used.")]
+pub struct XIsDeclaredButNeverUsed {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("All Variables are unused.")]
+pub struct AllVariablesAreUnused {
+    #[label(primary)]
+    pub span: Span,
+}

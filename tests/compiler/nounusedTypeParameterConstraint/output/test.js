@@ -1,0 +1,1 @@
+import IEventSourcedEntity from './bar'

@@ -1142,7 +1142,12 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
         ident: &'cx ast::Ident,
         meaning: SymbolFlags,
     ) -> ResolvedResult<'cx> {
-        let res = resolve_symbol_by_ident::<true>(self, ident, meaning);
+        // TODO: can we use is_use as a parameter to avoid calling `is_write_only_access`?
+        let res = if self.node_query().is_write_only_access(ident.id) {
+            resolve_symbol_by_ident::<false>(self, ident, meaning)
+        } else {
+            resolve_symbol_by_ident::<true>(self, ident, meaning)
+        };
         self.record_reference(&res);
         let prev = self.final_res.insert(ident.id, res.symbol());
         assert!(

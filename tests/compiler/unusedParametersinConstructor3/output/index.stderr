@@ -1,0 +1,11 @@
+  × 'param1' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedParametersinConstructor3/index.ts:8:17]
+ 8 │ param1
+   · ──────
+   ╰────
+
+  × 'param3' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedParametersinConstructor3/index.ts:8:49]
+ 8 │ param3
+   · ──────
+   ╰────

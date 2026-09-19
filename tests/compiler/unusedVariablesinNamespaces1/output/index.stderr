@@ -1,0 +1,5 @@
+  × 'lettersRegexp' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedVariablesinNamespaces1/index.ts:8:11]
+ 8 │ lettersRegexp
+   · ─────────────
+   ╰────

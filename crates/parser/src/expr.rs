@@ -1,6 +1,7 @@
 use super::SignatureFlags;
 use super::const_variant::is_jsx_like_variant;
 use super::const_variant::is_ts_like_variant;
+use super::jsx;
 use super::lookahead::Lookahead;
 use super::parse_fn_like::ParseFnExpr;
 use super::parsing_ctx::{ParseContext, ParsingContext};
@@ -467,8 +468,20 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             Typeof => self.parse_typeof_expr(),
             Void => self.parse_void_expr(),
             Less => {
-                // TODO: is jsx
-                self.parse_ty_assertion()
+                if is_jsx_like_variant(VARIANT) {
+                    let expr =
+                        self.parse_jsx_ele_or_self_closing_ele_or_frag(true, None, None, true)?;
+                    let expr = match expr {
+                        jsx::JsxEleOrSelfClosingEleOrFrag::Ele(n) => ast::ExprKind::JsxElem(n),
+                        jsx::JsxEleOrSelfClosingEleOrFrag::SelfClosingEle(n) => {
+                            ast::ExprKind::JsxSelfClosingElem(n)
+                        }
+                        jsx::JsxEleOrSelfClosingEleOrFrag::Frag(n) => ast::ExprKind::JsxFrag(n),
+                    };
+                    Ok(self.alloc(ast::Expr { kind: expr }))
+                } else {
+                    self.parse_ty_assertion()
+                }
             }
             Delete => self.parse_delete_expr(),
             Await => {
@@ -651,7 +664,15 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         ) {
             Ok(expr)
         } else {
-            self.expect(TokenKind::Dot);
+            self.expect_with::<false>(
+                TokenKind::Dot,
+                Some(|this: &mut Self| {
+                    let error = errors::SuperMustBeFollowedByAnArgumentListOrMemberAccess {
+                        span: this.token.span,
+                    };
+                    Box::new(error) as _
+                }),
+            );
             let name = self.parse_right_side_of_dot::<true>();
             let expr = self.create_property_access_expression(self.new_span(start), expr, name);
             let expr = self.alloc(ast::Expr {
