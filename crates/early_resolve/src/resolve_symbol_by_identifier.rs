@@ -235,6 +235,16 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a, const IS_USE: bool>(
     ident: &'cx ast::Ident,
     meaning: SymbolFlags,
 ) -> ResolvedResult<'cx> {
+    if ident.name == keyword::KW_UNDEFINED {
+        return ResolvedResult {
+            symbol: Symbol::UNDEFINED,
+            is_referenced: None,
+            associated_declaration_for_containing_initializer_or_binding_name: None,
+            within_deferred_context: false,
+            base_class_expression_cannot_reference_class_type_parameters: false,
+            property_with_invalid_initializer: None,
+        };
+    }
     use ast::Node::*;
     let key = SymbolName::Atom(ident.name);
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;

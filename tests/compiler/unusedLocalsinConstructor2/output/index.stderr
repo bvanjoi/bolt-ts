@@ -1,0 +1,5 @@
+  × 'unused' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedLocalsinConstructor2/index.ts:9:13]
+ 9 │ unused
+   · ──────
+   ╰────

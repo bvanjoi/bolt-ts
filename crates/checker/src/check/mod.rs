@@ -2384,7 +2384,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let prop_ty = if let Some(prop) = prop {
             self.check_prop_not_used_before_declaration(prop, node, right);
-            self.mark_property_as_referenced(prop);
+            self.mark_property_as_referenced(prop, Some(node));
             if self.get_node_links(node).get_resolved_symbol().is_none() {
                 self.get_mut_node_links(node).set_resolved_symbol(prop);
             }

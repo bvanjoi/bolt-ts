@@ -1,7 +1,6 @@
 use bolt_ts_atom::Atom;
 use bolt_ts_ecma_logical::js_double_to_boolean;
 
-use super::keyword::is_prim_value_name;
 use super::*;
 
 pub type Exprs<'cx> = &'cx [&'cx Expr<'cx>];
@@ -137,7 +136,7 @@ impl<'cx> Expr<'cx> {
     }
 
     pub fn is_entity_name_expr(&self) -> bool {
-        matches!(self.kind, ExprKind::Ident(n) if !is_prim_value_name(n.name))
+        matches!(self.kind, ExprKind::Ident(n) if !matches!(n.name, keyword::KW_NULL | keyword::KW_FALSE | keyword::KW_TRUE))
             || self.is_prop_access_entity_name_expr()
     }
 

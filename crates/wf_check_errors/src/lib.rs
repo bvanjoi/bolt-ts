@@ -148,3 +148,12 @@ pub struct ExportAssignmentCannotBeUsedWhenTargetingEcmascriptModulesConsiderUsi
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "The expression of an export assignment must be an identifier or qualified name in an ambient context."
+)]
+pub struct TheExpressionOfAnExportAssignmentMustBeAnIdentifierOrQualifiedNameInAnAmbientContext {
+    #[label(primary)]
+    pub span: Span,
+}

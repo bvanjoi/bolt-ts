@@ -1,0 +1,17 @@
+  × 'person' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedMultipleParameters1InMethodDeclaration/index.ts:8:20]
+ 8 │ person
+   · ──────
+   ╰────
+
+  × 'person2' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedMultipleParameters1InMethodDeclaration/index.ts:8:36]
+ 8 │ person2
+   · ───────
+   ╰────
+
+  × 'unused' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedMultipleParameters1InMethodDeclaration/index.ts:11:13]
+ 11 │ unused
+    · ──────
+    ╰────

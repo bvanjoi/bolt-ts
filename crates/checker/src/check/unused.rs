@@ -57,7 +57,11 @@ impl<'cx> PotentiallyUnusedIdentifiers<'cx> {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn mark_property_as_referenced(&mut self, prop: SymbolID) {
+    pub(super) fn mark_property_as_referenced(
+        &mut self,
+        prop: SymbolID,
+        node_for_check_write_only: Option<ast::NodeID>,
+    ) {
         let s = self.symbol(prop);
         if !s.flags.intersects(SymbolFlags::CLASS_MEMBER) {
             return;
@@ -76,7 +80,13 @@ impl<'cx> TyChecker<'cx> {
         {
             return;
         }
-        // TODO: more case
+        if let Some(n) = node_for_check_write_only
+            && self.node_query(n.module()).is_write_only_access(n)
+            && !s.flags.contains(SymbolFlags::SET_ACCESSOR)
+        {
+            return;
+        }
+        // TODO: is_self_type_access
         let check_flags = self.get_check_flags(prop);
         let prop = if check_flags.contains(CheckFlags::INSTANTIATED) {
             self.get_symbol_links(prop).expect_target()
@@ -190,9 +200,9 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
         let symbol = self.c.final_res(ty_param.id);
         let symbol = self.c.get_merged_symbol(symbol);
         let s = self.c.symbol(symbol);
-        !s.is_referenced
-            .is_some_and(|used| used.contains(SymbolFlags::TYPE_PARAMETER))
-            && !self.is_identifier_that_starts_with_underscore(ty_param.name)
+        !(s.is_referenced
+            .is_some_and(|r| r.contains(SymbolFlags::TYPE_PARAMETER))
+            || self.is_identifier_that_starts_with_underscore(ty_param.name))
     }
 
     fn check_unused_type_parameters(&self, id: ast::NodeID, diags: &mut Vec<BoxedDiag>) {
@@ -302,17 +312,19 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
         for &local in locals.0.values() {
             let s = self.c.symbol(local);
             if s.export_symbol.is_some()
-                || (s.flags.contains(SymbolFlags::TYPE_PARAMETER)
-                    && !(s.flags.intersects(SymbolFlags::VARIABLE)
-                        && !(s
-                            .is_referenced
-                            .is_some_and(|r| r.intersects(SymbolFlags::VARIABLE)))))
-                || s.is_referenced.is_some()
+                || if s.flags.contains(SymbolFlags::TYPE_PARAMETER) {
+                    !s.flags.intersects(SymbolFlags::VARIABLE)
+                        || s.is_referenced
+                            .is_some_and(|r| r.intersects(SymbolFlags::VARIABLE))
+                } else {
+                    s.is_referenced.is_some()
+                }
             {
                 continue;
             }
 
             if let Some(declarations) = s.decls.as_ref() {
+                let mut value_declaration_has_error = false;
                 for &declaration in declarations {
                     let n = self.c.p.node(declaration);
                     // TODO: is_valid_unused_local_declaration
@@ -348,13 +360,16 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                                 && let Some(name) =
                                     self.c.node_query(id.module()).get_name_of_declaration(id)
                             {
-                                if !p.is_parameter_property_declaration() {
-                                    // TODO: bbinding
-                                    let error = errors::XIsDeclaredButItsValueIsNeverRead {
-                                        span: name.span(),
-                                        name: s.name.to_string(&self.c.atoms),
-                                    };
-                                    diags.push(Box::new(error));
+                                if !value_declaration_has_error {
+                                    value_declaration_has_error = true;
+                                    if !p.is_parameter_property_declaration() {
+                                        // TODO: bbinding
+                                        let error = errors::XIsDeclaredButItsValueIsNeverRead {
+                                            span: name.span(),
+                                            name: s.name.to_string(&self.c.atoms),
+                                        };
+                                        diags.push(Box::new(error));
+                                    }
                                 }
                             } else {
                                 let name = s.name.to_string(&self.c.atoms);

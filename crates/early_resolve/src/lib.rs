@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 use bolt_ts_ast::keyword;
-use bolt_ts_ast::keyword::{is_prim_ty_name, is_prim_value_name};
+use bolt_ts_ast::keyword::is_prim_ty_name;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_binder::SymbolTable;
 use bolt_ts_binder::{BinderResult, GlobalSymbols, MergedSymbols};
@@ -1069,7 +1069,10 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
             let prev = self.final_res.insert(ident.id, Symbol::ERR);
             assert!(prev.is_none());
             return;
-        } else if is_prim_value_name(ident.name) {
+        } else if matches!(
+            ident.name,
+            keyword::KW_NULL | keyword::KW_FALSE | keyword::KW_TRUE
+        ) {
             return;
         }
         let res = self.resolve_symbol_by_ident(ident, MEANING_FOR_VALUE);
@@ -1246,6 +1249,7 @@ fn check_var_declared_names_not_shadowed<'a, 'cx>(
 
     if local_declaration_symbol_id != Symbol::ERR
         && local_declaration_symbol_id != symbol
+        && local_declaration_symbol_id != Symbol::UNDEFINED
         && let local_declaration_symbol = r.symbol(local_declaration_symbol_id)
         && local_declaration_symbol
             .flags

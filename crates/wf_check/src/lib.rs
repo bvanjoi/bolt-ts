@@ -550,6 +550,14 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
     }
     fn visit_export_assign(&mut self, node: &'cx bolt_ts_ast::ExportAssign<'cx>) -> Self::Result {
         self.check_export_assignment(node);
+        if self.p.node_flags(node.id).contains(ast::NodeFlags::AMBIENT)
+            && !node.expr.is_entity_name_expr()
+        {
+            let error = errors::TheExpressionOfAnExportAssignmentMustBeAnIdentifierOrQualifiedNameInAnAmbientContext {
+                span: node.expr.span(),
+            };
+            self.push_error(Box::new(error));
+        }
         bolt_ts_ast_visitor::visit_export_assign(self, node)
     }
 }

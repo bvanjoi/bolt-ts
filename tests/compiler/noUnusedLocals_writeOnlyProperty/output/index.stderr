@@ -1,0 +1,5 @@
+  × 'x' is declared but its value is never read.
+   ╭─[../../tests/compiler/noUnusedLocals_writeOnlyProperty/index.ts:8:13]
+ 8 │ x
+   · ─
+   ╰────
