@@ -561,7 +561,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         let n = self.node(id);
         matches!(
             n,
-            ParamDecl(_) | ClassDecl(_) | InterfaceDecl(_) | TypeAliasDecl(_) | EnumDecl(_)
+            TyParam(_) | ClassDecl(_) | InterfaceDecl(_) | TypeAliasDecl(_) | EnumDecl(_)
         ) || n.as_import_clause().is_some_and(|i| i.is_type_only)
             || (n.is_import_named_spec() && {
                 let p = self.parent(id).unwrap();

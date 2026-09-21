@@ -1,0 +1,11 @@
+  × 'foge' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedParameterProperty1/index.ts:10:13]
+ 10 │ foge
+    · ────
+    ╰────
+
+  × Property 'used' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedParameterProperty1/index.ts:8:25]
+ 8 │ used
+   · ────
+   ╰────

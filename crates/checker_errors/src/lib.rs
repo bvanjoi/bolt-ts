@@ -2251,6 +2251,14 @@ pub struct XIsDeclaredButItsValueIsNeverRead {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Property '{name}' is declared but its value is never read.")]
+pub struct PropertyXIsDeclaredButItsValueIsNeverRead {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{name}' is declared but never used.")]
 pub struct XIsDeclaredButNeverUsed {
     #[label(primary)]

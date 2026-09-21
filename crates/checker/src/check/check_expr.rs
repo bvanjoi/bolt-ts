@@ -647,7 +647,7 @@ impl<'cx> TyChecker<'cx> {
                         check_mode,
                         contextual_sig,
                     );
-                    // TODO: self.register_potentially_unused_function_expression(n);
+                    self.register_potentially_unused_arrow_function_expression(n);
                     self.check_sig_decl(n.id);
                 }
             }

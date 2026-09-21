@@ -1,4 +1,4 @@
-use bolt_ts_ast::{self as ast, pprint_binding, pprint_prop_name};
+use bolt_ts_ast::{self as ast, keyword, pprint_binding, pprint_prop_name};
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolTable};
 use bolt_ts_checker_errors as errors;
 use bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver;
@@ -12,8 +12,13 @@ use super::TyChecker;
 #[derive(Debug, Clone)]
 pub enum PotentiallyUnusedIdentifier<'cx> {
     InferTy(&'cx ast::InferTy<'cx>),
+    InterfaceDecl(&'cx ast::InterfaceDecl<'cx>),
     FnDecl(&'cx ast::FnDecl<'cx>),
     FnExpr(&'cx ast::FnExpr<'cx>),
+    FnTy(&'cx ast::FnTy<'cx>),
+    CtorTy(&'cx ast::CtorTy<'cx>),
+    CtorSigDecl(&'cx ast::CtorSigDecl<'cx>),
+    ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
     ForInStmt(&'cx ast::ForInStmt<'cx>),
     ForOfStmt(&'cx ast::ForOfStmt<'cx>),
     ClassCtor(&'cx ast::ClassCtor<'cx>),
@@ -175,9 +180,20 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                 }
                 self.check_unused_type_parameters(*id, &mut diags);
             }
+            PotentiallyUnusedIdentifier::FnExpr(ast::FnExpr { id, .. })
+            | PotentiallyUnusedIdentifier::ArrowFnExpr(ast::ArrowFnExpr { id, .. }) => {
+                let Some(locals) = self.c.binder.locals(*id) else {
+                    unreachable!()
+                };
+                self.check_unused_locals_and_parameters(locals, &mut diags);
+                self.check_unused_type_parameters(*id, &mut diags);
+            }
+            PotentiallyUnusedIdentifier::FnTy(ast::FnTy { id, .. })
+            | PotentiallyUnusedIdentifier::CtorTy(ast::CtorTy { id, .. }) => {
+                self.check_unused_type_parameters(*id, &mut diags);
+            }
             PotentiallyUnusedIdentifier::ForInStmt(ast::ForInStmt { id, .. })
             | PotentiallyUnusedIdentifier::ForOfStmt(ast::ForOfStmt { id, .. })
-            | PotentiallyUnusedIdentifier::FnExpr(ast::FnExpr { id, .. })
             | PotentiallyUnusedIdentifier::BlockModuleDecl(ast::BlockModuleDecl { id, .. }) => {
                 let Some(locals) = self.c.binder.locals(*id) else {
                     unreachable!()
@@ -189,7 +205,9 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                 self.check_unused_class_members(elems, &mut diags);
                 self.check_unused_type_parameters(*id, &mut diags);
             }
-            PotentiallyUnusedIdentifier::TypeAliasDecl(ast::TypeAliasDecl { id, .. }) => {
+            PotentiallyUnusedIdentifier::TypeAliasDecl(ast::TypeAliasDecl { id, .. })
+            | PotentiallyUnusedIdentifier::InterfaceDecl(ast::InterfaceDecl { id, .. })
+            | PotentiallyUnusedIdentifier::CtorSigDecl(ast::CtorSigDecl { id, .. }) => {
                 self.check_unused_type_parameters(*id, &mut diags);
             }
         }
@@ -281,7 +299,22 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                             span: name.span(),
                             name: pprint_prop_name(&name.kind, &self.c.atoms),
                         };
-                        diags.push(Box::new(error));
+                        self.push_unused_local_error(Box::new(error), diags);
+                    }
+                }
+                ast::ClassElemKind::Ctor(n) => {
+                    for p in n.params {
+                        let s = self.c.final_res(p.id);
+                        if self.c.symbol(s).is_referenced.is_some()
+                            && p.modifiers
+                                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::PRIVATE))
+                        {
+                            let error = errors::PropertyXIsDeclaredButItsValueIsNeverRead {
+                                span: p.name.span,
+                                name: pprint_binding(p.name, &self.c.atoms),
+                            };
+                            self.push_unused_local_error(Box::new(error), diags);
+                        }
                     }
                 }
                 _ => {}
@@ -362,7 +395,14 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                             {
                                 if !value_declaration_has_error {
                                     value_declaration_has_error = true;
-                                    if !p.is_parameter_property_declaration() {
+                                    if !p.is_parameter_property_declaration()
+                                        && match p.name.kind {
+                                            ast::BindingKind::Ident(name) => {
+                                                name.name != keyword::KW_THIS
+                                            }
+                                            _ => true,
+                                        }
+                                    {
                                         // TODO: bbinding
                                         let error = errors::XIsDeclaredButItsValueIsNeverRead {
                                             span: name.span(),
@@ -458,6 +498,10 @@ register_potentially_unused!(
     [infer_type, InferTy],
     [function_declaration, FnDecl],
     [function_expression, FnExpr],
+    [function_type, FnTy],
+    [constructor_type, CtorTy],
+    [constructor_signature_declaration, CtorSigDecl],
+    [arrow_function_expression, ArrowFnExpr],
     [class_constructor_declaration, ClassCtor],
     [for_in_statement, ForInStmt],
     [for_of_statement, ForOfStmt],
@@ -465,5 +509,6 @@ register_potentially_unused!(
     [class_expression, ClassExpr],
     [type_alias_declaration, TypeAliasDecl],
     [class_method_element, ClassMethodElem],
-    [block_module_declaration, BlockModuleDecl]
+    [block_module_declaration, BlockModuleDecl],
+    [interface_declaration, InterfaceDecl]
 );

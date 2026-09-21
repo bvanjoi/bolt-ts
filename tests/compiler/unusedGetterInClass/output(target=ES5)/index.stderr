@@ -1,0 +1,12 @@
+  × Property '_fullName' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/unusedGetterInClass/index.ts:9:13]
+ 9 │ _fullName
+   · ─────────
+   ╰────
+
+  × 'fullName' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedGetterInClass/index.ts:12:17]
+ 12 │ fullName
+    · ────────
+    ╰────

@@ -22,6 +22,7 @@ impl<'cx> TyChecker<'cx> {
             TypeOp(n) => self.check_ty_op(n),
             Tuple(n) => self.check_tuple_ty(n),
             Fn(n) => {
+                self.register_potentially_unused_function_type(n);
                 // TODO: check_signature_decl
                 self.check_type_parameters(n.ty_params);
                 for param in n.params {
@@ -32,7 +33,10 @@ impl<'cx> TyChecker<'cx> {
             Pred(n) => self.check_pred_ty(n),
             Mapped(n) => self.check_mapped_ty(n),
             Array(n) => self.check_array_ty(n),
-            Ctor(n) => self.check_sig_decl(n.id),
+            Ctor(n) => {
+                self.register_potentially_unused_constructor_type(n);
+                self.check_sig_decl(n.id)
+            }
             Lit(_nn) => (),
             NamedTuple(_nn) => (),
             Rest(_nn) => (),

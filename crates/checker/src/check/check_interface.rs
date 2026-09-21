@@ -7,12 +7,12 @@ use super::ty;
 use super::{TyChecker, errors};
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn check_interface_declaration(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
-        self.check_type_parameters(interface.ty_params);
+    pub(super) fn check_interface_declaration(&mut self, n: &'cx ast::InterfaceDecl<'cx>) {
+        self.check_type_parameters(n.ty_params);
 
-        self.check_exports_on_merged_decls(interface.id);
+        self.check_exports_on_merged_decls(n.id);
 
-        let symbol = self.get_symbol_of_declaration(interface.id);
+        let symbol = self.get_symbol_of_declaration(n.id);
         self.check_ty_param_lists_identical(symbol);
 
         let first_interface_decl = self
@@ -21,11 +21,11 @@ impl<'cx> TyChecker<'cx> {
             .get_declaration_of_kind(|n| self.p.node(n).is_interface_decl())
             .unwrap();
 
-        if first_interface_decl == interface.id {
+        if first_interface_decl == n.id {
             let ty = self.get_declared_ty_of_symbol(symbol);
             self.resolve_structured_type_members(ty);
             let ty_with_this = self.get_type_with_this_argument::<false>(ty, None);
-            if self.check_inherited_props_are_identical(ty, interface.name) {
+            if self.check_inherited_props_are_identical(ty, n.name) {
                 for base_ty in self.get_base_tys(ty) {
                     let target = {
                         let this_ty = if let Some(r) = ty.kind.as_object_reference() {
@@ -41,7 +41,7 @@ impl<'cx> TyChecker<'cx> {
                         Some(first_interface_decl),
                         Some(|this: &mut Self| {
                             let error = errors::InterfaceDerivedIncorrectlyExtendsInterfaceBase {
-                                span: interface.name.span,
+                                span: n.name.span,
                                 base: this.print_ty(base_ty, None).to_string(),
                                 derived: this.print_ty(ty, None).to_string(),
                             };
@@ -53,13 +53,14 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        self.check_object_ty_for_duplicate_decls(interface.members);
+        self.check_object_ty_for_duplicate_decls(n.members);
 
-        for member in interface.members {
+        for member in n.members {
             self.check_object_ty_member(member);
         }
 
-        self.check_ty_for_duplicate_index_sigs_of_interface_declaration(interface);
+        self.check_ty_for_duplicate_index_sigs_of_interface_declaration(n);
+        self.register_potentially_unused_interface_declaration(n);
     }
 
     fn check_ty_for_duplicate_index_sigs_of_interface_declaration(
@@ -128,6 +129,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_fn_like_decl(n);
             }
             ast::ObjectTyMemberKind::CtorSig(n) => {
+                self.register_potentially_unused_constructor_signature_declaration(n);
                 self.check_sig_decl(n.id);
             }
             ast::ObjectTyMemberKind::CallSig(n) => {

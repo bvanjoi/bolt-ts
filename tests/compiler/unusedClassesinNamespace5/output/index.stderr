@@ -1,0 +1,12 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/unusedClassesinNamespace5/index.ts:18:16]
+ 18 │ x
+    · ─
+    ╰────
+
+  × 'c3' is declared but never used.
+    ╭─[../../tests/compiler/unusedClassesinNamespace5/index.ts:16:11]
+ 16 │ c3
+    · ──
+    ╰────
