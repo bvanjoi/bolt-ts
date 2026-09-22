@@ -1,0 +1,41 @@
+  × Type '0' is not comparable to type '1'.
+   ╭─[../../tests/compiler/unusedSwitchStatement/index.ts:8:10]
+ 8 │ 0
+   · ─
+   ╰────
+
+  × Type '0' is not comparable to type '2'.
+    ╭─[../../tests/compiler/unusedSwitchStatement/index.ts:24:10]
+ 24 │ 0
+    · ─
+    ╰────
+
+  × Type '1' is not comparable to type '2'.
+    ╭─[../../tests/compiler/unusedSwitchStatement/index.ts:28:10]
+ 28 │ 1
+    · ─
+    ╰────
+
+  × 'x' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedSwitchStatement/index.ts:10:13]
+ 10 │ x
+    · ─
+    ╰────
+
+  × 'c' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedSwitchStatement/index.ts:14:15]
+ 14 │ c
+    · ─
+    ╰────
+
+  × 'z' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedSwitchStatement/index.ts:18:13]
+ 18 │ z
+    · ─
+    ╰────
+
+  × 'x' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedSwitchStatement/index.ts:26:13]
+ 26 │ x
+    · ─
+    ╰────

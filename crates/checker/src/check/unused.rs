@@ -11,6 +11,7 @@ use super::TyChecker;
 
 #[derive(Debug, Clone)]
 pub enum PotentiallyUnusedIdentifier<'cx> {
+    Program(&'cx ast::Program<'cx>),
     InferTy(&'cx ast::InferTy<'cx>),
     InterfaceDecl(&'cx ast::InterfaceDecl<'cx>),
     FnDecl(&'cx ast::FnDecl<'cx>),
@@ -27,6 +28,8 @@ pub enum PotentiallyUnusedIdentifier<'cx> {
     TypeAliasDecl(&'cx ast::TypeAliasDecl<'cx>),
     ClassMethodElem(&'cx ast::ClassMethodElem<'cx>),
     BlockModuleDecl(&'cx ast::BlockModuleDecl<'cx>),
+    BlockStmt(&'cx ast::BlockStmt<'cx>),
+    CaseBlock(&'cx ast::CaseBlock<'cx>),
 }
 
 impl std::hash::Hash for PotentiallyUnusedIdentifier<'_> {
@@ -192,9 +195,12 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
             | PotentiallyUnusedIdentifier::CtorTy(ast::CtorTy { id, .. }) => {
                 self.check_unused_type_parameters(*id, &mut diags);
             }
-            PotentiallyUnusedIdentifier::ForInStmt(ast::ForInStmt { id, .. })
+            PotentiallyUnusedIdentifier::Program(ast::Program { id, .. })
+            | PotentiallyUnusedIdentifier::ForInStmt(ast::ForInStmt { id, .. })
             | PotentiallyUnusedIdentifier::ForOfStmt(ast::ForOfStmt { id, .. })
-            | PotentiallyUnusedIdentifier::BlockModuleDecl(ast::BlockModuleDecl { id, .. }) => {
+            | PotentiallyUnusedIdentifier::BlockModuleDecl(ast::BlockModuleDecl { id, .. })
+            | PotentiallyUnusedIdentifier::BlockStmt(ast::BlockStmt { id, .. })
+            | PotentiallyUnusedIdentifier::CaseBlock(ast::CaseBlock { id, .. }) => {
                 let Some(locals) = self.c.binder.locals(*id) else {
                     unreachable!()
                 };
@@ -362,6 +368,12 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                     let n = self.c.p.node(declaration);
                     // TODO: is_valid_unused_local_declaration
                     match n {
+                        ast::Node::ArrayBinding(n)
+                            if let ast::BindingKind::Ident(name) = n.name.kind
+                                && self.is_identifier_that_starts_with_underscore(name) =>
+                        {
+                            continue;
+                        }
                         // TODO: is_imported
                         // TODO: ast::Node::ArrayBinding(_) | ast::Node::ObjectBindingElem(_) if
                         ast::Node::VarDecl(n) => {
@@ -399,6 +411,12 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                                         && match p.name.kind {
                                             ast::BindingKind::Ident(name) => {
                                                 name.name != keyword::KW_THIS
+                                            }
+                                            _ => true,
+                                        }
+                                        && match name {
+                                            ast::DeclarationName::Ident(n) => {
+                                                !self.is_identifier_that_starts_with_underscore(n)
                                             }
                                             _ => true,
                                         }
@@ -510,5 +528,8 @@ register_potentially_unused!(
     [type_alias_declaration, TypeAliasDecl],
     [class_method_element, ClassMethodElem],
     [block_module_declaration, BlockModuleDecl],
-    [interface_declaration, InterfaceDecl]
+    [block_statement, BlockStmt],
+    [interface_declaration, InterfaceDecl],
+    [program, Program],
+    [case_block, CaseBlock]
 );

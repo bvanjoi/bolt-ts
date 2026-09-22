@@ -124,6 +124,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
         use ast::CaseOrDefaultClause::*;
         let expr_ty = self.check_expression::<false>(node.expr, None);
+        self.register_potentially_unused_case_block(node.case_block);
 
         for clause in node.case_block.clauses {
             match clause {
@@ -514,6 +515,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_block(&mut self, block: &'cx ast::BlockStmt<'cx>) {
+        if self.binder.locals(block.id).is_some() {
+            self.register_potentially_unused_block_statement(block);
+        };
         for item in block.stmts {
             self.check_stmt(item);
         }

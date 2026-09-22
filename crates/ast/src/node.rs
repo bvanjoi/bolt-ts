@@ -716,6 +716,13 @@ impl<'cx> Node<'cx> {
             Node::ParamDecl(n) => n.modifiers,
             Node::IndexSigDecl(n) => n.modifiers,
             Node::EnumDecl(n) => n.modifiers,
+            Node::TyParam(n) => {
+                return if n.const_modifier.is_some() {
+                    Some(super::ModifierFlags::CONST)
+                } else {
+                    None
+                };
+            }
             Node::ImportEqualsDecl(n) => {
                 return if n.export_modifier.is_some() {
                     Some(super::ModifierFlags::EXPORT)

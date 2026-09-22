@@ -1,0 +1,5 @@
+  × 'b' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateMembers/index.ts:64:13]
+ 64 │ b
+    · ─
+    ╰────

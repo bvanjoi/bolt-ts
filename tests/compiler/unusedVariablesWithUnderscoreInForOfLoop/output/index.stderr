@@ -1,0 +1,47 @@
+  × 'b' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInForOfLoop/index.ts:20:21]
+ 20 │ b
+    · ─
+    ╰────
+
+  × 'a' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInForOfLoop/index.ts:23:17]
+ 23 │ a
+    · ─
+    ╰────
+
+  × 'a' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInForOfLoop/index.ts:26:17]
+ 26 │ a
+    · ─
+    ╰────
+
+  × 'b' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInForOfLoop/index.ts:26:20]
+ 26 │ b
+    · ─
+    ╰────
+
+  × 'b' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInForOfLoop/index.ts:32:23]
+ 32 │ b
+    · ─
+    ╰────
+
+  × 'a' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInForOfLoop/index.ts:35:19]
+ 35 │ a
+    · ─
+    ╰────
+
+  × 'a' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInForOfLoop/index.ts:38:19]
+ 38 │ a
+    · ─
+    ╰────
+
+  × 'b' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInForOfLoop/index.ts:38:22]
+ 38 │ b
+    · ─
+    ╰────

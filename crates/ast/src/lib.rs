@@ -22,7 +22,7 @@ use bolt_ts_span::Span;
 
 #[derive(Debug, Clone)]
 pub struct Program<'cx> {
-    id: NodeID,
+    pub id: NodeID,
     span: Span,
     stmts: Stmts<'cx>,
 }

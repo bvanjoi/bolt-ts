@@ -1145,6 +1145,10 @@ impl<'cx> TyChecker<'cx> {
         for stmt in program.stmts() {
             self.check_stmt(stmt);
         }
+        let m = program.id().module();
+        if self.p.get(m).is_external_or_commonjs_module() {
+            self.register_potentially_unused_program(program);
+        }
     }
 
     fn is_applicable_index_ty(
@@ -7734,7 +7738,7 @@ impl<'cx> TyChecker<'cx> {
                         self.p
                             .node(*decl)
                             .modifier_flags()
-                            .is_some_and(|flags| flags.contains(ast::ModifierFlags::CONST))
+                            .is_some_and(|ms| ms.contains(ast::ModifierFlags::CONST))
                     })
                 })
             }

@@ -807,18 +807,23 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         start: u32,
         name: &'cx ast::PropName<'cx>,
         asterisk_token: Option<Token>,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ObjectMember<'cx>> {
-        let is_generator = if asterisk_token.is_some() {
+        let flags = if asterisk_token.is_some() {
             SignatureFlags::YIELD
         } else {
             SignatureFlags::empty()
         };
+        let flags = if modifiers.is_some_and(|m| m.flags.contains(ast::ModifierFlags::ASYNC)) {
+            flags | SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
+        } else {
+            flags
+        };
         let ty_params = self.parse_ty_params();
-        // TODO: is_async
-        let params = self.parse_parameters(is_generator);
+        let params = self.parse_parameters(flags);
         self.check_parameters(params, CheckParameterFlags::empty());
         let ty = self.parse_return_ty::<true, false>()?;
-        let body = self.parse_fn_block(is_generator);
+        let body = self.parse_fn_block(flags);
         let span = self.new_span(start);
         let node = self.create_object_method_member(
             span,
@@ -889,7 +894,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             || matches!(self.token.kind, TokenKind::LParen | TokenKind::Less)
         {
             check_invalid_modifiers_for_method_like(self);
-            return self.parse_object_method_decl(start, name, asterisk_token);
+            return self.parse_object_method_decl(start, name, asterisk_token, modifiers);
         } else if let Some(name) = name.kind.as_ident()
             && self.token.kind != TokenKind::Colon
         {
