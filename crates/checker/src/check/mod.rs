@@ -2114,6 +2114,31 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn is_in_parameter_initializer_before_containing_fn(&self, mut n: ast::NodeID) -> bool {
+        let mut in_binding_initializer = false;
+        while let Some(p) = self.parent(n)
+            && let parent = self.p.node(p)
+            && parent.is_fn_like()
+        {
+            match parent {
+                ast::Node::ParamDecl(p)
+                    if (in_binding_initializer || p.init.is_some_and(|init| init.id() == n)) =>
+                {
+                    return true;
+                }
+                ast::Node::ArrayBinding(p) if p.init.is_some_and(|init| init.id() == n) => {
+                    in_binding_initializer = true;
+                }
+                ast::Node::ObjectBindingElem(p) if p.init.is_some_and(|init| init.id() == n) => {
+                    in_binding_initializer = true;
+                }
+                _ => {}
+            }
+            n = p
+        }
+        false
+    }
+
     fn try_get_this_ty_at<const INCLUDE_GLOBAL_THIS: bool>(
         &mut self,
         node: ast::NodeID,
@@ -2126,7 +2151,7 @@ impl<'cx> TyChecker<'cx> {
                 .get_this_container(node, false, false)
         });
         let container = self.p.node(container_id);
-        if container.is_fn_like() {
+        if container.is_fn_like() && !self.is_in_parameter_initializer_before_containing_fn(node) {
             let mut this_ty = if let Some(this_ty) = self.get_this_ty_of_decl(container_id) {
                 Some(this_ty)
             } else if in_js {
@@ -3622,6 +3647,9 @@ impl<'cx> TyChecker<'cx> {
                         }
                     }
                 }
+                // TODO: class_like
+                ClassPropElem(n) => !self
+                    .is_property_immediately_referenced_within_declaration::<false>(n.id, used_id),
                 _ => true,
             };
         }
@@ -3631,6 +3659,75 @@ impl<'cx> TyChecker<'cx> {
         }
 
         false
+    }
+
+    fn is_property_immediately_referenced_within_declaration<
+        const STOP_AT_ANY_PROPERTY_DECLARATION: bool,
+    >(
+        &self,
+        declaration: ast::NodeID,
+        usage: ast::NodeID,
+    ) -> bool {
+        debug_assert!(usage.module() == declaration.module());
+        let d = self.p.node(declaration);
+        let u = self.p.node(usage);
+        if u.span().hi() > d.span().hi() {
+            return false;
+        }
+        self.node_query(usage.module())
+            .find_ancestor(usage, |n| {
+                if n == declaration {
+                    return Some(false);
+                }
+                match self.p.node(n) {
+                    ast::Node::ArrowFnExpr(_) => Some(true),
+                    ast::Node::ClassPropElem(_) => {
+                        if STOP_AT_ANY_PROPERTY_DECLARATION
+                            && match d {
+                                ast::Node::ClassPropElem(_)
+                                    if self.parent(declaration) == self.parent(n) =>
+                                {
+                                    true
+                                }
+                                ast::Node::ParamDecl(n)
+                                    if self
+                                        .p
+                                        .node(self.parent(declaration).unwrap())
+                                        .is_class_ctor()
+                                        && n.modifiers.is_some_and(|ms| {
+                                            ms.flags.contains(
+                                                ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+                                            )
+                                        }) =>
+                                {
+                                    true
+                                }
+                                _ => unreachable!(),
+                            }
+                        {
+                            Some(false)
+                        } else {
+                            Some(true)
+                        }
+                    }
+                    ast::Node::BlockStmt(_) => {
+                        let parent = self.parent(n).unwrap();
+                        if matches!(
+                            self.p.node(parent),
+                            ast::Node::GetterDecl(_)
+                                | ast::Node::ClassMethodElem(_)
+                                | ast::Node::ObjectMethodMember(_)
+                                | ast::Node::SetterDecl(_)
+                        ) {
+                            Some(true)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            })
+            .is_none()
     }
 
     fn check_resolved_block_scoped_var(&mut self, ident: &'cx ast::Ident, id: SymbolID) {

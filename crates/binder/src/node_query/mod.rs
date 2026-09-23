@@ -578,7 +578,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         &self,
         mut id: ast::NodeID,
         include_arrow_fn: bool,
-        _include_class_computed_prop_name: bool,
+        include_class_computed_prop_name: bool,
     ) -> ast::NodeID {
         use ast::Node::*;
         while let Some(parent) = self.parent(id) {
@@ -592,6 +592,17 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 }
             } else {
                 match node {
+                    ComputedPropName(_) => {
+                        if include_class_computed_prop_name && {
+                            let p = self.parent(id).unwrap();
+                            let p = self.parent(p).unwrap();
+                            self.node(p).is_class_like()
+                        } {
+                            return id;
+                        }
+                        id = self.parent(id).unwrap();
+                        id = self.parent(id).unwrap();
+                    }
                     FnDecl(_)
                     | FnExpr(_)
                     | NestedModuleDecl(_)

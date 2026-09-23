@@ -1493,7 +1493,7 @@ impl<'cx> TyChecker<'cx> {
         expr_span: bolt_ts_span::Span,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: can we remove is_part_of_ty_query?
-        let _is_ty_queryy = self.node_query(expr_id.module()).is_in_type_query(expr_id);
+        let _is_ty_query = self.node_query(expr_id.module()).is_in_type_query(expr_id);
         let mut container_id = self
             .node_query(expr_id.module())
             .get_this_container(expr_id, true, true);
