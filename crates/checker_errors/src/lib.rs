@@ -2272,3 +2272,10 @@ pub struct AllVariablesAreUnused {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("All destructured elements are unused.")]
+pub struct AllDestructuredElementsAreUnused {
+    #[label(primary)]
+    pub span: Span,
+}

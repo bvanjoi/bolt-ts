@@ -11,3 +11,10 @@ var x: string;
 //~^ ERROR: 'x' is declared but its value is never read.
 
 export var y: string;
+
+declare const z: number;
+
+declare class A {
+  m(): void
+  n: number
+}

@@ -30,6 +30,7 @@ pub enum PotentiallyUnusedIdentifier<'cx> {
     BlockModuleDecl(&'cx ast::BlockModuleDecl<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
     CaseBlock(&'cx ast::CaseBlock<'cx>),
+    SetterDecl(&'cx ast::SetterDecl<'cx>),
 }
 
 impl std::hash::Hash for PotentiallyUnusedIdentifier<'_> {
@@ -128,15 +129,24 @@ struct PotentiallyUnusedIdentifierChecker<'a, 'cx> {
 }
 
 impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
-    fn push_unused_parameter_error(&self, diag: BoxedDiag, diags: &mut Vec<BoxedDiag>) {
-        if !self.c.config.compiler_options().no_unused_parameters() {
+    fn push_unused_parameter_error(
+        &self,
+        c: ast::NodeID,
+        diag: BoxedDiag,
+        diags: &mut Vec<BoxedDiag>,
+    ) {
+        if !self.c.config.compiler_options().no_unused_parameters()
+            || self.c.node_flags(c).contains(ast::NodeFlags::AMBIENT)
+        {
             return;
         }
         diags.push(diag);
     }
 
-    fn push_unused_local_error(&self, diag: BoxedDiag, diags: &mut Vec<BoxedDiag>) {
-        if !self.c.config.compiler_options().no_unused_locals() {
+    fn push_unused_local_error(&self, c: ast::NodeID, diag: BoxedDiag, diags: &mut Vec<BoxedDiag>) {
+        if !self.c.config.compiler_options().no_unused_locals()
+            || self.c.node_flags(c).contains(ast::NodeFlags::AMBIENT)
+        {
             return;
         }
         diags.push(diag);
@@ -148,7 +158,12 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
         name: String,
         diags: &mut Vec<BoxedDiag>,
     ) {
-        if !self.c.config.compiler_options().no_unused_locals() {
+        if !self.c.config.compiler_options().no_unused_locals()
+            || self
+                .c
+                .node_flags(declaration)
+                .contains(ast::NodeFlags::AMBIENT)
+        {
             return;
         }
         let n = self.c.p.node(declaration);
@@ -174,7 +189,8 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
             | PotentiallyUnusedIdentifier::ClassCtor(ast::ClassCtor { body, id, .. })
             | PotentiallyUnusedIdentifier::ClassMethodElem(ast::ClassMethodElem {
                 body, id, ..
-            }) => {
+            })
+            | PotentiallyUnusedIdentifier::SetterDecl(ast::SetterDecl { body, id, .. }) => {
                 if body.is_some() {
                     let Some(locals) = self.c.binder.locals(*id) else {
                         unreachable!()
@@ -208,7 +224,7 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
             }
             PotentiallyUnusedIdentifier::ClassDecl(ast::ClassDecl { elems, id, .. })
             | PotentiallyUnusedIdentifier::ClassExpr(ast::ClassExpr { elems, id, .. }) => {
-                self.check_unused_class_members(elems, &mut diags);
+                self.check_unused_class_members(*id, elems, &mut diags);
                 self.check_unused_type_parameters(*id, &mut diags);
             }
             PotentiallyUnusedIdentifier::TypeAliasDecl(ast::TypeAliasDecl { id, .. })
@@ -249,12 +265,13 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                 span: ty_parameter.name.span,
                 name: self.c.atoms.get(ty_parameter.name.name).to_string(),
             };
-            self.push_unused_parameter_error(Box::new(error), diags);
+            self.push_unused_parameter_error(id, Box::new(error), diags);
         }
     }
 
     fn check_unused_class_members(
         &self,
+        class: ast::NodeID,
         elements: &'cx ast::ClassElems<'cx>,
         diags: &mut Vec<BoxedDiag>,
     ) {
@@ -305,7 +322,7 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                             span: name.span(),
                             name: pprint_prop_name(&name.kind, &self.c.atoms),
                         };
-                        self.push_unused_local_error(Box::new(error), diags);
+                        self.push_unused_local_error(class, Box::new(error), diags);
                     }
                 }
                 ast::ClassElemKind::Ctor(n) => {
@@ -319,7 +336,7 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                                 span: p.name.span,
                                 name: pprint_binding(p.name, &self.c.atoms),
                             };
-                            self.push_unused_local_error(Box::new(error), diags);
+                            self.push_unused_local_error(class, Box::new(error), diags);
                         }
                     }
                 }
@@ -335,6 +352,7 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
 
     fn check_unused_locals_and_parameters(&self, locals: &SymbolTable, diags: &mut Vec<BoxedDiag>) {
         let mut unused_variable_group = fx_indexmap_with_capacity(0);
+        let mut unused_destructure_group = fx_indexmap_with_capacity(0);
 
         let add_unused_variable =
             |group: &mut FxIndexMap<ast::NodeID, Vec<&'cx ast::VarDecl<'cx>>>,
@@ -342,12 +360,22 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
              current: &'cx ast::VarDecl<'cx>| {
                 group.entry(parent).or_default().push(current);
             };
+        let add_unused_destructure = |group: &mut FxIndexMap<ast::NodeID, Vec<ast::NodeID>>,
+                                      parent: ast::NodeID,
+                                      current: ast::NodeID| {
+            debug_assert!(matches!(
+                self.c.p.node(current),
+                ast::Node::ObjectBindingElem(_) | ast::Node::ArrayBinding(_)
+            ));
+            group.entry(parent).or_default().push(current);
+        };
 
         let try_get_root_parameter_declaration =
             |id: ast::NodeID| -> Option<&'cx ast::ParamDecl<'cx>> {
                 let n = self.c.node_query(id.module()).get_root_decl(id);
                 self.c.p.node(n).as_param_decl()
             };
+
         for &local in locals.0.values() {
             let s = self.c.symbol(local);
             if s.export_symbol.is_some()
@@ -366,7 +394,7 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                 let mut value_declaration_has_error = false;
                 for &declaration in declarations {
                     let n = self.c.p.node(declaration);
-                    // TODO: is_valid_unused_local_declaration
+
                     match n {
                         ast::Node::ArrayBinding(n)
                             if let ast::BindingKind::Ident(name) = n.name.kind
@@ -374,9 +402,56 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                         {
                             continue;
                         }
-                        // TODO: is_imported
-                        // TODO: ast::Node::ArrayBinding(_) | ast::Node::ObjectBindingElem(_) if
+                        ast::Node::ObjectBindingElem(n) => {
+                            if let ast::ObjectBindingName::Prop { name, .. } = n.name
+                                && let ast::BindingKind::Ident(name) = name.kind
+                                && self.is_identifier_that_starts_with_underscore(name)
+                            {
+                                continue;
+                            }
+                            let p = self.c.parent(declaration).unwrap();
+                            let parent = self.c.p.node(p).expect_object_pat();
+                            if let Some(last) = parent.elems.last()
+                                && (last.id == n.id || last.dotdotdot.is_none())
+                            {
+                                add_unused_destructure(
+                                    &mut unused_destructure_group,
+                                    p,
+                                    declaration,
+                                );
+                            }
+                        }
+                        ast::Node::BlockModuleDecl(n) if n.is_ambient() => continue,
+                        ast::Node::ImportClause(n) => {
+                            if n.name.is_some_and(|name| {
+                                self.is_identifier_that_starts_with_underscore(name)
+                            }) {
+                                continue;
+                            }
+                            // TODO: unused_import_group
+                        }
+                        ast::Node::ImportNamedSpec(n) => {
+                            if self.is_identifier_that_starts_with_underscore(n.name) {
+                                continue;
+                            }
+                            // TODO: unused_import_group
+                        }
+                        ast::Node::NsImport(n) => {
+                            if self.is_identifier_that_starts_with_underscore(n.name) {
+                                continue;
+                            }
+                            // TODO: unused_import_group
+                        }
                         ast::Node::VarDecl(n) => {
+                            let parent = self.c.parent(declaration).unwrap();
+                            if matches!(
+                                self.c.p.node(parent),
+                                ast::Node::ForInStmt(_) | ast::Node::ForOfStmt(_)
+                            ) && let ast::BindingKind::Ident(name) = n.name.kind
+                                && self.is_identifier_that_starts_with_underscore(name)
+                            {
+                                continue;
+                            }
                             let nq = self.c.node_query(declaration.module());
                             let kind = nq
                                 .get_combined_node_flags(declaration)
@@ -421,12 +496,23 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                                             _ => true,
                                         }
                                     {
-                                        // TODO: bbinding
-                                        let error = errors::XIsDeclaredButItsValueIsNeverRead {
-                                            span: name.span(),
-                                            name: s.name.to_string(&self.c.atoms),
-                                        };
-                                        diags.push(Box::new(error));
+                                        if let ast::Node::ArrayBinding(n) = n {
+                                            add_unused_destructure(
+                                                &mut unused_destructure_group,
+                                                self.c.parent(declaration).unwrap(),
+                                                n.id,
+                                            );
+                                        } else {
+                                            let error = errors::XIsDeclaredButItsValueIsNeverRead {
+                                                span: name.span(),
+                                                name: s.name.to_string(&self.c.atoms),
+                                            };
+                                            self.push_unused_local_error(
+                                                declaration,
+                                                Box::new(error),
+                                                diags,
+                                            );
+                                        }
                                     }
                                 }
                             } else {
@@ -434,6 +520,62 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                                 self.error_unused_local(declaration, name, diags);
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        for (binding_pattern, declarations) in unused_destructure_group {
+            let binding_pattern_parent = self.c.parent(binding_pattern).unwrap();
+            let has_root_param_decl = try_get_root_parameter_declaration(binding_pattern_parent);
+            let binding_pattern_node = self.c.p.node(binding_pattern);
+            let len = match binding_pattern_node {
+                ast::Node::ArrayPat(n) => n.elems.len(),
+                ast::Node::ObjectPat(n) => n.elems.len(),
+                n => unreachable!("node: {n:#?}"),
+            };
+            let has_same_length = len == declarations.len();
+            if has_same_length {
+                if len == 1
+                    && let n = self.c.p.node(binding_pattern_parent)
+                    && let ast::Node::VarDecl(n) = n
+                    && let parent = self.c.parent(n.id).unwrap()
+                    && !matches!(
+                        self.c.p.node(parent),
+                        ast::Node::ForInStmt(_) | ast::Node::ForOfStmt(_)
+                    )
+                {
+                    add_unused_variable(&mut unused_variable_group, parent, n);
+                } else {
+                    let error: bolt_ts_errors::BoxedDiag = if len == 1 {
+                        let binding_element = declarations[0];
+                        let name = self.c.p.node(binding_element).name().unwrap();
+                        Box::new(errors::XIsDeclaredButItsValueIsNeverRead {
+                            span: name.span(),
+                            name: name.to_string(&self.c.atoms),
+                        })
+                    } else {
+                        Box::new(errors::AllDestructuredElementsAreUnused {
+                            span: self.c.node(binding_pattern_parent).span(),
+                        })
+                    };
+                    if has_same_length {
+                        self.push_unused_parameter_error(binding_pattern, error, diags);
+                    } else {
+                        self.push_unused_local_error(binding_pattern, error, diags);
+                    }
+                }
+            } else {
+                for e in declarations {
+                    let name = self.c.p.node(e).name().unwrap();
+                    let error = errors::XIsDeclaredButItsValueIsNeverRead {
+                        span: name.span(),
+                        name: name.to_string(&self.c.atoms),
+                    };
+                    if has_root_param_decl.is_some() {
+                        self.push_unused_parameter_error(e, Box::new(error), diags);
+                    } else {
+                        self.push_unused_local_error(e, Box::new(error), diags);
                     }
                 }
             }
@@ -461,7 +603,7 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                         span: name.span,
                         name: pprint_binding(name, &self.c.atoms),
                     };
-                    diags.push(Box::new(error));
+                    self.push_unused_local_error(declaration.id, Box::new(error), diags);
                 } else {
                     let error = errors::AllVariablesAreUnused {
                         span: self.c.node(parent).span(),
@@ -531,5 +673,6 @@ register_potentially_unused!(
     [block_statement, BlockStmt],
     [interface_declaration, InterfaceDecl],
     [program, Program],
-    [case_block, CaseBlock]
+    [case_block, CaseBlock],
+    [setter_declaration, SetterDecl]
 );

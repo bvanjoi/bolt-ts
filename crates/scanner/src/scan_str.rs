@@ -90,10 +90,8 @@ pub fn utf16_encode_as_bytes(code_point: u32) -> Vec<u8> {
     let high_surrogate = ((surrogate >> 10) + 0xD800) as u16;
     let low_surrogate = ((surrogate & 0x3FF) + 0xDC00) as u16;
 
-    let mut buf = Vec::with_capacity(4);
-    buf.extend_from_slice(&high_surrogate.to_le_bytes());
-    buf.extend_from_slice(&low_surrogate.to_le_bytes());
-    buf
+    let s = String::from_utf16(&[high_surrogate, low_surrogate]).unwrap();
+    s.into_bytes()
 }
 
 #[test]

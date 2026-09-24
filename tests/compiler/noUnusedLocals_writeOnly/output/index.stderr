@@ -1,0 +1,11 @@
+  × 'x' is declared but its value is never read.
+   ╭─[../../tests/compiler/noUnusedLocals_writeOnly/index.ts:8:12]
+ 8 │ x
+   · ─
+   ╰────
+
+  × 'z' is declared but its value is never read.
+    ╭─[../../tests/compiler/noUnusedLocals_writeOnly/index.ts:24:9]
+ 24 │ z
+    · ─
+    ╰────

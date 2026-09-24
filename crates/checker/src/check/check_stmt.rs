@@ -1048,6 +1048,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_setter_decl(&mut self, n: &'cx ast::SetterDecl<'cx>) {
+        self.register_potentially_unused_setter_declaration(n);
         self.check_accessor_decl(n);
     }
 

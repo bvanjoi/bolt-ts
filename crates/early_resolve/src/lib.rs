@@ -116,8 +116,10 @@ pub struct Resolver<'cx, 'r, 'atoms> {
 
 impl<'cx, 'a> Resolver<'cx, 'a, '_> {
     fn record_reference(&mut self, result: &ResolvedResult) {
-        if let Some(is_referenced) = result.referenced() {
-            let s = result.symbol();
+        if let Some(is_referenced) = result.referenced()
+            && let s = result.symbol()
+            && !self.p.get(s.module()).is_declaration
+        {
             *self
                 .referenced_symbol
                 .entry(s)
@@ -1149,9 +1151,10 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
         let res = if self.node_query().is_write_only_access(ident.id) {
             resolve_symbol_by_ident::<false>(self, ident, meaning)
         } else {
-            resolve_symbol_by_ident::<true>(self, ident, meaning)
+            let res = resolve_symbol_by_ident::<true>(self, ident, meaning);
+            self.record_reference(&res);
+            res
         };
-        self.record_reference(&res);
         let prev = self.final_res.insert(ident.id, res.symbol());
         assert!(
             prev.is_none(),

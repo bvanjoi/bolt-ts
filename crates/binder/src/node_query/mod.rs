@@ -861,6 +861,27 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             return AccessKind::Read;
         };
         match self.node(p) {
+            ast::Node::PrefixUnaryExpr(n) => {
+                if matches!(
+                    n.op,
+                    ast::PrefixUnaryOp::PlusPlus | ast::PrefixUnaryOp::MinusMinus
+                ) {
+                    AccessKind::ReadWrite
+                } else {
+                    AccessKind::Read
+                }
+            }
+            ast::Node::PostfixUnaryExpr(n) => {
+                if matches!(
+                    n.op,
+                    ast::PostfixUnaryOp::PlusPlus | ast::PostfixUnaryOp::MinusMinus
+                ) {
+                    AccessKind::ReadWrite
+                } else {
+                    AccessKind::Read
+                }
+            }
+            ast::Node::ParenExpr(n) => self.access_kind(n.id),
             ast::Node::AssignExpr(n) => {
                 if n.left.id() == id {
                     if n.op == ast::AssignOp::Eq {
@@ -868,6 +889,47 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     } else {
                         AccessKind::ReadWrite
                     }
+                } else {
+                    AccessKind::Read
+                }
+            }
+            ast::Node::PropAccessExpr(n) => {
+                if n.name.id != id {
+                    AccessKind::Read
+                } else {
+                    self.access_kind(n.id)
+                }
+            }
+            ast::Node::ObjectPropAssignment(n) => {
+                let parent_parent = self.parent(n.id).unwrap();
+                let parent_access = self.access_kind(parent_parent);
+                if n.name.id() == id {
+                    match parent_access {
+                        AccessKind::Read => AccessKind::Write,
+                        AccessKind::Write => AccessKind::Read,
+                        AccessKind::ReadWrite => AccessKind::ReadWrite,
+                    }
+                } else {
+                    parent_access
+                }
+            }
+            ast::Node::ObjectShorthandMember(n) => {
+                if n.object_assignment_initializer
+                    .is_some_and(|i| i.id() == id)
+                {
+                    AccessKind::Read
+                } else {
+                    let parent_parent = self.parent(n.id).unwrap();
+                    self.access_kind(parent_parent)
+                }
+            }
+            ast::Node::ArrayLit(_) => self.access_kind(p),
+            ast::Node::ForInStmt(ast::ForInStmt { init, .. })
+            | ast::Node::ForOfStmt(ast::ForOfStmt { init, .. }) => {
+                if let ast::ForInitKind::Expr(init) = *init
+                    && init.id() == id
+                {
+                    AccessKind::Write
                 } else {
                     AccessKind::Read
                 }

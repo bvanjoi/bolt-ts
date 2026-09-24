@@ -411,9 +411,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
     for result in &early_resolve_result {
         for (s, referenced) in &result.referenced_symbol {
             let m = s.module();
-            if p.get(m).is_declaration {
-                continue;
-            }
+            debug_assert!(!p.get(m).is_declaration);
             let s = bind_list[m.as_usize()].symbols.get_mut(*s);
             debug_assert!(s.is_referenced.is_none());
             s.is_referenced = Some(*referenced);
