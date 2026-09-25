@@ -1,0 +1,139 @@
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:13:18]
+ 13 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:15:18]
+ 15 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing a property of 'super' in the
+  │ constructor of a derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:17:18]
+ 17 │ super
+    · ─────
+    ╰────
+
+  × Class field 'x' defined by the parent class is not accessible in the child
+  │ class via super.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:17:18]
+ 17 │ super.x
+    · ───────
+    ╰────
+
+  × Class field 'x' defined by the parent class is not accessible in the child
+  │ class via super.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:28:22]
+ 28 │ super.x
+    · ───────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:32:22]
+ 32 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:34:22]
+ 34 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing a property of 'super' in the
+  │ constructor of a derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:36:22]
+ 36 │ super
+    · ─────
+    ╰────
+
+  × Class field 'x' defined by the parent class is not accessible in the child
+  │ class via super.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:36:22]
+ 36 │ super.x
+    · ───────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:46:30]
+ 46 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:56:22]
+ 56 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:61:18]
+ 61 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:63:18]
+ 63 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing a property of 'super' in the
+  │ constructor of a derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:65:18]
+ 65 │ super
+    · ─────
+    ╰────
+
+  × Class field 'x' defined by the parent class is not accessible in the child
+  │ class via super.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:65:18]
+ 65 │ super.x
+    · ───────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:81:27]
+ 81 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:81:27]
+ 81 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:99:27]
+ 99 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:99:27]
+ 99 │ this
+    · ────
+    ╰────
+
+  × Class field 'x' defined by the parent class is not accessible in the child
+  │ class via super.
+    ╭─[../../tests/compiler/checkSuperCallBeforeThisAccess/index.ts:22:24]
+ 22 │ super.x
+    · ───────
+    ╰────

@@ -1,0 +1,6 @@
+  × Property '_property' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/superPropertyAccess_ES6/index.ts:23:13]
+ 23 │ _property
+    · ─────────
+    ╰────

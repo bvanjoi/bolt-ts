@@ -1,0 +1,5 @@
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/subtypeReductionWithAnyFunctionType/index.ts:16:16]
+ 16 │ x
+    · ─
+    ╰────

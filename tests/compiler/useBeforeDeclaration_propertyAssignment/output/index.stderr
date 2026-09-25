@@ -1,0 +1,53 @@
+  × Property 'b' is used before its initialization.
+   ╭─[../../tests/compiler/useBeforeDeclaration_propertyAssignment/index.ts:6:27]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Property 'c' is used before its initialization.
+   ╭─[../../tests/compiler/useBeforeDeclaration_propertyAssignment/index.ts:6:38]
+ 6 │ c
+   · ─
+   ╰────
+
+  × Property 'b' is used before its initialization.
+   ╭─[../../tests/compiler/useBeforeDeclaration_propertyAssignment/index.ts:6:47]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Property 'b' is used before its initialization.
+   ╭─[../../tests/compiler/useBeforeDeclaration_propertyAssignment/index.ts:6:47]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Property 'c' is used before its initialization.
+   ╭─[../../tests/compiler/useBeforeDeclaration_propertyAssignment/index.ts:6:59]
+ 6 │ c
+   · ─
+   ╰────
+
+  × Property 'c' is used before its initialization.
+   ╭─[../../tests/compiler/useBeforeDeclaration_propertyAssignment/index.ts:6:59]
+ 6 │ c
+   · ─
+   ╰────
+
+  × Property 'B' is used before its initialization.
+    ╭─[../../tests/compiler/useBeforeDeclaration_propertyAssignment/index.ts:18:32]
+ 18 │ B
+    · ─
+    ╰────
+
+  × Property 'D' is used before its initialization.
+    ╭─[../../tests/compiler/useBeforeDeclaration_propertyAssignment/index.ts:24:12]
+ 24 │ D
+    · ─
+    ╰────
+
+  × Property 'D' is used before its initialization.
+    ╭─[../../tests/compiler/useBeforeDeclaration_propertyAssignment/index.ts:24:12]
+ 24 │ D
+    · ─
+    ╰────

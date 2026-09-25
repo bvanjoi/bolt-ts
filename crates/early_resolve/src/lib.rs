@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 use bolt_ts_ast::keyword;
-use bolt_ts_ast::keyword::{is_prim_ty_name, is_prim_value_name};
+use bolt_ts_ast::keyword::is_prim_ty_name;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_binder::SymbolTable;
 use bolt_ts_binder::{BinderResult, GlobalSymbols, MergedSymbols};
@@ -24,6 +24,7 @@ pub struct EarlyResolveResult {
     // TODO: use `NodeId::index` is enough
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
+    pub referenced_symbol: FxHashMap<SymbolID, SymbolFlags>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -83,12 +84,14 @@ fn early_resolve<'cx>(
         atoms,
         emit_standard_class_fields,
         options,
+        referenced_symbol: FxHashMap::default(),
     };
     resolver.resolve_program(root);
     let diags = std::mem::take(&mut resolver.diags);
     EarlyResolveResult {
         final_res: resolver.final_res,
         diags,
+        referenced_symbol: resolver.referenced_symbol,
     }
 }
 
@@ -108,19 +111,32 @@ pub struct Resolver<'cx, 'r, 'atoms> {
     atoms: &'atoms bolt_ts_atom::AtomIntern,
     emit_standard_class_fields: bool,
     options: &'cx bolt_ts_config::NormalizedCompilerOptions,
+    referenced_symbol: FxHashMap<SymbolID, SymbolFlags>,
 }
 
 impl<'cx, 'a> Resolver<'cx, 'a, '_> {
+    fn record_reference(&mut self, result: &ResolvedResult) {
+        if let Some(is_referenced) = result.referenced()
+            && let s = result.symbol()
+            && !self.p.get(s.module()).is_declaration
+        {
+            *self
+                .referenced_symbol
+                .entry(s)
+                .or_insert(SymbolFlags::empty()) |= is_referenced;
+        }
+    }
+
     fn locals(&self, id: ast::NodeID) -> Option<&SymbolTable> {
         let idx = id.module().as_usize();
         debug_assert!(idx < self.states.len());
         unsafe { self.states.get_unchecked(idx).locals.get(&id) }
     }
 
-    fn symbol(&self, symbol_id: SymbolID) -> &bolt_ts_binder::Symbol {
-        let idx = symbol_id.module().as_usize();
+    fn symbol(&self, id: SymbolID) -> &bolt_ts_binder::Symbol {
+        let idx = id.module().as_usize();
         debug_assert!(idx < self.states.len());
-        unsafe { self.states.get_unchecked(idx).symbols.get(symbol_id) }
+        unsafe { self.states.get_unchecked(idx).symbols.get(id) }
     }
 
     fn local_symbol(&self, id: ast::NodeID) -> Option<SymbolID> {
@@ -963,6 +979,9 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
         match member.kind {
             Shorthand(n) => {
                 self.resolve_value_by_ident(n.name);
+                if let Some(init) = n.object_assignment_initializer {
+                    self.resolve_expr(init);
+                }
             }
             PropAssignment(n) => {
                 self.resolve_prop_name(n.name);
@@ -1052,7 +1071,10 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
             let prev = self.final_res.insert(ident.id, Symbol::ERR);
             assert!(prev.is_none());
             return;
-        } else if is_prim_value_name(ident.name) {
+        } else if matches!(
+            ident.name,
+            keyword::KW_NULL | keyword::KW_FALSE | keyword::KW_TRUE
+        ) {
             return;
         }
         let res = self.resolve_symbol_by_ident(ident, MEANING_FOR_VALUE);
@@ -1101,7 +1123,7 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
             return Symbol::ERR;
         }
 
-        let res = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE);
+        let res = resolve_symbol_by_ident::<true>(self, ident, SymbolFlags::TYPE);
         let mut symbol = res.symbol();
 
         if symbol == Symbol::ERR {
@@ -1114,6 +1136,7 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
             let error = self.on_failed_to_resolve_type_symbol(ident, &res, error);
             self.push_error(Box::new(error));
         } else {
+            self.record_reference(&res);
             self.on_success_resolved_type_symbol(ident, &mut symbol);
         };
         symbol
@@ -1124,7 +1147,14 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
         ident: &'cx ast::Ident,
         meaning: SymbolFlags,
     ) -> ResolvedResult<'cx> {
-        let res = resolve_symbol_by_ident(self, ident, meaning);
+        // TODO: can we use is_use as a parameter to avoid calling `is_write_only_access`?
+        let res = if self.node_query().is_write_only_access(ident.id) {
+            resolve_symbol_by_ident::<false>(self, ident, meaning)
+        } else {
+            let res = resolve_symbol_by_ident::<true>(self, ident, meaning);
+            self.record_reference(&res);
+            res
+        };
         let prev = self.final_res.insert(ident.id, res.symbol());
         assert!(
             prev.is_none(),
@@ -1218,10 +1248,11 @@ fn check_var_declared_names_not_shadowed<'a, 'cx>(
         _ => unreachable!(),
     };
     let local_declaration_symbol_id =
-        resolve_symbol_by_ident(r, name, SymbolFlags::VARIABLE).symbol();
+        resolve_symbol_by_ident::<false>(r, name, SymbolFlags::VARIABLE).symbol();
 
     if local_declaration_symbol_id != Symbol::ERR
         && local_declaration_symbol_id != symbol
+        && local_declaration_symbol_id != Symbol::UNDEFINED
         && let local_declaration_symbol = r.symbol(local_declaration_symbol_id)
         && local_declaration_symbol
             .flags

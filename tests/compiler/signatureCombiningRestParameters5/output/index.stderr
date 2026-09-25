@@ -1,4 +1,4 @@
-  × Argument of type '(boolean)[]' is not assignable to parameter of type
+  × Argument of type 'boolean[]' is not assignable to parameter of type
   │ 'boolean'.
     ╭─[../../tests/compiler/signatureCombiningRestParameters5/index.ts:12:11]
  12 │ [true]

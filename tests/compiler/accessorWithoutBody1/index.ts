@@ -4,3 +4,4 @@
 
 var v = { get foo() }
 //~^ ERROR: Expected '{'.
+//~| ERROR: Property 'foo' implicitly has type 'any', because its get accessor lacks a return type annotation.

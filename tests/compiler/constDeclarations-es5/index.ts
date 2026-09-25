@@ -1,7 +1,8 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/constDeclarations-errors.ts`, Apache-2.0 License
 
 //@compiler-options: strict=false
-//@compiler-options: target=ES5, ES2015
+//@[target=es5]    compiler-options: target=ES5
+//@[target=es2015] compiler-options: target=ES2015
 
 const z7 = false;
 const z8: number = 23;

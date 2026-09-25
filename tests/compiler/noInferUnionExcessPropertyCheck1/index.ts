@@ -11,7 +11,7 @@ declare function test1<T extends { x: string }>(
 
 test1({ x: "foo" }, { x: "bar" }); // no error
 test1({ x: "foo" }, { x: "bar", y: 42 }); // epc error
-//~^ ERROR: Object literal may only specify known properties, and 'y' does not exist in type 'substitution | (() => substitution)'.
+//~^ ERROR: Object literal may only specify known properties, and 'y' does not exist in type '{ x: string; } | (() => { x: string; })'.
 
 declare function test2<T extends { x: string }>(
   a: T,
@@ -20,7 +20,7 @@ declare function test2<T extends { x: string }>(
 
 test2({ x: "foo" }, { x: "bar" }); // no error
 test2({ x: "foo" }, { x: "bar", y: 42 }); // epc error
-//~^ ERROR: Object literal may only specify known properties, and 'y' does not exist in type 'substitution | substitution'.
+//~^ ERROR: Object literal may only specify known properties, and 'y' does not exist in type '{ x: string; } | () => { x: string; }'.
 
 declare function test3<T extends { x: string }>(
   a: T,

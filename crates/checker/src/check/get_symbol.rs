@@ -8,7 +8,8 @@ impl TyChecker<'_> {
     pub fn get_symbol_of_node(&self, id: ast::NodeID) -> Option<SymbolID> {
         let n = self.p.node(id);
         if Symbol::can_have_symbol(n) {
-            Some(self.final_res(id))
+            // TODO: late and merge
+            self.binder.get(id.module()).final_res.get(&id).copied()
         } else {
             None
         }
@@ -36,15 +37,26 @@ impl TyChecker<'_> {
     pub(super) fn get_symbol_for_expr(&mut self, id: ast::NodeID) -> Option<SymbolID> {
         let node = self.p.node(id);
         if Symbol::can_have_symbol(node) {
-            Some(self.final_res(id))
-        } else if let Some(ident) = node.as_ident() {
-            Some(self.resolve_symbol_by_ident(ident))
-        } else if let Some(p) = node.as_prop_access_expr() {
-            let lhs_ty = self.get_ty_of_expr(p.expr);
-            // TODO: is_private
-            self.get_prop_of_ty::<false, false>(lhs_ty, SymbolName::Atom(p.name.name))
-        } else {
-            None
+            return Some(self.final_res(id));
+        }
+        match node {
+            ast::Node::Ident(n) => Some(self.resolve_symbol_by_ident(n)),
+            ast::Node::PropAccessExpr(n) => {
+                let lhs_ty = self.get_ty_of_expr(n.expr);
+                // TODO: is_private
+                self.get_prop_of_ty::<false, false>(lhs_ty, SymbolName::Atom(n.name.name))
+            }
+            ast::Node::EleAccessExpr(n) => {
+                let prop_ty = self.check_expression_cached(n.arg, None);
+                if !prop_ty.usable_as_prop_name() {
+                    None
+                } else {
+                    let lhs_ty = self.get_ty_of_expr(n.expr);
+                    let name = self.get_prop_name_from_ty(prop_ty);
+                    self.get_prop_of_ty::<false, false>(lhs_ty, name)
+                }
+            }
+            _ => None,
         }
     }
 

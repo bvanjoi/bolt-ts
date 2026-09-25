@@ -1,0 +1,23 @@
+  × 'y' is possibly 'undefined'.
+    ╭─[../../tests/compiler/contextuallyTypedOptionalProperty/index.ts:12:21]
+ 12 │ y
+    · ─
+    ╰────
+
+  × 'y' is possibly 'undefined'.
+    ╭─[../../tests/compiler/contextuallyTypedOptionalProperty/index.ts:17:18]
+ 17 │ y
+    · ─
+    ╰────
+
+  × 'y' is possibly 'undefined'.
+    ╭─[../../tests/compiler/contextuallyTypedOptionalProperty/index.ts:12:21]
+ 12 │ y
+    · ─
+    ╰────
+
+  × 'y' is possibly 'undefined'.
+    ╭─[../../tests/compiler/contextuallyTypedOptionalProperty/index.ts:17:18]
+ 17 │ y
+    · ─
+    ╰────

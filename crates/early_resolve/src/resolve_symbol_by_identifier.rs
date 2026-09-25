@@ -7,6 +7,7 @@ use super::Resolver as R;
 
 pub struct ResolvedResult<'cx> {
     symbol: SymbolID,
+    is_referenced: Option<SymbolFlags>,
     associated_declaration_for_containing_initializer_or_binding_name:
         Option<AssociatedDeclarationForContainingInitializerOrBindingName<'cx>>,
     within_deferred_context: bool,
@@ -56,6 +57,9 @@ impl<'cx> ResolvedResult<'cx> {
     }
     pub fn property_with_invalid_initializer(&self) -> Option<ast::NodeID> {
         self.property_with_invalid_initializer
+    }
+    pub fn referenced(&self) -> Option<SymbolFlags> {
+        self.is_referenced
     }
 }
 
@@ -199,11 +203,48 @@ impl<'cx, 'a> Resolver<'cx, 'a> for R<'cx, 'a, '_> {
     }
 }
 
-pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
+fn use_outer_variable_scope_in_parameter<'a, 'cx: 'a>(
+    resolver: &impl Resolver<'cx, 'a>,
+    result: SymbolID,
+    location: ast::NodeID,
+    last_location: Option<ast::NodeID>,
+) -> bool {
+    // let last_location_node = self
+    let last_location_node = last_location.map(|id| resolver.node(id));
+    let Some(last_location_node) = last_location_node else {
+        return false;
+    };
+    if last_location_node.is_param_decl()
+        && let Some(body) = resolver.node(location).fn_body()
+        && let s = resolver.symbol(result)
+        && let Some(v) = s.value_decl
+        && let node_span = resolver.node(v).span()
+        && node_span.lo() >= body.span().lo()
+        && node_span.hi() <= body.span().hi()
+        && *resolver.options().target() >= Target::ES2015
+    {
+        // TODO: declaration_requires_scope_change
+        true
+    } else {
+        false
+    }
+}
+
+pub fn resolve_symbol_by_ident<'a, 'cx: 'a, const IS_USE: bool>(
     resolver: &impl Resolver<'cx, 'a>,
     ident: &'cx ast::Ident,
     meaning: SymbolFlags,
 ) -> ResolvedResult<'cx> {
+    if ident.name == keyword::KW_UNDEFINED {
+        return ResolvedResult {
+            symbol: Symbol::UNDEFINED,
+            is_referenced: None,
+            associated_declaration_for_containing_initializer_or_binding_name: None,
+            within_deferred_context: false,
+            base_class_expression_cannot_reference_class_type_parameters: false,
+            property_with_invalid_initializer: None,
+        };
+    }
     use ast::Node::*;
     let key = SymbolName::Atom(ident.name);
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
@@ -211,6 +252,14 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
     let mut last_location = Some(ident.id);
     let mut location = resolver.parent(ident.id);
     let mut property_with_invalid_initializer = None;
+    let is_referenced = |symbol: SymbolID, meaning: SymbolFlags| -> Option<SymbolFlags> {
+        // TODO: last_self_reference
+        if IS_USE && symbol != Symbol::ERR {
+            Some(meaning)
+        } else {
+            None
+        }
+    };
 
     while let Some(id) = location {
         // TODO: if ident.name == keyword::KW_CONST && is_const_assertion
@@ -246,6 +295,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                 // handle this case in late_resolve
                 return ResolvedResult {
                     symbol,
+                    is_referenced: is_referenced(symbol, meaning),
                     associated_declaration_for_containing_initializer_or_binding_name,
                     within_deferred_context,
                     base_class_expression_cannot_reference_class_type_parameters: false,
@@ -281,23 +331,30 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                         false
                     };
                 }
-                if flags.intersects(SymbolFlags::VARIABLE)
-                    && res_flags.contains(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
-                {
-                    let last = resolver.node(last_location);
-                    // TODO: last_location is synthesized
-                    use_result = last.is_param_decl()
-                        || (match n {
-                            FnDecl(f) => f.ty.is_some_and(|t| t.id() == last_location),
-                            ClassMethodElem(n) => n.ty.is_some_and(|t| t.id() == last_location),
-                            _ => false,
-                        } && res.value_decl.is_some_and(|n| {
-                            resolver
-                                .find_ancestor(n, |current| {
-                                    resolver.node(current).is_param_decl().then_some(true)
-                                })
-                                .is_some()
-                        }))
+                if flags.intersects(SymbolFlags::VARIABLE) {
+                    if use_outer_variable_scope_in_parameter(
+                        resolver,
+                        symbol,
+                        id,
+                        Some(last_location),
+                    ) {
+                        use_result = false;
+                    } else if res_flags.contains(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+                        let last = resolver.node(last_location);
+                        // TODO: last_location is synthesized
+                        use_result = last.is_param_decl()
+                            || (match n {
+                                FnDecl(f) => f.ty.is_some_and(|t| t.id() == last_location),
+                                ClassMethodElem(n) => n.ty.is_some_and(|t| t.id() == last_location),
+                                _ => false,
+                            } && res.value_decl.is_some_and(|n| {
+                                resolver
+                                    .find_ancestor(n, |current| {
+                                        resolver.node(current).is_param_decl().then_some(true)
+                                    })
+                                    .is_some()
+                            }))
+                    }
                 };
             } else if let Some(cond) = n.as_cond_ty() {
                 use_result = last_location.is_some_and(|last| last == cond.true_ty.id());
@@ -305,6 +362,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
             if use_result {
                 return ResolvedResult {
                     symbol,
+                    is_referenced: is_referenced(symbol, meaning),
                     associated_declaration_for_containing_initializer_or_binding_name,
                     within_deferred_context,
                     base_class_expression_cannot_reference_class_type_parameters: false,
@@ -346,6 +404,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                         {
                             return ResolvedResult {
                                 symbol: result,
+                                is_referenced: is_referenced(symbol, meaning),
                                 associated_declaration_for_containing_initializer_or_binding_name,
                                 within_deferred_context,
                                 base_class_expression_cannot_reference_class_type_parameters: false,
@@ -385,6 +444,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                     // TODO: is_source_file
                     return ResolvedResult {
                         symbol: module_export,
+                        is_referenced: is_referenced(symbol, meaning),
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
@@ -399,6 +459,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                 {
                     return ResolvedResult {
                         symbol: res,
+                        is_referenced: is_referenced(res, meaning),
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
@@ -441,6 +502,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                     // TODO: last location
                     return ResolvedResult {
                         symbol: res,
+                        is_referenced: is_referenced(res, meaning),
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
@@ -451,8 +513,10 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                     && meaning.intersects(SymbolFlags::CLASS)
                     && c.name.is_some_and(|n| n.name == ident.name)
                 {
+                    let symbol = resolver.symbol_of_decl(id);
                     return ResolvedResult {
-                        symbol: resolver.symbol_of_decl(id),
+                        symbol,
+                        is_referenced: is_referenced(symbol, meaning),
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
@@ -476,6 +540,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                         debug_assert!(!resolver.symbol(res).flags.contains(SymbolFlags::ALIAS));
                         return ResolvedResult {
                             symbol: Symbol::ERR,
+                            is_referenced: None,
                             associated_declaration_for_containing_initializer_or_binding_name,
                             within_deferred_context,
                             base_class_expression_cannot_reference_class_type_parameters: true,
@@ -496,6 +561,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                     debug_assert!(!resolver.symbol(res).flags.contains(SymbolFlags::ALIAS));
                     return ResolvedResult {
                         symbol: Symbol::ERR,
+                        is_referenced: None,
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: true,
@@ -511,6 +577,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                 {
                     return ResolvedResult {
                         symbol: Symbol::ARGUMENTS,
+                        is_referenced: None,
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
@@ -524,6 +591,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                 {
                     return ResolvedResult {
                         symbol: Symbol::ARGUMENTS,
+                        is_referenced: None,
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
@@ -533,8 +601,10 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                 if meaning.contains(SymbolFlags::FUNCTION)
                     && f.name.is_some_and(|n| n.name == ident.name)
                 {
+                    let symbol = resolver.symbol_of_decl(id);
                     return ResolvedResult {
-                        symbol: resolver.symbol_of_decl(id),
+                        symbol,
+                        is_referenced: is_referenced(symbol, meaning),
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
@@ -585,6 +655,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
     if let Some(symbol) = get_symbol(resolver, resolver.globals(), key, meaning) {
         return ResolvedResult {
             symbol,
+            is_referenced: None,
             associated_declaration_for_containing_initializer_or_binding_name,
             within_deferred_context,
             base_class_expression_cannot_reference_class_type_parameters: false,
@@ -593,6 +664,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
     } else if ident.name == keyword::IDENT_GLOBAL_THIS && meaning.intersects(SymbolFlags::MODULE) {
         return ResolvedResult {
             symbol: Symbol::GLOBAL_THIS,
+            is_referenced: None,
             associated_declaration_for_containing_initializer_or_binding_name,
             within_deferred_context,
             base_class_expression_cannot_reference_class_type_parameters: false,
@@ -602,6 +674,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
 
     ResolvedResult {
         symbol: Symbol::ERR,
+        is_referenced: None,
         associated_declaration_for_containing_initializer_or_binding_name,
         within_deferred_context,
         base_class_expression_cannot_reference_class_type_parameters: false,

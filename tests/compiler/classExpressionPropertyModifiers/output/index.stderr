@@ -1,0 +1,11 @@
+  × 'export' modifier cannot appear on class elements of this kind.
+    ╭─[../../tests/compiler/classExpressionPropertyModifiers/index.ts:11:5]
+ 11 │ export
+    · ──────
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/classExpressionPropertyModifiers/index.ts:9:36]
+ 9 │ "uh"
+   · ────
+   ╰────

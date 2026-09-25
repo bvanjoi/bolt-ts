@@ -1,0 +1,18 @@
+  × Type 'null' is not assignable to type 'List<U>'.
+    ╭─[../../tests/compiler/listFailure/index.ts:24:10]
+ 24 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'List<U>'.
+    ╭─[../../tests/compiler/listFailure/index.ts:29:10]
+ 29 │ null
+    · ────
+    ╰────
+
+  × Property 'next' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/listFailure/index.ts:34:16]
+ 34 │ next
+    · ────
+    ╰────

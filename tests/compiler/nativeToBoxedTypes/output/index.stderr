@@ -1,0 +1,29 @@
+  × Type 'Number' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/nativeToBoxedTypes/index.ts:7:1]
+ 7 │ n
+   · ─
+   ╰────
+
+  × Type 'String' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/nativeToBoxedTypes/index.ts:12:1]
+ 12 │ s
+    · ─
+    ╰────
+
+  × Type 'Boolean' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/nativeToBoxedTypes/index.ts:17:1]
+ 17 │ b
+    · ─
+    ╰────
+
+  × Variable 'Sym' is used before being assigned.
+    ╭─[../../tests/compiler/nativeToBoxedTypes/index.ts:22:7]
+ 22 │ Sym
+    · ───
+    ╰────
+
+  × Type 'Symbol' is not assignable to type 'symbol'.
+    ╭─[../../tests/compiler/nativeToBoxedTypes/index.ts:22:1]
+ 22 │ sym
+    · ───
+    ╰────

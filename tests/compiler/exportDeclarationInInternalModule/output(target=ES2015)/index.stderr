@@ -1,0 +1,11 @@
+  × Expected 'String'.
+    ╭─[../../tests/compiler/exportDeclarationInInternalModule/index.ts:21:19]
+ 21 │ Aaa
+    · ───
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/exportDeclarationInInternalModule/index.ts:21:19]
+ 21 │ Aaa
+    · ───
+    ╰────

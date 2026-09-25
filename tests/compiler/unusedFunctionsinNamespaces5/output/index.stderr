@@ -1,0 +1,11 @@
+  × 'function3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedFunctionsinNamespaces5/index.ts:15:14]
+ 15 │ function3
+    · ─────────
+    ╰────
+
+  × 'function4' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedFunctionsinNamespaces5/index.ts:20:14]
+ 20 │ function4
+    · ─────────
+    ╰────

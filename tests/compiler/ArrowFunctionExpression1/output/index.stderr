@@ -3,3 +3,9 @@
  3 │ public
    · ──────
    ╰────
+
+  × 'export' modifier cannot appear on a parameter.
+   ╭─[../../tests/compiler/ArrowFunctionExpression1/index.ts:8:10]
+ 8 │ export
+   · ──────
+   ╰────

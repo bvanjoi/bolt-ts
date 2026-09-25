@@ -10,7 +10,10 @@ use bolt_ts_binder::SymbolID;
 use bolt_ts_utils::fx_indexmap_with_capacity;
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_ty_from_object_pat<const INCLUDE_PATTERN_IN_TY: bool>(
+    pub(super) fn get_ty_from_object_pat<
+        const INCLUDE_PATTERN_IN_TY: bool,
+        const REPORT_ERROR: bool,
+    >(
         &mut self,
         pat: &'cx ast::ObjectPat<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -43,7 +46,7 @@ impl<'cx> TyChecker<'cx> {
                     SymbolFlags::empty()
                 };
             let name = self.get_prop_name_from_ty(expr_ty);
-            let ty = self.get_ty_from_object_binding::<INCLUDE_PATTERN_IN_TY>(elem);
+            let ty = self.get_ty_from_object_binding::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(elem);
             let links = SymbolLinks::default().with_ty(ty);
             let symbol = self.create_transient_symbol(
                 name,
@@ -77,7 +80,10 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    pub(super) fn get_ty_from_object_binding<const INCLUDE_PATTERN_IN_TY: bool>(
+    pub(super) fn get_ty_from_object_binding<
+        const INCLUDE_PATTERN_IN_TY: bool,
+        const REPORT_ERROR: bool,
+    >(
         &mut self,
         elem: &'cx ast::ObjectBindingElem<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -85,7 +91,7 @@ impl<'cx> TyChecker<'cx> {
             let contextual_ty = if let ast::ObjectBindingName::Prop { name, .. } = elem.name
                 && let ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) = name.kind
             {
-                self.get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY>(name)
+                self.get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(name)
             } else {
                 self.unknown_ty
             };
@@ -98,10 +104,12 @@ impl<'cx> TyChecker<'cx> {
         if let ast::ObjectBindingName::Prop { name, .. } = elem.name
             && let ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) = name.kind
         {
-            return self.get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY>(name);
+            return self.get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(name);
         }
 
-        // TODO: report_errors
+        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(elem) {
+            self.report_implicit_any(elem.id, self.any_ty, None);
+        }
 
         if INCLUDE_PATTERN_IN_TY {
             self.non_inferrable_any_ty
@@ -110,7 +118,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_from_array_binding<const INCLUDE_PATTERN_IN_TY: bool>(
+    fn get_ty_from_array_binding<const INCLUDE_PATTERN_IN_TY: bool, const REPORT_ERROR: bool>(
         &mut self,
         elem: &'cx ast::ArrayBinding<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -118,7 +126,9 @@ impl<'cx> TyChecker<'cx> {
             let contextual_ty = match elem.name.kind {
                 ast::BindingKind::Ident(_) => self.unknown_ty,
                 ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) => {
-                    self.get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY>(elem.name)
+                    self.get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(
+                        elem.name,
+                    )
                 }
             };
             let ty =
@@ -128,10 +138,13 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if let ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) = elem.name.kind {
-            return self.get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY>(elem.name);
+            return self
+                .get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(elem.name);
         }
 
-        // TODO: report_errors
+        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(elem) {
+            self.report_implicit_any(elem.id, self.any_ty, None);
+        }
 
         if INCLUDE_PATTERN_IN_TY {
             self.non_inferrable_any_ty
@@ -140,7 +153,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_ty_from_array_pat<const INCLUDE_PATTERN_IN_TY: bool>(
+    pub(super) fn get_ty_from_array_pat<
+        const INCLUDE_PATTERN_IN_TY: bool,
+        const REPORT_ERROR: bool,
+    >(
         &mut self,
         pat: &'cx ast::ArrayPat<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -167,7 +183,7 @@ impl<'cx> TyChecker<'cx> {
             .map(|e| match e.kind {
                 ast::ArrayBindingElemKind::Omit(_) => self.any_ty,
                 ast::ArrayBindingElemKind::Binding(elem) => {
-                    self.get_ty_from_array_binding::<INCLUDE_PATTERN_IN_TY>(elem)
+                    self.get_ty_from_array_binding::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(elem)
                 }
             })
             .collect::<Vec<_>>();
@@ -229,7 +245,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_ty_from_binding_pattern<const INCLUDE_PATTERN_IN_TY: bool>(
+    pub(super) fn get_ty_from_binding_pattern<
+        const INCLUDE_PATTERN_IN_TY: bool,
+        const REPORT_ERROR: bool,
+    >(
         &mut self,
         binding: &'cx ast::Binding<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -239,10 +258,10 @@ impl<'cx> TyChecker<'cx> {
         let ret = match binding.kind {
             ast::BindingKind::Ident(_) => unreachable!(),
             ast::BindingKind::ObjectPat(pat) => {
-                self.get_ty_from_object_pat::<INCLUDE_PATTERN_IN_TY>(pat)
+                self.get_ty_from_object_pat::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(pat)
             }
             ast::BindingKind::ArrayPat(pat) => {
-                self.get_ty_from_array_pat::<INCLUDE_PATTERN_IN_TY>(pat)
+                self.get_ty_from_array_pat::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(pat)
             }
         };
         if INCLUDE_PATTERN_IN_TY {
@@ -280,7 +299,7 @@ impl<'cx> TyChecker<'cx> {
             && !matches!(declaration.name.kind, ast::BindingKind::Ident(_))
             && ty == self.unknown_ty
         {
-            ty = self.get_ty_from_binding_pattern::<false>(declaration.name);
+            ty = self.get_ty_from_binding_pattern::<false, false>(declaration.name);
         }
         self.get_mut_symbol_links(param).set_ty(ty);
         if let Some(declaration) = decl_node

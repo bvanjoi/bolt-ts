@@ -1,8 +1,8 @@
 use super::CheckParameterFlags;
 use super::SignatureFlags;
+use super::const_variant::is_ts_like_variant;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::is_ts_like_variant;
 use super::{PResult, ParserState};
 use super::{ast, errors};
 
@@ -851,10 +851,10 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             Self::parse_object_ty_members,
         );
         let kind = self.create_object_literal_type(self.new_span(start), members);
-
-        (self.alloc(ast::Ty {
+        let ty = ast::Ty {
             kind: ast::TyKind::ObjectLit(kind),
-        })) as _
+        };
+        self.alloc(ty)
     }
 
     fn parse_paren_ty<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {

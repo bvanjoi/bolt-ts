@@ -68,6 +68,7 @@ mod symbol_info;
 mod transient_symbol;
 mod type_assignable;
 mod type_predicate;
+mod unused;
 mod unwrap_ty;
 mod utils;
 
@@ -85,6 +86,7 @@ use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_binder::{param_index_in_parameter_list, symbol_name_from_enum_member_name};
 use bolt_ts_checker_errors as errors;
 use bolt_ts_config::NormalizedTsConfig;
+use bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver;
 use bolt_ts_middle::F64Represent;
 use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
 use bolt_ts_parser::ParsedMap;
@@ -92,9 +94,12 @@ use bolt_ts_parser::parse_pseudo_bigint;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
-use bolt_ts_wf_check::IssueExternalExportDeclarations;
+use bolt_ts_wf_check::InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl;
+use bolt_ts_wf_check::{InvalidInitializerInAmbientContext, IssueExternalExportDeclarations};
 use nohash_hasher::IntMap;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+
+use crate::check::unused::PotentiallyUnusedIdentifiers;
 
 use self::check_expr::IterationUse;
 use self::check_type_related_to::NOOP_HEADING_ERROR;
@@ -114,10 +119,11 @@ pub use self::get_declared_ty::EnumMemberValue;
 use self::get_iteration_tys::IterationTypeKind;
 use self::get_variances::VarianceFlags;
 use self::get_widened_ty::WideningContextArena;
-use self::infer::InferenceContext;
+use self::infer::InferenceCompare;
 use self::infer::InferenceInfo;
 use self::infer::InferenceInfosArena;
 use self::infer::{InferenceFlags, InferencePriority};
+use self::infer::{InferenceId, Inferences};
 use self::instantiation_ty_map::InstantiationTyMap;
 use self::instantiation_ty_map::SubstitutionKey;
 use self::instantiation_ty_map::TyAliasInstantiationMap;
@@ -176,8 +182,6 @@ bitflags::bitflags! {
     }
 }
 
-bolt_ts_utils::index!(InferenceContextId);
-
 struct FlowLoopTypesArena<'cx> {
     arena: bolt_ts_arena::la_arena::Arena<Vec<&'cx ty::Ty<'cx>>>,
 }
@@ -213,6 +217,7 @@ pub struct TyChecker<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
     pub module_arena: bolt_ts_span::ModuleArena,
     pub config: NormalizedTsConfig,
+    potentially_unused_identifiers: PotentiallyUnusedIdentifiers<'cx>,
     emit_standard_class_fields: bool,
     arena: &'cx bolt_ts_arena::bumpalo::Bump,
     tys: Vec<&'cx ty::Ty<'cx>>,
@@ -238,8 +243,8 @@ pub struct TyChecker<'cx> {
     tuple_tys: nohash_hasher::IntMap<u64, &'cx ty::Ty<'cx>>,
     template_literal_tys: FxHashMap<TemplateLiteralTyKey<'cx>, &'cx ty::Ty<'cx>>,
 
-    inferences: Vec<InferenceContext<'cx>>,
-    inference_contextual: Vec<InferenceContextual>,
+    inferences: Inferences<'cx>,
+    inference_contextual: Vec<InferenceContextual<'cx>>,
     inference_infos_arena: InferenceInfosArena<'cx>,
     activity_ty_mapper: Vec<&'cx dyn ty::TyMap<'cx>>,
     instantiation_depth: u32,
@@ -287,6 +292,9 @@ pub struct TyChecker<'cx> {
     final_array_ty_of_evolving_array_cache: IntMap<TyID, &'cx ty::Ty<'cx>>,
     widened_context_arena: WideningContextArena<'cx>,
     issue_external_export_declarations: IssueExternalExportDeclarations,
+    invalid_initializer_in_ambient_context: InvalidInitializerInAmbientContext,
+    invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl:
+        InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl,
     // === ast ===
     pub p: ParsedMap<'cx>,
     pub mg: ModuleGraph,
@@ -390,12 +398,13 @@ pub struct TyChecker<'cx> {
     no_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     no_ty_pred: std::cell::OnceCell<&'cx TyPred<'cx>>,
     number_or_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    /// `${number}`
     numeric_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     resolving_default_type: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_union_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_empty_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     empty_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -502,6 +511,19 @@ pub fn node_query<'cx, 'a>(
     NodeQuery::new(parent_map, p)
 }
 
+enum ExpressionOrEntityName<'cx> {
+    Expression(&'cx ast::Expr<'cx>),
+    EntityName(&'cx ast::EntityName<'cx>),
+}
+impl ExpressionOrEntityName<'_> {
+    fn id(&self) -> ast::NodeID {
+        match self {
+            ExpressionOrEntityName::Expression(expr) => expr.id(),
+            ExpressionOrEntityName::EntityName(entity_name) => entity_name.id(),
+        }
+    }
+}
+
 impl<'cx> TyChecker<'cx> {
     pub fn node_query(&self, module_id: ModuleID) -> NodeQuery<'cx, '_> {
         node_query(module_id, &self.p, &self.binder)
@@ -529,7 +551,7 @@ impl<'cx> TyChecker<'cx> {
         merged_symbols: MergedSymbols,
         mut global_symbols: GlobalSymbols,
         emit_standard_class_fields: bool,
-        wf_check_result: Vec<bolt_ts_wf_check::WellFormedCheckResult>,
+        mut wf_check_result: Vec<bolt_ts_wf_check::WellFormedCheckResult>,
     ) -> Self {
         let cap = p.module_count() * 1024;
         let mut transient_symbols = Symbols::new_transient(p.module_count());
@@ -685,11 +707,28 @@ impl<'cx> TyChecker<'cx> {
 
         let issue_external_export_declarations = IssueExternalExportDeclarations::join(
             wf_check_result
-                .into_iter()
-                .map(|r| r.issue_external_export_declarations),
+                .iter_mut()
+                .map(|r| std::mem::take(&mut r.issue_external_export_declarations)),
         );
+        let invalid_initializer_in_ambient_context = InvalidInitializerInAmbientContext::join(
+            wf_check_result
+                .iter_mut()
+                .map(|r| std::mem::take(&mut r.invalid_initializer_in_ambient_context)),
+        );
+        let invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl =
+            InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl::join(
+                wf_check_result.iter_mut().map(|r| {
+                    std::mem::take(
+                        &mut r.invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl,
+                    )
+                }),
+            );
+
         let mut this = Self {
+            potentially_unused_identifiers: PotentiallyUnusedIdentifiers::new(),
             issue_external_export_declarations,
+            invalid_initializer_in_ambient_context,
+            invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl,
             tys,
             sigs: Vec::with_capacity(p.module_count() * 256),
             arena: ty_arena,
@@ -921,7 +960,7 @@ impl<'cx> TyChecker<'cx> {
             binder,
             merged_symbols,
             global_symbols,
-            inferences: Vec::with_capacity(cap),
+            inferences: Inferences::new(),
             inference_contextual: Vec::with_capacity(256),
             inference_infos_arena: InferenceInfosArena::default(),
             type_contextual: Vec::with_capacity(256),
@@ -1119,6 +1158,10 @@ impl<'cx> TyChecker<'cx> {
         for stmt in program.stmts() {
             self.check_stmt(stmt);
         }
+        let m = program.id().module();
+        if self.p.get(m).is_external_or_commonjs_module() {
+            self.register_potentially_unused_program(program);
+        }
     }
 
     fn is_applicable_index_ty(
@@ -1129,14 +1172,12 @@ impl<'cx> TyChecker<'cx> {
         self.is_type_assignable_to(source, target)
             || (target == self.string_ty && self.is_type_assignable_to(source, self.number_ty))
             || (target == self.number_ty
-                && (
-                    // TODO: numericStringType
-                    source.flags.contains(TypeFlags::STRING_LITERAL)
+                && (source == self.numeric_string_ty()
+                    || (source.flags.contains(TypeFlags::STRING_LITERAL)
                         && match source.kind {
                             ty::TyKind::StringLit(t) => self.is_numerical_literal_name(t.val),
                             _ => unreachable!(),
-                        }
-                ))
+                        })))
     }
 
     fn is_numerical_literal_name(&self, name: bolt_ts_atom::Atom) -> bool {
@@ -1549,6 +1590,7 @@ impl<'cx> TyChecker<'cx> {
                                                 ast::PropNameKind::Computed(n)
                                             }
                                             ast::DeclarationName::BigIntLit(_) => todo!(),
+                                            ast::DeclarationName::ElementAccess(_) => todo!(),
                                         };
                                         ast::PropName { kind }
                                     })
@@ -1820,13 +1862,15 @@ impl<'cx> TyChecker<'cx> {
                         }
                     }
 
-                    self.append_inferred_type_parameters(context_inference, unique_type_parameters);
-                    return self.get_or_create_ty_from_sig(instantiated_sig, None);
+                    self.inferences
+                        .append_inferred_type_parameters(context_inference, unique_type_parameters);
+                    return self.get_or_create_ty_from_sig(instantiated_sig);
                 }
             }
         }
 
-        let sig = self.instantiate_sig_in_context_of(sig, contextual_sig, Some(context_inference));
+        let sig =
+            self.instantiate_sig_in_context_of(sig, contextual_sig, Some(context_inference), None);
         // let outer_ty_params = self
         //     .inference_contextual
         //     .iter()
@@ -1840,12 +1884,12 @@ impl<'cx> TyChecker<'cx> {
         //     })
         //     .flatten()
         //     .collect::<Vec<_>>();
-        self.get_or_create_ty_from_sig(sig, None)
+        self.get_or_create_ty_from_sig(sig)
     }
 
     fn get_unique_type_parameters(
         &mut self,
-        context: InferenceContextual,
+        context: InferenceContextual<'cx>,
         type_parameters: ty::Tys<'cx>,
     ) -> Vec<&'cx ty::Ty<'cx>> {
         let mut result: Vec<&'cx ty::Ty<'cx>> = vec![];
@@ -1938,7 +1982,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let new_type_parameters = self.alloc(new_type_parameters);
             let old_type_parameters = self.alloc(old_type_parameters);
-            let mapper = self.create_ty_mapper(new_type_parameters, old_type_parameters);
+            let mapper = self.create_ty_mapper(old_type_parameters, new_type_parameters);
             for tp in new_type_parameters {
                 debug_assert!(tp.kind.as_param().is_some_and(|p| p.target.is_some()));
                 let prev = self
@@ -1964,19 +2008,16 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
-    fn get_or_create_ty_from_sig(
-        &mut self,
-        sig: &'cx ty::Sig<'cx>,
-        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
-    ) -> &'cx ty::Ty<'cx> {
-        //TODO: cache `isolated_sig_ty`
+    fn get_or_create_ty_from_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_sig_links(sig.id).get_isolated_sig_ty() {
+            return ty;
+        }
         let is_constructor = sig.node_id.is_none_or(|node_id| {
             use bolt_ts_ast::Node::*;
             matches!(self.p.node(node_id), ClassCtor(_) | CtorSigDecl(_))
         });
         let ty = ty::SingleSigTy {
             symbol: sig.node_id.map(|node_id| self.final_res(node_id)),
-            mapper,
         };
         let ty = self.create_single_sig_ty(
             ty,
@@ -1999,6 +2040,7 @@ impl<'cx> TyChecker<'cx> {
         }));
         let prev = self.ty_links.insert(ty.id, links);
         assert!(prev.is_none());
+        self.get_mut_sig_links(sig.id).set_isolated_sig_ty(ty);
         ty
     }
 
@@ -2022,8 +2064,10 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect::<Vec<_>>();
         let ty_args = self.alloc(ty_args);
-        // TODO: is_js
-        let canonical_sig_cache = self.get_sig_instantiation(sig, Some(ty_args), false, None);
+        let is_js = sig
+            .node_id
+            .is_some_and(|n| self.node_query(n.module()).is_in_js_file(n));
+        let canonical_sig_cache = self.get_sig_instantiation(sig, Some(ty_args), is_js, None);
         self.get_mut_sig_links(sig.id)
             .set_canonical_sig(canonical_sig_cache);
         canonical_sig_cache
@@ -2033,16 +2077,16 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         contextual_sig: &'cx ty::Sig<'cx>,
-        inference_context: Option<InferenceContextId>,
+        inference_context: Option<InferenceId<'cx>>,
+        compare: Option<InferenceCompare>,
     ) -> &'cx ty::Sig<'cx> {
         let context = {
             let ty_params = self.get_ty_params_for_mapper(sig);
-            self.create_inference_context(ty_params, Some(sig), InferenceFlags::empty())
+            self.create_inference_context(ty_params, Some(sig), InferenceFlags::empty(), compare)
         };
-        let rest_ty = contextual_sig.get_effective_rest_ty(self);
         let mut mapper = None;
         if let Some(inference_context) = inference_context {
-            if let Some(rest_ty) = rest_ty {
+            if let Some(rest_ty) = contextual_sig.get_effective_rest_ty(self) {
                 if rest_ty.kind.is_param() {
                     mapper = Some(self.inference(inference_context).non_fixing_mapper);
                 }
@@ -2077,10 +2121,35 @@ impl<'cx> TyChecker<'cx> {
         if check_mode.contains(CheckMode::INFERENTIAL) {
             let context = self.get_inference_context(node).unwrap();
             let inference = context.inference.unwrap();
-            self.config_inference_flags(inference, |flags| {
+            self.inferences.config_inference_flags(inference, |flags| {
                 *flags |= InferenceFlags::SKIPPED_GENERIC_FUNCTION;
             });
         }
+    }
+
+    fn is_in_parameter_initializer_before_containing_fn(&self, mut n: ast::NodeID) -> bool {
+        let mut in_binding_initializer = false;
+        while let Some(p) = self.parent(n)
+            && let parent = self.p.node(p)
+            && parent.is_fn_like()
+        {
+            match parent {
+                ast::Node::ParamDecl(p)
+                    if (in_binding_initializer || p.init.is_some_and(|init| init.id() == n)) =>
+                {
+                    return true;
+                }
+                ast::Node::ArrayBinding(p) if p.init.is_some_and(|init| init.id() == n) => {
+                    in_binding_initializer = true;
+                }
+                ast::Node::ObjectBindingElem(p) if p.init.is_some_and(|init| init.id() == n) => {
+                    in_binding_initializer = true;
+                }
+                _ => {}
+            }
+            n = p
+        }
+        false
     }
 
     fn try_get_this_ty_at<const INCLUDE_GLOBAL_THIS: bool>(
@@ -2095,7 +2164,7 @@ impl<'cx> TyChecker<'cx> {
                 .get_this_container(node, false, false)
         });
         let container = self.p.node(container_id);
-        if container.is_fn_like() {
+        if container.is_fn_like() && !self.is_in_parameter_initializer_before_containing_fn(node) {
             let mut this_ty = if let Some(this_ty) = self.get_this_ty_of_decl(container_id) {
                 Some(this_ty)
             } else if in_js {
@@ -2311,10 +2380,10 @@ impl<'cx> TyChecker<'cx> {
         self.push_error(Box::new(error));
     }
 
-    pub(super) fn check_property_access_expression_or_qualified_name(
+    fn check_property_access_expression_or_qualified_name(
         &mut self,
         node: ast::NodeID,
-        left: ast::NodeID,
+        left: ExpressionOrEntityName<'cx>,
         left_ty: &'cx ty::Ty<'cx>,
         right: &'cx ast::Ident,
         check_mode: Option<CheckMode>,
@@ -2330,6 +2399,8 @@ impl<'cx> TyChecker<'cx> {
             };
             self.get_apparent_ty(t)
         };
+        let parent_symbol = self.get_node_links(left.id()).get_resolved_symbol();
+
         let is_any_like =
             self.is_type_any(apparent_left_ty) || apparent_left_ty == self.silent_never_ty;
         // TODO: is_private_identifier
@@ -2342,6 +2413,13 @@ impl<'cx> TyChecker<'cx> {
                 apparent_left_ty
             };
         }
+
+        let left_is_super = || match left {
+            ExpressionOrEntityName::Expression(left) => {
+                matches!(left.kind, ast::ExprKind::Super(_))
+            }
+            ExpressionOrEntityName::EntityName(_) => false,
+        };
 
         let name = SymbolName::Atom(right.name);
         let skip_object_function_property_augment = self.is_const_enum_object_ty(apparent_left_ty);
@@ -2357,17 +2435,51 @@ impl<'cx> TyChecker<'cx> {
         };
         let prop_ty = if let Some(prop) = prop {
             self.check_prop_not_used_before_declaration(prop, node, right);
-            // TODO: mark_prop_as_referenced
+            let is_self_type_access = match left {
+                ExpressionOrEntityName::Expression(left) => match left.kind {
+                    ast::ExprKind::This(_) => true,
+                    _ => {
+                        if left.is_entity_name_expr()
+                            && let Some(p) = parent_symbol
+                            && let Some(first) = left.get_first_identifier()
+                        {
+                            p == self.resolve_symbol_by_ident(first)
+                        } else {
+                            false
+                        }
+                    }
+                },
+                ExpressionOrEntityName::EntityName(left)
+                    if let Some(parent_symbol) = parent_symbol =>
+                {
+                    let first = left.get_first_identifier();
+                    parent_symbol == self.resolve_symbol_by_ident(first)
+                }
+                _ => false,
+            };
+            self.mark_property_as_referenced(prop, Some(node), is_self_type_access);
             if self.get_node_links(node).get_resolved_symbol().is_none() {
                 self.get_mut_node_links(node).set_resolved_symbol(prop);
             }
-            self.check_property_accessibility::<false>(
-                node,
-                self.p.node(left).is_super_expr(),
-                apparent_left_ty,
-                prop,
-                true,
-            );
+            let is_write_access =
+                self.node_query(node.module()).access_kind(node) != AccessKind::Read;
+            if is_write_access {
+                self.check_property_accessibility::<true>(
+                    node,
+                    left_is_super(),
+                    apparent_left_ty,
+                    prop,
+                    true,
+                );
+            } else {
+                self.check_property_accessibility::<false>(
+                    node,
+                    left_is_super(),
+                    apparent_left_ty,
+                    prop,
+                    true,
+                );
+            }
 
             if self.is_assignment_to_readonly_entity(node, prop, assignment_kind) {
                 let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {
@@ -2435,6 +2547,7 @@ impl<'cx> TyChecker<'cx> {
                 index_info.val_ty
             }
         };
+
         self.get_flow_type_of_access_expression(node, prop, prop_ty, Some(right.id), check_mode)
     }
 
@@ -2573,6 +2686,19 @@ impl<'cx> TyChecker<'cx> {
                 return false;
             }
 
+            if flags.contains(ast::ModifierFlags::ABSTRACT) {
+                if let Some(error_node) = error_node {
+                    let class = self.get_declaring_class(prop).unwrap();
+                    let error = errors::AbstractMethodXInClassYCannotBeAccessedViaSuperExpression {
+                        span: self.p.node(error_node).span(),
+                        method: self.symbol(prop).name.to_string(&self.atoms),
+                        class: self.print_ty(class, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+                return false;
+            }
+
             if !flags.contains(ast::ModifierFlags::STATIC)
                 && let prop_symbol = self.symbol(prop)
                 && let Some(decls) = prop_symbol.decls.as_ref()
@@ -2582,7 +2708,7 @@ impl<'cx> TyChecker<'cx> {
                 })
             {
                 if let Some(error_node) = error_node {
-                    let error = errors::AbstractMethod0InClass1CannotBeAccessedViaSuperExpression {
+                    let error = errors::ClassFieldXDefinedByTheParentClassIsNotAccessibleInTheChildClassViaSuper {
                         span: self.p.node(error_node).span(),
                         field: prop_symbol.name.to_string(&self.atoms),
                     };
@@ -2804,7 +2930,7 @@ impl<'cx> TyChecker<'cx> {
             let left_ty = self.check_non_null_expr(node.expr);
             self.check_property_access_expression_or_qualified_name(
                 node.id,
-                node.expr.id(),
+                ExpressionOrEntityName::Expression(node.expr),
                 left_ty,
                 node.name,
                 check_mode,
@@ -2875,7 +3001,7 @@ impl<'cx> TyChecker<'cx> {
         let non_null_ty = self.check_non_null_type(non_optional_ty, expr_id);
         let ty = self.check_property_access_expression_or_qualified_name(
             n.id,
-            expr_id,
+            ExpressionOrEntityName::Expression(n.expr),
             non_null_ty,
             n.name,
             check_mode,
@@ -2996,7 +3122,7 @@ impl<'cx> TyChecker<'cx> {
                     let text = self.get_prop_name_from_ty(expr_ty);
                     if let Some(prop) = self.get_prop_of_ty::<false, false>(object_literal_ty, text)
                     {
-                        // TODO: mark
+                        self.mark_property_as_referenced(prop, Some(n.id), RIGHT_IS_THIS);
                         self.check_property_accessibility::<true>(
                             n.id,
                             false,
@@ -3031,7 +3157,7 @@ impl<'cx> TyChecker<'cx> {
                 debug_assert!(expr_ty.usable_as_prop_name());
                 let text = self.get_prop_name_from_ty(expr_ty);
                 if let Some(prop) = self.get_prop_of_ty::<false, false>(object_literal_ty, text) {
-                    // TODO: mark
+                    self.mark_property_as_referenced(prop, Some(n.id), RIGHT_IS_THIS);
                     self.check_property_accessibility::<true>(
                         n.id,
                         false,
@@ -3184,14 +3310,37 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_object_method_member(
         &mut self,
-        member: &'cx ast::ObjectMethodMember<'cx>,
+        n: &'cx ast::ObjectMethodMember<'cx>,
         check_mode: CheckMode,
     ) -> &'cx ty::Ty<'cx> {
-        if let ast::PropNameKind::Computed(n) = member.name.kind {
+        if let ast::PropNameKind::Computed(n) = n.name.kind {
             self.check_computed_property_name(n);
         }
-        let ty = self.check_fn_like_expr_or_object_literal_method(member.id, Some(check_mode));
-        self.instantiate_ty_with_single_generic_call_sig(member.id, ty, Some(check_mode))
+        // check_fn_like_expr_or_object_literal_method
+        self.check_node_deferred(n.id);
+        let ty = if let Some(ty) =
+            self.try_check_context_free_fn_expr_or_object_literal_method(n.id, Some(check_mode))
+        {
+            ty
+        } else {
+            // contextually_check_fn_expr_or_object_literal_method
+            let flags = |this: &mut Self| this.get_node_links(n.id).flags();
+            if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
+                let contextual_sig = self.get_contextual_sig(n.id);
+                if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
+                    self.contextually_check_fn_expr_or_object_literal_method_worker(
+                        n.id,
+                        Some(check_mode),
+                        contextual_sig,
+                    );
+                    // TODO: register potentially_unused_
+                    self.check_sig_decl(n.id);
+                }
+            }
+            let symbol = self.get_symbol_of_declaration(n.id);
+            self.get_type_of_symbol(symbol)
+        };
+        self.instantiate_ty_with_single_generic_call_sig(n.id, ty, Some(check_mode))
     }
 
     fn check_array_literal<const FORCE_TUPLE: bool>(
@@ -3542,6 +3691,9 @@ impl<'cx> TyChecker<'cx> {
                         }
                     }
                 }
+                // TODO: class_like
+                ClassPropElem(n) => !self
+                    .is_property_immediately_referenced_within_declaration::<false>(n.id, used_id),
                 _ => true,
             };
         }
@@ -3553,6 +3705,75 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
+    fn is_property_immediately_referenced_within_declaration<
+        const STOP_AT_ANY_PROPERTY_DECLARATION: bool,
+    >(
+        &self,
+        declaration: ast::NodeID,
+        usage: ast::NodeID,
+    ) -> bool {
+        debug_assert!(usage.module() == declaration.module());
+        let d = self.p.node(declaration);
+        let u = self.p.node(usage);
+        if u.span().hi() > d.span().hi() {
+            return false;
+        }
+        self.node_query(usage.module())
+            .find_ancestor(usage, |n| {
+                if n == declaration {
+                    return Some(false);
+                }
+                match self.p.node(n) {
+                    ast::Node::ArrowFnExpr(_) => Some(true),
+                    ast::Node::ClassPropElem(_) => {
+                        if STOP_AT_ANY_PROPERTY_DECLARATION
+                            && match d {
+                                ast::Node::ClassPropElem(_)
+                                    if self.parent(declaration) == self.parent(n) =>
+                                {
+                                    true
+                                }
+                                ast::Node::ParamDecl(n)
+                                    if self
+                                        .p
+                                        .node(self.parent(declaration).unwrap())
+                                        .is_class_ctor()
+                                        && n.modifiers.is_some_and(|ms| {
+                                            ms.flags.contains(
+                                                ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+                                            )
+                                        }) =>
+                                {
+                                    true
+                                }
+                                _ => unreachable!(),
+                            }
+                        {
+                            Some(false)
+                        } else {
+                            Some(true)
+                        }
+                    }
+                    ast::Node::BlockStmt(_) => {
+                        let parent = self.parent(n).unwrap();
+                        if matches!(
+                            self.p.node(parent),
+                            ast::Node::GetterDecl(_)
+                                | ast::Node::ClassMethodElem(_)
+                                | ast::Node::ObjectMethodMember(_)
+                                | ast::Node::SetterDecl(_)
+                        ) {
+                            Some(true)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            })
+            .is_none()
+    }
+
     fn check_resolved_block_scoped_var(&mut self, ident: &'cx ast::Ident, id: SymbolID) {
         debug_assert!(
             self.symbol(id).flags.intersects(
@@ -3562,7 +3783,16 @@ impl<'cx> TyChecker<'cx> {
             )
         );
         let s = self.binder.symbol(id);
-        let Some(decl) = s.opt_decl() else {
+        let Some(&decl) = s.decls.as_ref().and_then(|decls| {
+            decls.iter().find(|&&decl| {
+                self.node_query(decl.module())
+                    .is_block_or_catch_scoped(decl)
+                    || {
+                        let n = self.p.node(decl);
+                        n.is_class_like() || n.is_enum_decl()
+                    }
+            })
+        }) else {
             unreachable!()
         };
 
@@ -5043,14 +5273,14 @@ impl<'cx> TyChecker<'cx> {
         Some(aggregated_tys)
     }
 
-    fn is_array_or_tuple(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    fn is_array_or_tuple_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind.is_array(self) || ty.is_tuple()
     }
 
     fn is_array_or_tuple_or_intersection(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind
             .as_intersection()
-            .map(|i| i.tys.iter().all(|t| self.is_array_or_tuple(t)))
+            .map(|i| i.tys.iter().all(|t| self.is_array_or_tuple_ty(t)))
             .unwrap_or_default()
     }
 
@@ -7270,7 +7500,7 @@ impl<'cx> TyChecker<'cx> {
         }
         for e in missing_elements {
             let name = self.get_prop_name_from_object_binding_element(e).unwrap();
-            let ty = self.get_ty_from_object_binding::<false>(e);
+            let ty = self.get_ty_from_object_binding::<false, false>(e);
             let links = SymbolLinks::default().with_ty(ty);
             let symbol = self.create_transient_symbol(
                 name,
@@ -7649,7 +7879,7 @@ impl<'cx> TyChecker<'cx> {
                         self.p
                             .node(*decl)
                             .modifier_flags()
-                            .is_some_and(|flags| flags.contains(ast::ModifierFlags::CONST))
+                            .is_some_and(|ms| ms.contains(ast::ModifierFlags::CONST))
                     })
                 })
             }
@@ -9041,6 +9271,64 @@ impl<'cx> TyChecker<'cx> {
             _ => false,
         }
     }
+
+    fn check_ambient_initializer(&mut self, n: &impl self::VarLike<'cx>) {
+        let Some(init) = n.init() else {
+            return;
+        };
+
+        let is_simple_lit_enum_reference = |this: &mut Self, expr: &'cx ast::Expr<'cx>| {
+            match expr.kind {
+                ast::ExprKind::PropAccess(_) => {}
+                ast::ExprKind::EleAccess(n) if n.arg.is_string_or_number_lit_like() => {}
+                _ => return false,
+            };
+            let ty = this.check_expression_cached(expr, None);
+            ty.flags.intersects(TypeFlags::ENUM_LIKE)
+        };
+
+        let id = n.id();
+        if self.invalid_initializer_in_ambient_context.contains(id) {
+            let error = bolt_ts_wf_check_errors::XAreNotAllowedInAmbientContexts {
+                kind: bolt_ts_wf_check_errors::AmbientContextKind::Initializers,
+                span: init.span(),
+            };
+            self.push_error(Box::new(error));
+        } else if self.invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl.contains(id)
+                && !is_simple_lit_enum_reference(self, init)
+        {
+            let error = errors::AConstInitializerInAnAmbientContextMustBeAStringOrNumericLiteralOrLiteralEnumReference {
+                span: init.span(),
+            };
+            self.push_error(Box::new(error));
+        }
+    }
+
+    pub fn is_optional_parameter(&mut self, n: &'cx ast::ParamDecl<'cx>) -> bool {
+        if self.get_effective_question_token(n.id).is_some() {
+            true
+        } else if n.init.is_some() {
+            let parent = self.parent(n.id).unwrap();
+            let params = self.node(parent).params().unwrap();
+            let parameter_index = params.iter().position(|p| std::ptr::eq(*p, n)).unwrap();
+            let sig = self.get_sig_from_decl(parent);
+            let min_count = self.get_min_arg_count(sig);
+            parameter_index >= min_count
+        } else if let parent = self.parent(n.id).unwrap()
+            && let Some(iife) = self
+                .node_query(n.id.module())
+                .get_immediately_invoked_fn_expr(parent)
+        {
+            n.ty.is_none() && n.dotdotdot.is_none() && {
+                let params = self.node(parent).params().unwrap();
+                let parameter_index = params.iter().position(|p| std::ptr::eq(*p, n)).unwrap();
+                let call_args_count = self.get_effective_call_arguments(iife).len();
+                parameter_index >= call_args_count
+            }
+        } else {
+            false
+        }
+    }
 }
 
 macro_rules! global_ty {
@@ -9107,7 +9395,8 @@ fn resolve_external_module_name(
         _ => unreachable!(),
     };
     let Some(dep) = mg.get_dep(from, name) else {
-        unreachable!()
+        // TODO: delay span bug
+        return None;
     };
 
     match dep {

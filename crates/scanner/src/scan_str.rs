@@ -57,6 +57,7 @@ pub fn is_identifier_part<const IS_ES5_TARGET: bool>(ch: u32) -> bool {
 
 pub mod non_ascii_character_code {
     pub const NON_BREAKING_SPACE: u32 = 0x00A0;
+    pub const LINE_BREAK: u32 = 0x0085;
     pub const EN_QUAD: u32 = 0x2000;
     pub const EM_QUAD: u32 = 0x2001;
     pub const EN_SPACE: u32 = 0x2002;
@@ -89,10 +90,8 @@ pub fn utf16_encode_as_bytes(code_point: u32) -> Vec<u8> {
     let high_surrogate = ((surrogate >> 10) + 0xD800) as u16;
     let low_surrogate = ((surrogate & 0x3FF) + 0xDC00) as u16;
 
-    let mut buf = Vec::with_capacity(4);
-    buf.extend_from_slice(&high_surrogate.to_le_bytes());
-    buf.extend_from_slice(&low_surrogate.to_le_bytes());
-    buf
+    let s = String::from_utf16(&[high_surrogate, low_surrogate]).unwrap();
+    s.into_bytes()
 }
 
 #[test]

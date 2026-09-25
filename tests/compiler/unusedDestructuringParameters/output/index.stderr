@@ -1,0 +1,11 @@
+  × 'a' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedDestructuringParameters/index.ts:7:13]
+ 7 │ a
+   · ─
+   ╰────
+
+  × 'a' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedDestructuringParameters/index.ts:10:14]
+ 10 │ a
+    · ─
+    ╰────

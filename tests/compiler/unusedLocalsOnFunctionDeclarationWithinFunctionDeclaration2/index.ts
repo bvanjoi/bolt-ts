@@ -1,0 +1,23 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/unusedLocalsOnFunctionDeclarationWithinFunctionDeclaration2.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+//@compiler-options: noUnusedLocals
+//@compiler-options: noUnusedParameters
+
+function greeter(person: string, person2: string) {
+    //~^ ERROR: 'person' is declared but its value is never read.
+    var unused = 20;
+    //~^ ERROR: 'unused' is declared but its value is never read.
+    function maker(child: string): void {
+    //~^ ERROR: 'maker' is declared but its value is never read.
+    //~| ERROR: 'child' is declared but its value is never read.
+        var unused2 = 22;
+    //~^ ERROR: 'unused2' is declared but its value is never read.
+    }
+    function maker2(child2: string): void {
+    //~^ ERROR: 'child2' is declared but its value is never read.
+        var unused3 = 23;
+    //~^ ERROR: 'unused3' is declared but its value is never read.
+    }
+    maker2(person2);
+}

@@ -1,0 +1,5 @@
+  × 'T' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedTypeParameterInInterface1/index.ts:7:15]
+ 7 │ T
+   · ─
+   ╰────

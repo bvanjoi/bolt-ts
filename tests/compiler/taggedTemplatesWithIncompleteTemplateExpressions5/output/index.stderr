@@ -1,0 +1,13 @@
+  × Expression expected.
+   ╭─[../../tests/compiler/taggedTemplatesWithIncompleteTemplateExpressions5/index.ts:10:30]
+   ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/taggedTemplatesWithIncompleteTemplateExpressions5/index.ts:10:30]
+   ╰────
+
+  × Expected 3 arguments, but got 4.
+    ╭─[../../tests/compiler/taggedTemplatesWithIncompleteTemplateExpressions5/index.ts:10:18]
+ 10 │ 1 }${ 2 }${ 
+    · ────────────
+    ╰────

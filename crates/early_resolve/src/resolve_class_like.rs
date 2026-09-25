@@ -56,6 +56,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_index_sig(n);
                 }
                 Getter(n) => {
+                    self.resolve_prop_name(n.name);
                     if let Some(ty) = n.ty {
                         self.resolve_ty(ty);
                     }
@@ -64,6 +65,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     }
                 }
                 Setter(n) => {
+                    self.resolve_prop_name(n.name);
                     self.resolve_params(n.params);
                     if let Some(body) = n.body {
                         self.resolve_block_stmt(body);

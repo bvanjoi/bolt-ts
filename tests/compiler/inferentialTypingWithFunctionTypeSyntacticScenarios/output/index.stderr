@@ -1,0 +1,5 @@
+  × Variable 'ic' is used before being assigned.
+    ╭─[../../tests/compiler/inferentialTypingWithFunctionTypeSyntacticScenarios/index.ts:25:17]
+ 25 │ ic
+    · ──
+    ╰────

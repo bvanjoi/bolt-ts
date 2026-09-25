@@ -19,6 +19,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_effective_ty_param_decls(&self, id: ast::NodeID) -> ast::TyParams<'cx> {
+        // TODO: js doc
         let node = self.p.node(id);
         node.ty_params().unwrap_or_default()
     }
@@ -248,6 +249,19 @@ impl<'cx> TyChecker<'cx> {
         } else {
             None
         }
+    }
+
+    pub(super) fn get_effective_question_token(
+        &self,
+        node: ast::NodeID,
+    ) -> Option<bolt_ts_span::Span> {
+        let node = self.p.node(node);
+        if let Some(question) = node.question() {
+            return Some(question);
+        }
+        // TODO: optional js parameter
+        // TODO: parameter with js doc optional js parameter
+        None
     }
 }
 

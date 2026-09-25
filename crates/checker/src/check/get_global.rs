@@ -157,7 +157,8 @@ macro_rules! deferred_global_ty0 {
         $(
             [$name: ident, $ident_name: ident, $fallback: expr, $arity: literal]
         ),*
-        $(,)?) => {
+        $(,)?
+    ) => {
         impl<'cx> TyChecker<'cx> {
             $(
                 paste::paste! {
@@ -287,7 +288,7 @@ deferred_global_ty0!(
     [iterable_iterator, ITERABLE_ITERATOR, generic, 3],
     [iterator_object, ITERATOR_OBJECT, generic, 3],
     [generator, GENERATOR, generic, 3],
-    [async_iterator, ASYNC_ITERATOR, generic, 3],
+    [async_iterator, ASYNC_ITERATOR_CLASS, generic, 3],
     [async_iterable, ASYNC_ITERABLE, generic, 3],
     [async_iterable_iterator, ASYNC_ITERABLE_ITERATOR, generic, 3],
     [async_iterator_object, ASYNC_ITERATOR_OBJECT, generic, 3],

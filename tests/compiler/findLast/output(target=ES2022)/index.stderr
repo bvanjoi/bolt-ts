@@ -1,0 +1,163 @@
+  × Property 'findLast' does not exist on type 'number[]'.
+   ╭─[../../tests/compiler/findLast/index.ts:7:44]
+ 7 │ findLast
+   · ────────
+   ╰────
+
+  × Property 'findLast' does not exist on type 'string[]'.
+   ╭─[../../tests/compiler/findLast/index.ts:9:51]
+ 9 │ findLast
+   · ────────
+   ╰────
+
+  × Property 'findLast' does not exist on type 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:11:17]
+ 11 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:13:18]
+ 13 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type
+  │ 'Uint8ClampedArray<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:15:25]
+ 15 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:17:18]
+ 17 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:19:19]
+ 19 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'Int32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:21:18]
+ 21 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'Uint32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:23:19]
+ 23 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'Float32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:25:20]
+ 25 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'Float64Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:27:20]
+ 27 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'BigInt64Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:29:21]
+ 29 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'BigUint64Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:31:22]
+ 31 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/findLast/index.ts:34:33]
+ 34 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type 'string[]'.
+    ╭─[../../tests/compiler/findLast/index.ts:36:40]
+ 36 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:38:17]
+ 38 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:40:18]
+ 40 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type
+  │ 'Uint8ClampedArray<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:42:25]
+ 42 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:44:18]
+ 44 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type
+  │ 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:46:19]
+ 46 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type 'Int32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:48:18]
+ 48 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type
+  │ 'Uint32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:50:19]
+ 50 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type
+  │ 'Float32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:52:20]
+ 52 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type
+  │ 'Float64Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:54:20]
+ 54 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type
+  │ 'BigInt64Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:56:21]
+ 56 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type
+  │ 'BigUint64Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/findLast/index.ts:58:22]
+ 58 │ findLastIndex
+    · ─────────────
+    ╰────

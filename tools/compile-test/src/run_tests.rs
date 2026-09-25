@@ -1,14 +1,19 @@
 use std::path::Path;
 
-use crate::common::{FailMode, PassMode};
-use crate::{TestConfig, TestProps, errors};
+use super::common::FailMode;
+use super::errors;
+use super::test_props_builder::TestProps;
+use super::test_props_builder::TestPropsAttrs;
+use super::test_props_builder::TestPropsBuilder;
+use super::test_props_builder::TestPropsKey;
 
-pub fn run(test_file: &Path, runner: impl FnOnce(RunnerCtx) -> Result<(), Vec<errors::Error>>) {
-    let mut config = TestConfig::default();
-    let props = TestProps::from_file(test_file, &mut config);
+pub fn run(
+    test_file: &Path,
+    runner: impl FnOnce(RunnerCtx) -> Result<(), Vec<errors::Error>> + Copy,
+) {
+    let props = TestPropsBuilder::from_file(test_file);
     let cx = TestCx {
         props: &props,
-        config: &config,
         test_file,
     };
     cx.run_test(runner)
@@ -17,30 +22,55 @@ pub fn run(test_file: &Path, runner: impl FnOnce(RunnerCtx) -> Result<(), Vec<er
 #[derive(Copy, Clone)]
 struct TestCx<'test> {
     props: &'test TestProps,
-    config: &'test TestConfig,
     test_file: &'test Path,
 }
 
 pub struct RunnerCtx<'test> {
-    compiler_options: &'test crate::common::CompilerOptions,
+    compiler_options: &'test super::CompilerOptions,
     test_file: &'test Path,
+    revision: TestPropsKey,
 }
 
 impl RunnerCtx<'_> {
-    pub fn compiler_options(&self) -> &crate::common::CompilerOptions {
+    pub fn compiler_options(&self) -> &super::CompilerOptions {
         self.compiler_options
     }
     pub fn test_file(&self) -> &Path {
         self.test_file
     }
+    pub fn revision(&self) -> &TestPropsKey {
+        &self.revision
+    }
 }
 
 impl TestCx<'_> {
-    fn run_test(&self, runner: impl FnOnce(RunnerCtx) -> Result<(), Vec<errors::Error>>) {
-        let expected_errors = errors::load_errors(self.test_file, None);
+    fn run_test(&self, runner: impl FnOnce(RunnerCtx) -> Result<(), Vec<errors::Error>> + Copy) {
+        match self.props {
+            TestProps::Single(props) => {
+                self.run_single_test(runner, &TestPropsKey::Base, props);
+            }
+            TestProps::Multiple(map) => {
+                for (key, props) in map {
+                    self.run_single_test(runner, key, props);
+                }
+            }
+        }
+    }
+
+    fn run_single_test(
+        &self,
+        runner: impl FnOnce(RunnerCtx) -> Result<(), Vec<errors::Error>>,
+        test_props_key: &TestPropsKey,
+        test_props_attrs: &TestPropsAttrs,
+    ) {
+        let expected_errors = match test_props_key {
+            TestPropsKey::Base => errors::load_errors(self.test_file, None),
+            TestPropsKey::Custom(revision) => errors::load_errors(self.test_file, Some(revision)),
+        };
         let panic = |msg: String| panic!("{msg} in {}", self.test_file.display());
         let ctx = RunnerCtx {
-            compiler_options: &self.config.compiler_options,
+            compiler_options: test_props_attrs.compiler_options(),
+            revision: test_props_key.clone(),
             test_file: self.test_file,
         };
         match runner(ctx) {
@@ -48,21 +78,21 @@ impl TestCx<'_> {
                 if !expected_errors.is_empty() {
                     panic("it actually had some expected errors".to_string());
                 }
-                if self.props.skip_message_match() {
+                if test_props_attrs.skip_message_match() {
                     panic!("skip-message-match had been marked but actual run success",);
                 }
-                assert!(self.props.fail_mode().is_none());
+                assert!(test_props_attrs.fail_mode().is_none());
             }
             Err(errors) => {
                 assert!(
-                    self.pass_mode().is_none(),
+                    test_props_attrs.pass_mode().is_none(),
                     r#"
                         ensure you do not mark `//@ {{check, run}}-pass` in header,
-                        it should been **failed** but you had been set success flag {pass_mode} in {file}"#,
-                    pass_mode = self.pass_mode().unwrap(),
+                        it should been **failed** but you had been set success flag {pass_mode:#?} in {file}"#,
+                    pass_mode = test_props_attrs.pass_mode().unwrap(),
                     file = self.test_file.to_string_lossy()
                 );
-                if self.props.skip_message_match() {
+                if test_props_attrs.skip_message_match() {
                     assert!(
                         expected_errors.is_empty(),
                         "skip-message-match is set, but we still got expected errors in {}",
@@ -77,7 +107,7 @@ impl TestCx<'_> {
                 }
                 if errors.is_empty() {
                     assert_eq!(
-                        self.props.fail_mode(),
+                        test_props_attrs.fail_mode(),
                         Some(FailMode::Run),
                         "we cannot find any errors in {} and it not set `//@ run-fail` in header",
                         self.test_file.display()
@@ -86,10 +116,6 @@ impl TestCx<'_> {
                 self.check_expected_errors(&expected_errors, &errors);
             }
         }
-    }
-
-    fn pass_mode(&self) -> Option<PassMode> {
-        self.props.pass_mode()
     }
 
     fn check_expected_errors(

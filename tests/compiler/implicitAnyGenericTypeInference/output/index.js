@@ -1,6 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/implicitAnyGenericTypeInference.ts`, Apache-2.0 License
-//@compiler-options: noImplicitAny
-//@compiler-options: target=esnext
 var c;
 c = {
   compareTo: (x, y) => (y)  

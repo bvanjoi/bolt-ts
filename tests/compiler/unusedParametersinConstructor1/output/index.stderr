@@ -1,0 +1,5 @@
+  × 'param1' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedParametersinConstructor1/index.ts:8:17]
+ 8 │ param1
+   · ──────
+   ╰────

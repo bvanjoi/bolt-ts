@@ -1,0 +1,75 @@
+  × An implementation cannot be declared in type contexts.
+   ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:8:17]
+ 8 │ { return 1; }
+   · ─────────────
+   ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:10:18]
+ 10 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:14:24]
+ 14 │ { return 1; }
+    · ─────────────
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:16:25]
+ 16 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:23:13]
+ 23 │ { return 1; }
+    · ─────────────
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:25:14]
+ 25 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:29:20]
+ 29 │ { return 1; }
+    · ─────────────
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:31:21]
+ 31 │ { }
+    · ───
+    ╰────
+
+  × Property 'X' implicitly has type 'any', because its set accessor lacks a
+  │ parameter type annotation.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:10:13]
+ 10 │ X
+    · ─
+    ╰────
+
+  × Property 'Y' implicitly has type 'any', because its set accessor lacks a
+  │ parameter type annotation.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:16:20]
+ 16 │ Y
+    · ─
+    ╰────
+
+  × Property 'X' implicitly has type 'any', because its set accessor lacks a
+  │ parameter type annotation.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:25:9]
+ 25 │ X
+    · ─
+    ╰────
+
+  × Property 'Y' implicitly has type 'any', because its set accessor lacks a
+  │ parameter type annotation.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:31:16]
+ 31 │ Y
+    · ─
+    ╰────

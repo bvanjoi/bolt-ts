@@ -48,39 +48,6 @@ impl<'cx> TyChecker<'cx> {
         };
         self.p.node(id).is_expression() && self.is_context_sensitive(id)
     }
-
-    pub fn get_ty_names_for_error_display(
-        &mut self,
-        left: &'cx ty::Ty<'cx>,
-        right: &'cx ty::Ty<'cx>,
-    ) -> (String, String) {
-        let left = if left
-            .symbol()
-            .is_some_and(|symbol| self.symbol_value_declaration_is_context_sensitive(symbol))
-        {
-            let s = left.symbol().unwrap();
-            let decl = self.symbol(s).value_decl;
-            debug_assert!(decl.is_some());
-            self.print_ty(left, decl)
-        } else {
-            self.print_ty(left, None)
-        }
-        .to_string();
-        let right = if right
-            .symbol()
-            .is_some_and(|symbol| self.symbol_value_declaration_is_context_sensitive(symbol))
-        {
-            let s = right.symbol().unwrap();
-            let decl = self.symbol(s).value_decl;
-            debug_assert!(decl.is_some());
-            self.print_ty(right, decl)
-        } else {
-            self.print_ty(right, None)
-        }
-        .to_string();
-        // TODO: left_str == right_str
-        (left, right)
-    }
 }
 
 struct Ctx<'a, 'cx> {
@@ -89,19 +56,31 @@ struct Ctx<'a, 'cx> {
 }
 
 impl<'a, 'cx> Ctx<'a, 'cx> {
+    fn print_array_ty<const IS_READONLY: bool>(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
+        debug_assert!(ty.kind.is_array(self.c));
+        let tys = self.c.get_ty_arguments(ty);
+        let ele = tys[0];
+        let paren = match ele.kind {
+            ty::TyKind::Intersection(_) => true,
+            ty::TyKind::Union(_) if ele != self.c.boolean_ty() => true,
+            ty::TyKind::Index(_) => true,
+            _ => false,
+        };
+        if paren {
+            let ele = self.c.print_ty(ele, self.enclosing_declaration);
+            format!("{}({ele})[]", if IS_READONLY { "readonly " } else { "" })
+        } else {
+            let ele = self.c.print_ty(ele, self.enclosing_declaration);
+            format!("{}{ele}[]", if IS_READONLY { "readonly " } else { "" })
+        }
+    }
     fn print_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
         if let Some(name) = self.print_alias_symbol(ty) {
             return name;
+        } else if ty.is_readonly_array(self.c) {
+            return self.print_array_ty::<true>(ty);
         } else if ty.kind.is_array(self.c) {
-            let tys = self.c.get_ty_arguments(ty);
-            let ele = tys[0];
-            if ele.kind.is_union_or_intersection() {
-                let ele = self.c.print_ty(ele, self.enclosing_declaration);
-                return format!("({ele})[]");
-            } else {
-                let ele = self.c.print_ty(ele, self.enclosing_declaration);
-                return format!("{ele}[]");
-            }
+            return self.print_array_ty::<false>(ty);
         } else if ty == self.c.boolean_ty() {
             return "boolean".to_string();
         }
@@ -182,7 +161,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 format!("keyof {ty}")
             }
             ty::TyKind::Intrinsic(i) => self.c.atoms.get(i.name).to_string(),
-            ty::TyKind::Substitution(_) => "substitution".to_string(),
+            ty::TyKind::Substitution(ty) => self.print_ty(ty.base_ty),
             ty::TyKind::StringMapping(s) => {
                 let name = self.c.binder.symbol(s.symbol).name;
                 self.c.atoms.get(name.expect_atom()).to_string()
@@ -290,7 +269,11 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             ty::ObjectTyKind::Anonymous(_) => self.print_anonymous_object_ty(ty),
             ty::ObjectTyKind::Tuple(ty) => {
                 assert!(ty.element_flags.is_empty());
-                "[]".to_string()
+                if ty.readonly {
+                    "readonly []".to_string()
+                } else {
+                    "[]".to_string()
+                }
             }
             ty::ObjectTyKind::Reference(_) => self.print_reference_ty(ty),
             ty::ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),

@@ -7,6 +7,7 @@ use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
 use bolt_ts_ty::CheckFlags;
 
+use super::CheckMode;
 use super::IterationTypeKind;
 use super::Ternary;
 use super::TyChecker;
@@ -250,7 +251,22 @@ impl<'cx> TyChecker<'cx> {
             }
             CallExpr(n) => self.get_contextual_ty_for_argument(n, id),
             NewExpr(n) => self.get_contextual_ty_for_argument(n, id),
+            CondExpr(n) => self.get_contextual_ty_for_conditional_operand(n, id, flags),
             _ => None,
+        }
+    }
+
+    fn get_contextual_ty_for_conditional_operand(
+        &mut self,
+        parent: &'cx ast::CondExpr<'cx>,
+        id: ast::NodeID,
+        flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        debug_assert!(self.parent(id).is_some_and(|p| p == parent.id));
+        if parent.when_true.id() == id || parent.when_false.id() == id {
+            self.get_contextual_ty(parent.id, flags)
+        } else {
+            None
         }
     }
 
@@ -546,7 +562,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_possibly_aliased_this_property(
+    pub(super) fn is_possibly_aliased_this_property(
         &mut self,
         n: &'cx ast::AssignExpr<'cx>,
         kind: Option<AssignmentDeclarationKind>,
@@ -623,10 +639,10 @@ impl<'cx> TyChecker<'cx> {
             {
                 match parent.name.kind {
                     ast::BindingKind::ObjectPat(pat) if !pat.elems.is_empty() => {
-                        return Some(self.get_ty_from_binding_pattern::<true>(parent.name));
+                        return Some(self.get_ty_from_binding_pattern::<true, false>(parent.name));
                     }
                     ast::BindingKind::ArrayPat(pat) if !pat.elems.is_empty() => {
-                        return Some(self.get_ty_from_binding_pattern::<true>(parent.name));
+                        return Some(self.get_ty_from_binding_pattern::<true, false>(parent.name));
                     }
                     _ => {}
                 }
@@ -651,10 +667,10 @@ impl<'cx> TyChecker<'cx> {
             {
                 match parent.name.kind {
                     ast::BindingKind::ObjectPat(pat) if !pat.elems.is_empty() => {
-                        return Some(self.get_ty_from_binding_pattern::<true>(parent.name));
+                        return Some(self.get_ty_from_binding_pattern::<true, false>(parent.name));
                     }
                     ast::BindingKind::ArrayPat(pat) if !pat.elems.is_empty() => {
-                        return Some(self.get_ty_from_binding_pattern::<true>(parent.name));
+                        return Some(self.get_ty_from_binding_pattern::<true, false>(parent.name));
                     }
                     _ => {}
                 }
@@ -676,8 +692,14 @@ impl<'cx> TyChecker<'cx> {
             let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
             let parent_parent_parent_ty = match self.p.node(parent_parent_parent_id) {
                 ast::Node::VarDecl(n) => {
-                    // TODO: init_ty
-                    n.ty.map(|ty| self.get_ty_from_type_node(ty))
+                    n.ty.map(|ty| self.get_ty_from_type_node(ty)).or_else(|| {
+                        let check_mode = if parent.dotdotdot.is_some() {
+                            CheckMode::REST_BINDING_ELEMENT
+                        } else {
+                            CheckMode::empty()
+                        };
+                        Some(self.check_declaration_initializer(n, check_mode, None))
+                    })
                 }
                 _ => {
                     // TODO: other cases
@@ -711,8 +733,14 @@ impl<'cx> TyChecker<'cx> {
             let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
             let parent_parent_parent_ty = match self.p.node(parent_parent_parent_id) {
                 ast::Node::VarDecl(n) => {
-                    // TODO: init_ty
-                    n.ty.map(|ty| self.get_ty_from_type_node(ty))
+                    n.ty.map(|ty| self.get_ty_from_type_node(ty)).or_else(|| {
+                        let check_mode = if parent.dotdotdot.is_some() {
+                            CheckMode::REST_BINDING_ELEMENT
+                        } else {
+                            CheckMode::empty()
+                        };
+                        Some(self.check_declaration_initializer(n, check_mode, None))
+                    })
                 }
                 _ => {
                     // TODO: other cases

@@ -134,6 +134,24 @@ impl<'cx> FnLike<'cx> for crate::ObjectMethodMember<'cx> {
     }
 }
 
+impl<'cx> FnLike<'cx> for crate::GetterDecl<'cx> {
+    fn id(&self) -> crate::NodeID {
+        self.id
+    }
+    fn ty_params(&self) -> Option<crate::TyParams<'cx>> {
+        None
+    }
+    fn params(&self) -> crate::ParamsDecl<'cx> {
+        &[]
+    }
+    fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
+        self.body.map(crate::ArrowFnExprBody::Block)
+    }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        self.ty
+    }
+}
+
 pub trait FnDeclLike<'cx>: FnLike<'cx> {
     fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>>;
 }

@@ -1,0 +1,23 @@
+  × 'person' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedMultipleParameter2InContructor/index.ts:9:17]
+ 9 │ person
+   · ──────
+   ╰────
+
+  × 'person2' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedMultipleParameter2InContructor/index.ts:9:33]
+ 9 │ person2
+   · ───────
+   ╰────
+
+  × 'person3' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedMultipleParameter2InContructor/index.ts:9:50]
+ 9 │ person3
+   · ───────
+   ╰────
+
+  × 'unused' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedMultipleParameter2InContructor/index.ts:13:13]
+ 13 │ unused
+    · ──────
+    ╰────

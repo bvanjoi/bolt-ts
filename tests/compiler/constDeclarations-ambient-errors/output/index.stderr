@@ -10,7 +10,8 @@
    · ─
    ╰────
 
-  × Initializers are not allowed in ambient contexts.
+  × A 'const' initializer in an ambient context must be a string or numeric
+  │ literal or literal enum reference.
     ╭─[../../tests/compiler/constDeclarations-ambient-errors/index.ts:11:20]
  11 │ null
     · ────

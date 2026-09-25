@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/narrowingDestructuring.ts`, Apache-2.0 License
 function func(value) {
   if (value.kind === 'a') {
     value.a;

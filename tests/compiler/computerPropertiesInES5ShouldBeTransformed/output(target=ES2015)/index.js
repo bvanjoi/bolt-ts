@@ -1,0 +1,1 @@
+var b = ({[`key`]: renamed}) => (renamed);

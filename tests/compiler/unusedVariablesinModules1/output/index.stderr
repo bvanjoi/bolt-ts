@@ -1,0 +1,5 @@
+  × 'x' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesinModules1/index.ts:10:5]
+ 10 │ x
+    · ─
+    ╰────

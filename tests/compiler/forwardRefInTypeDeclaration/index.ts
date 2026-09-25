@@ -1,7 +1,8 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/forwardRefInTypeDeclaration.ts`, Apache-2.0 License
 
 //@compiler-options: target=es2015
-//@compiler-options: strict=true,false
+//@[strict=true]  compiler-options: strict=true
+//@[strict=false] compiler-options: strict=false
 
 // forward ref ignored in a typeof
 declare let s: typeof s1;

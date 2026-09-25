@@ -1,0 +1,11 @@
+  × 'x' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesinBlocks2/index.ts:11:13]
+ 11 │ x
+    · ─
+    ╰────
+
+  × 'x' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedVariablesinBlocks2/index.ts:8:9]
+ 8 │ x
+   · ─
+   ╰────

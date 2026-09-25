@@ -4,6 +4,7 @@ use bolt_ts_middle::F64Represent;
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
+use rustc_hash::FxHashSet;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
@@ -211,6 +212,7 @@ impl SymbolFlags {
     }
 }
 
+// TODO: use `SymbolBuilder` in binder..
 #[derive(Debug)]
 pub struct Symbol {
     pub name: SymbolName,
@@ -225,6 +227,8 @@ pub struct Symbol {
     pub const_enum_only_module: Option<bool>,
     pub is_replaceable_by_method: Option<bool>,
     pub last_assignment_position: Option<isize>,
+    pub assignment_declaration_members: Option<FxHashSet<NodeID>>,
+    pub is_referenced: Option<SymbolFlags>,
 }
 
 impl Symbol {
@@ -242,6 +246,8 @@ impl Symbol {
             const_enum_only_module: None,
             is_replaceable_by_method: None,
             last_assignment_position: None,
+            assignment_declaration_members: None,
+            is_referenced: None,
         }
     }
 }
@@ -307,9 +313,6 @@ impl Symbol {
                 .as_block_module_decl()
                 .is_some_and(|ns| ns.block.is_none())
         })
-    }
-    pub fn is_expando_symbol(&self) -> bool {
-        self.flags.contains(SymbolFlags::FUNCTION)
     }
 }
 

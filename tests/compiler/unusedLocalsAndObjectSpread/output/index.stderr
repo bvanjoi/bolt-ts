@@ -1,0 +1,11 @@
+  × 'bar' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsAndObjectSpread/index.ts:26:18]
+ 26 │ bar
+    · ───
+    ╰────
+
+  × 'bar' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsAndObjectSpread/index.ts:34:21]
+ 34 │ bar
+    · ───
+    ╰────

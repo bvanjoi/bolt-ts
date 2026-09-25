@@ -1,0 +1,5 @@
+  × 'elem' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedVariablesinForLoop2/index.ts:8:16]
+ 8 │ elem
+   · ────
+   ╰────

@@ -1,0 +1,29 @@
+  × Member 'v' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyFunctionInvocationWithAnyArguements/index.ts:10:21]
+ 10 │ v
+    · ─
+    ╰────
+
+  × Member 'w' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyFunctionInvocationWithAnyArguements/index.ts:10:24]
+ 10 │ w
+    · ─
+    ╰────
+
+  × Parameter 'y2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyFunctionInvocationWithAnyArguements/index.ts:13:21]
+ 13 │ y2
+    · ──
+    ╰────
+
+  × Parameter 'arg1' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyFunctionInvocationWithAnyArguements/index.ts:15:16]
+ 15 │ arg1
+    · ────
+    ╰────
+
+  × Parameter 'y2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyFunctionInvocationWithAnyArguements/index.ts:20:36]
+ 20 │ y2
+    · ──
+    ╰────

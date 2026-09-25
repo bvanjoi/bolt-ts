@@ -1,0 +1,59 @@
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:23:11]
+ 23 │ __Awaited<InfinitePromise<number>>
+    · ──────────────────────────────────
+    ╰────
+
+  × Type '__Awaited' is not assignable to type '__Awaited'.
+    ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:28:5]
+ 28 │ ua
+    · ──
+    ╰────
+
+  × Type 'T' is not assignable to type '__Awaited'.
+    ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:30:5]
+ 30 │ ta
+    · ──
+    ╰────
+
+  × Type '__Awaited' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:32:5]
+ 32 │ tx
+    · ──
+    ╰────
+
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:46:11]
+ 46 │ B2[0]
+    · ─────
+    ╰────
+
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:59:12]
+ 59 │ TupleOf<number, 1000>
+    · ─────────────────────
+    ╰────
+
+  × Type 'TupleOf' is not assignable to type 'TupleOf'.
+    ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:63:5]
+ 63 │ tn
+    · ──
+    ╰────
+
+  × Type 'TupleOf' is not assignable to type 'TupleOf'.
+    ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:65:5]
+ 65 │ tm
+    · ──
+    ╰────
+
+  × Argument of type 'Grow2' is not assignable to parameter of type 'Grow1'.
+     ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:132:9]
+ 132 │ y
+     · ─
+     ╰────
+
+  × Type 'number' is not assignable to type 'Enumerate'.
+     ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:185:12]
+ 185 │ value.length
+     · ────────────
+     ╰────

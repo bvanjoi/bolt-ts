@@ -1,0 +1,5 @@
+  × Line break not permitted here.
+    ╭─[../../tests/compiler/typeAliasDeclareKeywordNewlines/index.ts:10:1]
+ 10 │ T1
+    · ──
+    ╰────

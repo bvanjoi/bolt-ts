@@ -1,5 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/capturedLetConstInLoop10_ES6.ts`, Apache-2.0 License
-//@compiler-options: strict=false
 class A {
   foo() {
     for ( var x of [0]) {

@@ -89,9 +89,16 @@ impl<'cx> TyChecker<'cx> {
             },
             GetterDecl(n) => self.check_getter_decl(n),
             SetterDecl(n) => self.check_setter_decl(n),
+            ClassExpr(n) => self.check_class_expression_deferred(n),
             _ => unreachable!("{:#?}", self.p.node(node)),
         }
 
         self.current_node = saved_current_node;
+    }
+
+    fn check_class_expression_deferred(&mut self, n: &'cx ast::ClassExpr<'cx>) {
+        self.check_class_elements(n.elems);
+        self.check_property_initializer(n);
+        self.register_potentially_unused_class_expression(n);
     }
 }

@@ -1,0 +1,20 @@
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
+   ╭─[../../tests/compiler/getterControlFlowStrictNull/index.ts:8:9]
+ 8 │ string | null
+   · ─────────────
+   ╰────
+
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
+    ╭─[../../tests/compiler/getterControlFlowStrictNull/index.ts:18:14]
+ 18 │ string | null
+    · ─────────────
+    ╰────
+
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
+    ╭─[../../tests/compiler/getterControlFlowStrictNull/index.ts:28:9]
+ 28 │ a
+    · ─
+    ╰────

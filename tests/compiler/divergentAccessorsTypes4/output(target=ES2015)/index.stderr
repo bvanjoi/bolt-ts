@@ -1,0 +1,12 @@
+  × Property 'prop2' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/divergentAccessorsTypes4/index.ts:10:3]
+ 10 │ prop2
+    · ─────
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/divergentAccessorsTypes4/index.ts:35:1]
+ 35 │ i.prop2
+    · ───────
+    ╰────

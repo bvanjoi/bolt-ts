@@ -1,0 +1,9 @@
+  × Duplicate identifier 'console'.
+   ╭─[../../tests/compiler/module_augmentExistingAmbientVariable/index.ts:8:11]
+ 6 │ console: any;
+   · ───┬───
+   ·    ╰── Previous definition here
+ 7 │ 
+ 8 │ namespace console
+   ·           ───────
+   ╰────

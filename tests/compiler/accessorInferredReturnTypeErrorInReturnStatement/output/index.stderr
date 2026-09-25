@@ -1,0 +1,17 @@
+  × Property 'collection' does not exist on type '{ primaryPath: error; }'.
+    ╭─[../../tests/compiler/accessorInferredReturnTypeErrorInReturnStatement/index.ts:12:18]
+ 12 │ collection
+    · ──────────
+    ╰────
+
+  × 'primaryPath' implicitly has return type 'any' because it does not have a
+  │ return type annotation and is referenced directly or indirectly in one of
+  │ its return expressions.
+    ╭─[../../tests/compiler/accessorInferredReturnTypeErrorInReturnStatement/index.ts:9:3]
+  9 │ ╭─▶ get primaryPath() {
+ 10 │ │       //~^ ERROR: 'primaryPath' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+ 11 │ │       var _this = this;
+ 12 │ │       return _this.collection.schema.primaryPath;
+ 13 │ │       //~^ ERROR: Property 'collection' does not exist on type '{ primaryPath: error; }'.
+ 14 │ ╰─▶   }
+    ╰────

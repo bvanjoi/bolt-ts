@@ -1,0 +1,11 @@
+  × 'param1' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedFunctionsinNamespaces3/index.ts:8:30]
+ 8 │ param1
+   · ──────
+   ╰────
+
+  × 'function1' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedFunctionsinNamespaces3/index.ts:8:9]
+ 8 │ function1
+   · ─────────
+   ╰────

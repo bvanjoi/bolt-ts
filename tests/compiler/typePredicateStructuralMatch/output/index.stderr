@@ -1,0 +1,11 @@
+  × Property 'hasOwnProperty' does not exist on type 'T | { data: T; }'.
+    ╭─[../../tests/compiler/typePredicateStructuralMatch/index.ts:15:18]
+ 15 │ hasOwnProperty
+    · ──────────────
+    ╰────
+
+  × Property 'hasOwnProperty' does not exist on type 'T | { data: T; }'.
+    ╭─[../../tests/compiler/typePredicateStructuralMatch/index.ts:24:19]
+ 24 │ hasOwnProperty
+    · ──────────────
+    ╰────

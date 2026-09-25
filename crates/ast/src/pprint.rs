@@ -5,7 +5,7 @@ pub fn pprint_ident(ident: &super::Ident, atoms: &AtomIntern) -> String {
     atoms.get(ident.name).to_string()
 }
 
-pub fn print_prop_name(node: &super::PropNameKind<'_>, atoms: &AtomIntern) -> String {
+pub fn pprint_prop_name(node: &super::PropNameKind<'_>, atoms: &AtomIntern) -> String {
     use super::PropNameKind::*;
     match node {
         Ident(ident) => pprint_ident(ident, atoms),
@@ -26,6 +26,21 @@ pub fn print_declaration_name(node: &super::DeclarationName, atoms: &AtomIntern)
         Computed(_) => "todo: computed name".to_string(),
         PrivateIdent(_n) => todo!(),
         BigIntLit(_n) => todo!(),
+        ElementAccess(_) => todo!(),
+    }
+}
+
+pub fn binding_name_text<'cx>(binding: &super::Binding<'cx>) -> &'cx super::Ident {
+    match binding.kind {
+        super::BindingKind::Ident(ident) => ident,
+        super::BindingKind::ObjectPat(pat) => match pat.elems[0].name {
+            crate::ObjectBindingName::Shorthand(ident) => ident,
+            crate::ObjectBindingName::Prop { name, .. } => binding_name_text(*name),
+        },
+        super::BindingKind::ArrayPat(pat) => match pat.elems[0].kind {
+            crate::ArrayBindingElemKind::Omit(_) => unreachable!(),
+            crate::ArrayBindingElemKind::Binding(n) => binding_name_text(n.name),
+        },
     }
 }
 

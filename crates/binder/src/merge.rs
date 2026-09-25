@@ -257,12 +257,20 @@ pub trait MergeSymbol<'cx> {
         } else if t.flags.intersects(SymbolFlags::NAMESPACE_MODULE) {
             // todo: if target != global_this_symbol_module
         } else {
-            // todo: report merge symbol error;
+            // TODO:  report_merge_symbol_error(target, source, unidirectional, self);
         }
 
         target
     }
 }
+
+// fn report_merge_symbol_error<'cx>(
+//     _target: SymbolID,
+//     _source: SymbolID,
+//     _unidirectional: bool,
+//     _merge: &mut MergeGlobalSymbol<'_, 'cx>,
+// ) {
+// }
 
 pub struct MergeGlobalSymbolResult<'cx> {
     pub bind_list: Vec<BinderResult<'cx>>,

@@ -1,0 +1,5 @@
+  × 'a' is declared but its value is never read.
+   ╭─[../../tests/compiler/noUnusedLocals_potentialPredicateUnusedParam/index.ts:9:40]
+ 9 │ a
+   · ─
+   ╰────

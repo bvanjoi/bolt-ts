@@ -1,0 +1,151 @@
+  × 'super' must be followed by an argument list or member access.
+   ╭─[../../tests/compiler/superErrors/index.ts:7:18]
+ 7 │ ;
+   · ─
+   ╰────
+
+  × Identifier expected.
+   ╭─[../../tests/compiler/superErrors/index.ts:7:18]
+ 7 │ ;
+   · ─
+   ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superErrors/index.ts:11:24]
+ 11 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superErrors/index.ts:11:24]
+ 11 │ ;
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superErrors/index.ts:15:36]
+ 15 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superErrors/index.ts:15:36]
+ 15 │ ;
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superErrors/index.ts:46:41]
+ 46 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superErrors/index.ts:46:41]
+ 46 │ ;
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superErrors/index.ts:62:41]
+ 62 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superErrors/index.ts:62:41]
+ 62 │ ;
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superErrors/index.ts:69:22]
+ 69 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superErrors/index.ts:69:22]
+ 69 │ ;
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superErrors/index.ts:72:28]
+ 72 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superErrors/index.ts:72:28]
+ 72 │ ;
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superErrors/index.ts:75:40]
+ 75 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superErrors/index.ts:75:40]
+ 75 │ ;
+    · ─
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+   ╭─[../../tests/compiler/superErrors/index.ts:7:13]
+ 7 │ super
+   · ─────
+   ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superErrors/index.ts:35:13]
+ 35 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superErrors/index.ts:11:19]
+ 11 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superErrors/index.ts:15:31]
+ 15 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superErrors/index.ts:41:27]
+ 41 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superErrors/index.ts:46:36]
+ 46 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superErrors/index.ts:57:27]
+ 57 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superErrors/index.ts:62:36]
+ 62 │ super
+    · ─────
+    ╰────

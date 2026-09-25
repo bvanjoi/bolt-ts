@@ -69,13 +69,13 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
     fn emit_list<T>(
         &mut self,
         list: &[T],
-        emit_item: impl Fn(&mut Self, &T),
-        emit_sep: impl Fn(&mut Self, &T),
+        emit_item: impl Fn(&mut Self, &T, usize),
+        emit_sep: impl Fn(&mut Self, &T, usize),
     ) {
         for (idx, item) in list.iter().enumerate() {
-            emit_item(self, item);
+            emit_item(self, item, idx);
             if idx != list.len() - 1 {
-                emit_sep(self, item);
+                emit_sep(self, item, idx);
             }
         }
     }
@@ -95,7 +95,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
             self.emitter.print().p_less();
             self.emit_list(
                 n,
-                |this, item| {
+                |this, item, _| {
                     this.visit_ident(item.name);
                     if let Some(constraint) = item.constraint {
                         this.emitter.print().p_whitespace();
@@ -110,7 +110,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
                         this.visit_ty(default);
                     }
                 },
-                |this, _| {
+                |this, _, _| {
                     this.emitter.print().p_comma();
                     this.emitter.print().p_whitespace();
                 },
@@ -125,10 +125,10 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
             self.emitter.print().p_less();
             self.emit_list(
                 n.list,
-                |this, item| {
+                |this, item, _| {
                     this.visit_ty(item);
                 },
-                |this, _| {
+                |this, _, _| {
                     this.emitter.print().p_comma();
                     this.emitter.print().p_whitespace();
                 },
@@ -203,7 +203,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
     fn emit_variable_declaration_by_object_pat(&mut self, node: &'cx ast::ObjectPat<'cx>) {
         self.emit_list(
             node.elems,
-            |this, item| match item.name {
+            |this, item, _| match item.name {
                 ast::ObjectBindingName::Shorthand(ident) => {
                     this.emit_identifier_name_in_variable_declaration(ident, item.id);
                 }
@@ -211,7 +211,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
                     this.emit_variable_by_binding(name, item.id);
                 }
             },
-            |this, _| {
+            |this, _, _| {
                 this.emitter.print().p_comma();
                 this.emitter.print().p_whitespace();
             },
@@ -230,6 +230,19 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
                 self.emit_variable_declaration_by_object_pat(node);
             }
         }
+    }
+
+    fn emit_parameters(&mut self, params: ast::ParamsDecl<'cx>) {
+        self.emit_list(
+            params,
+            |this, item, _| {
+                this.visit_param_decl(item);
+            },
+            |this, _, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
     }
 
     fn has_name_visible_for_binding(&self, node: &'cx ast::Binding<'cx>) -> bool {
@@ -298,8 +311,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_newline();
         self.emit_list(
             node.stmts,
-            |this, stmt| this.visit_stmt(stmt),
-            |this, _| this.emitter.print().p_newline(),
+            |this, stmt, _| this.visit_stmt(stmt),
+            |this, _, _| this.emitter.print().p_newline(),
         );
         self.emitter.decrement_indent();
         self.emitter.print().p_newline();
@@ -337,7 +350,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emitter.print().p_newline();
             self.emit_list(
                 node.members,
-                |this, elem| {
+                |this, elem, _| {
                     use ast::ObjectTyMemberKind::*;
                     match elem.kind {
                         IndexSig(n) => this.visit_index_sig_decl(n),
@@ -349,7 +362,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                         Getter(n) => this.visit_getter_decl(n),
                     }
                 },
-                |this, _| {
+                |this, _, _| {
                     this.emitter.print().p_newline();
                 },
             );
@@ -364,16 +377,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_whitespace();
         self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
+        self.emit_parameters(node.params);
         self.emitter.print().p_r_paren();
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
@@ -383,18 +387,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_call_sig_decl(&mut self, node: &'cx ast::CallSigDecl<'cx>) -> Self::Result {
         self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
+        self.emit_parameters(node.params);
         self.emitter.print().p_r_paren();
-
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
         self.emit_ret_ty(node.ty);
@@ -413,16 +407,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.visit_prop_name(node.name);
         self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
+        self.emit_parameters(node.params);
         self.emitter.print().p_r_paren();
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
@@ -441,16 +426,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_whitespace();
         self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
+        self.emit_parameters(node.params);
         self.emitter.print().p_r_paren();
         self.emitter.print().p_arrow_right();
         self.emitter.print().p_whitespace();
@@ -458,24 +434,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_semi();
     }
 
-    fn visit_arrow_fn_expr(&mut self, node: &'cx ast::ArrowFnExpr<'cx>) -> Self::Result {
-        self.emit_type_parameters(node.ty_params);
-        bolt_ts_ast_visitor::visit_arrow_fn_expr(self, node)
-    }
-
     fn visit_class_ctor(&mut self, node: &'cx ast::ClassCtor<'cx>) -> Self::Result {
         self.emitter.print().p("constructor");
         self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
+        self.emit_parameters(node.params);
         self.emitter.print().p_r_paren();
         if let Some(ty) = node.ret {
             self.emitter.print().p_colon();
@@ -510,10 +472,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emitter.print().p_whitespace();
             self.emit_list(
                 implements.list,
-                |this, item| {
+                |this, item, _| {
                     this.visit_refer_ty(item);
                 },
-                |this, _| {
+                |this, _, _| {
                     this.emitter.print().p_comma();
                     this.emitter.print().p_whitespace();
                 },
@@ -527,20 +489,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emitter.print().p_newline();
             self.emit_list(
                 node.elems.list,
-                |this, elem| {
-                    use ast::ClassElemKind::*;
-                    match elem.kind {
-                        Ctor(n) => this.visit_class_ctor(n),
-                        Prop(n) => this.visit_class_prop_elem(n),
-                        Method(n) => this.visit_class_method_elem(n),
-                        IndexSig(n) => this.visit_index_sig_decl(n),
-                        Getter(_n) => todo!(),
-                        Setter(n) => this.visit_setter_decl(n),
-                        StaticBlockDecl(_n) => todo!(),
-                        Semi(_) => {}
-                    }
+                |this, elem, _| {
+                    bolt_ts_ast_visitor::visit_class_elem(this, elem);
                 },
-                |this, _| {
+                |this, _, _| {
                     this.emitter.print().p_newline();
                 },
             );
@@ -574,16 +526,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_whitespace();
         self.visit_prop_name(node.name);
         self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
+        self.emit_parameters(node.params);
         self.emitter.print().p_r_paren();
     }
 
@@ -621,19 +564,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emitter.print().p_newline();
             self.emit_list(
                 node.members,
-                |this, elem| {
-                    use ast::ObjectTyMemberKind::*;
-                    match elem.kind {
-                        IndexSig(_n) => todo!(),
-                        Prop(n) => this.visit_prop_signature(n),
-                        Method(n) => this.visit_method_signature(n),
-                        CallSig(n) => this.visit_call_sig_decl(n),
-                        CtorSig(n) => this.visit_ctor_sig_decl(n),
-                        Setter(_n) => todo!(),
-                        Getter(_n) => todo!(),
-                    }
+                |this, elem, _| {
+                    bolt_ts_ast_visitor::visit_object_ty_member(this, elem);
                 },
-                |this, _| {
+                |this, _, _| {
                     this.emitter.print().p_newline();
                 },
             );
@@ -644,17 +578,9 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_fn_ty(&mut self, node: &'cx ast::FnTy<'cx>) -> Self::Result {
+        self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
+        self.emit_parameters(node.params);
         self.emitter.print().p_r_paren();
         self.emitter.print().p_whitespace();
         self.emitter.print().p_arrow_right();
@@ -679,10 +605,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_l_bracket();
         self.emit_list(
             node.tys,
-            |this, item| {
+            |this, item, _| {
                 this.visit_ty(item);
             },
-            |this, _| {
+            |this, _, _| {
                 this.emitter.print().p_comma();
                 this.emitter.print().p_whitespace();
             },
@@ -700,27 +626,33 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             Undefined => self.emitter.print().p("undefined"),
             Num(num) => self.emitter.print().p(&num.to_string()),
             String(atom) => self.emit_string_literal(*atom),
-            BigInt { neg: _, val: _ } => todo!(),
+            BigInt { neg, val } => {
+                if *neg {
+                    self.emitter.print().p("-");
+                }
+                self.emitter.emit_atom(self.resolver.atoms(), *val);
+                self.emitter.print().p("n")
+            }
         }
     }
 
-    fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) -> Self::Result {
-        if node.dotdotdot.is_some() {
+    fn visit_param_decl(&mut self, n: &'cx ast::ParamDecl<'cx>) -> Self::Result {
+        if n.dotdotdot.is_some() {
             self.emitter.print().p_dot_dot_dot();
         }
-        self.visit_binding(node.name);
-        if node.question.is_some() {
+        self.visit_binding(n.name);
+        if self.resolver.is_optional_parameter(n) {
             self.emitter.print().p_question();
         }
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
 
-        if let Some(ty) = node.ty {
+        if let Some(ty) = n.ty {
             self.visit_ty(ty);
         } else {
             let ty = self
                 .resolver
-                .ensure_type_for_parameter_declaration::<true>(node);
+                .ensure_type_for_parameter_declaration::<true>(n);
             let ty = self.resolver.print_type(ty);
             self.emitter.print().p(&ty);
         }
@@ -737,13 +669,13 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_l_bracket();
         self.emit_list(
             node.elems,
-            |this, item| match item.kind {
+            |this, item, _| match item.kind {
                 ast::ArrayBindingElemKind::Omit(_) => {}
                 ast::ArrayBindingElemKind::Binding(item) => {
                     this.visit_array_binding(item);
                 }
             },
-            |this, _| {
+            |this, _, _| {
                 this.emitter.print().p_comma();
                 this.emitter.print().p_whitespace();
             },
@@ -773,8 +705,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_l_brace();
         self.emit_list(
             n.elems,
-            |this, item| this.visit_object_binding_elem(item),
-            |this, _| {
+            |this, item, _| this.visit_object_binding_elem(item),
+            |this, _, _| {
                 this.emitter.print().p_comma();
                 this.emitter.print().p_whitespace();
             },
@@ -789,16 +721,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
         self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
+        self.emit_parameters(node.params);
         self.emitter.print().p_r_paren();
 
         self.emitter.print().p_colon();
@@ -852,10 +775,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     fn visit_union_ty(&mut self, n: &'cx ast::UnionTy<'cx>) -> Self::Result {
         self.emit_list(
             n.tys,
-            |this, item| {
+            |this, item, _| {
                 this.visit_ty(item);
             },
-            |this, _| {
+            |this, _, _| {
                 this.emitter.print().p_whitespace();
                 this.emitter.print().p_pipe();
                 this.emitter.print().p_whitespace();
@@ -901,16 +824,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
         self.emit_type_parameters(n.ty_params);
         self.emitter.print().p_l_paren();
-        self.emit_list(
-            n.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
+        self.emit_parameters(n.params);
         self.emitter.print().p_r_paren();
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
@@ -936,7 +850,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_newline();
         self.emit_list(
             node.members,
-            |this, item| {
+            |this, item, _| {
                 this.visit_enum_member(item);
                 this.emitter.print().p_whitespace();
                 this.emitter.print().p_eq();
@@ -954,7 +868,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                     }
                 };
             },
-            |this, _| {
+            |this, _, _| {
                 this.emitter.print().p_comma();
                 this.emitter.print().p_newline();
             },
@@ -989,10 +903,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
         self.emit_list(
             node.list,
-            |this, item| {
+            |this, item, _| {
                 this.visit_var_decl(item);
             },
-            |this, _| {
+            |this, _, _| {
                 this.emitter.print().p_comma();
                 this.emitter.print().p_whitespace();
             },
@@ -1089,10 +1003,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     fn visit_intersection_ty(&mut self, node: &'cx ast::IntersectionTy<'cx>) -> Self::Result {
         self.emit_list(
             node.tys,
-            |this, item| {
+            |this, item, _| {
                 this.visit_ty(item);
             },
-            |this, _| {
+            |this, _, _| {
                 this.emitter.print().p_whitespace();
                 this.emitter.print().p_ampersand();
                 this.emitter.print().p_whitespace();
@@ -1124,13 +1038,13 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                     self.emitter.print().p_whitespace();
                     self.emit_list(
                         list,
-                        |this, item| match item.kind {
+                        |this, item, _| match item.kind {
                             ast::ImportSpecKind::Named(n) => this.visit_import_named_spec(n),
                             ast::ImportSpecKind::Shorthand(n) => {
                                 this.visit_import_shorthand_spec(n)
                             }
                         },
-                        |this, _| {
+                        |this, _, _| {
                             this.emitter.print().p_comma();
                             this.emitter.print().p_whitespace();
                         },

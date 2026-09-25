@@ -1,0 +1,10 @@
+  × Argument of type '(a: 1 | 2, b: "1" | "2") => void' is not assignable to
+  │ parameter of type '(...args: readonly [1, "1"] | readonly [2, "2"]) =>
+  │ any'.
+    ╭─[../../tests/compiler/contextualTupleTypeParameterReadonly/index.ts:15:8]
+ 15 │ ╭─▶ (a, b) => {
+ 16 │ │     //~^ ERROR: Argument of type '(a: 1 | 2, b: "1" | "2") => void' is not assignable to parameter of type '(...args: readonly [1, "1"] | readonly [2, "2"]) => any'.
+ 17 │ │       a;
+ 18 │ │       b;
+ 19 │ ╰─▶ }
+    ╰────

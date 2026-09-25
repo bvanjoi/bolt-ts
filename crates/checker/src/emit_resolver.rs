@@ -33,6 +33,26 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         self.checker.p.root(module_id)
     }
 
+    pub fn leading_comment(
+        &self,
+        module_id: bolt_ts_span::ModuleID,
+        start: usize,
+    ) -> Option<&[bolt_ts_scanner::CommentId]> {
+        self.checker
+            .p
+            .get(module_id)
+            .leading_trailing_comments
+            .get_leading_comments(start as u32)
+    }
+
+    pub fn get_comment(
+        &self,
+        module_id: bolt_ts_span::ModuleID,
+        comment_id: bolt_ts_scanner::CommentId,
+    ) -> Option<&bolt_ts_scanner::Comment> {
+        self.checker.p.get(module_id).comments.get(comment_id)
+    }
+
     pub fn module_content(&self, module: bolt_ts_span::ModuleID) -> &str {
         self.checker.module_arena.get_content(module)
     }
@@ -125,5 +145,8 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
     }
     pub fn print_type(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
         self.checker.print_ty(ty, None).to_string()
+    }
+    pub fn is_optional_parameter(&mut self, n: &'cx ast::ParamDecl<'cx>) -> bool {
+        self.checker.is_optional_parameter(n)
     }
 }

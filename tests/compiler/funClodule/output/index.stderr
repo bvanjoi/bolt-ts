@@ -1,0 +1,11 @@
+  × Function with bodies can only merge with classes that are ambient.
+    ╭─[../../tests/compiler/funClodule/index.ts:20:10]
+ 20 │ foo3
+    · ────
+    ╰────
+
+  × Class declaration cannot implement overload list for 'foo3'.
+    ╭─[../../tests/compiler/funClodule/index.ts:25:7]
+ 25 │ foo3
+    · ────
+    ╰────

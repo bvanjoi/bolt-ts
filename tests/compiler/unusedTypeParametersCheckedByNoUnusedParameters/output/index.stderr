@@ -1,0 +1,35 @@
+  × 'T' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedTypeParametersCheckedByNoUnusedParameters/index.ts:6:12]
+ 6 │ T
+   · ─
+   ╰────
+
+  × 'T' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedTypeParametersCheckedByNoUnusedParameters/index.ts:9:8]
+ 9 │ T
+   · ─
+   ╰────
+
+  × 'T' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedTypeParametersCheckedByNoUnusedParameters/index.ts:12:13]
+ 12 │ T
+    · ─
+    ╰────
+
+  × 'V' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedTypeParametersCheckedByNoUnusedParameters/index.ts:17:14]
+ 17 │ V
+    · ─
+    ╰────
+
+  × 'T' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedTypeParametersCheckedByNoUnusedParameters/index.ts:15:9]
+ 15 │ T
+    · ─
+    ╰────
+
+  × 'T' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedTypeParametersCheckedByNoUnusedParameters/index.ts:21:10]
+ 21 │ T
+    · ─
+    ╰────

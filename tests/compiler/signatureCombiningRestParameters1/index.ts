@@ -1,0 +1,30 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/signatureCombiningRestParameters1.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+//@compiler-options: strict
+//@compiler-options: lib=[esnext]
+//@compiler-options: noEmit
+
+// https://github.com/microsoft/TypeScript/issues/58371
+
+type T1 = "A" | "B";
+
+type T2 = {
+  C: [string];
+  D: [number];
+};
+
+declare const map: {
+  [K in T1 | keyof T2]: (...args: K extends keyof T2 ? T2[K] : []) => unknown;
+};
+
+declare const args: any;
+
+for (const [key, fn] of Object.entries(map)) {
+  fn(...args);
+  //~^ ERROR: Argument of type 'any' is not assignable to parameter of type 'never'.
+}
+
+const test2: ((a: number, ...args: []) => void) &
+  ((b: string) => void) &
+  ((c: boolean) => void) = (arg) => {};

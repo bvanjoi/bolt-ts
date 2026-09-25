@@ -611,6 +611,15 @@ pub struct ClassesMayNotHaveAFieldNamedConstructor {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Properties with the 'accessor' modifier are only available when targeting ECMAScript 2015 and higher."
+)]
+pub struct PropertiesWithTheAccessorModifierAreOnlyAvailableWhenTargetingEcmascript2015AndHigher {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Only ambient modules can use quoted names.")]
 pub struct OnlyAmbientModulesCanUseQuotedNames {
     #[label(primary)]
@@ -936,6 +945,56 @@ pub struct AbstractModifierCanOnlyAppearWithinAnAbstractClass {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Invalid optional chain from new expression.")]
 pub struct InvalidOptionalChainFromNewExpression {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A rest element cannot have an initializer.")]
+pub struct ARestElementCannotHaveAnInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{modifier}' modifier cannot appear on a module or namespace element.")]
+pub struct ModifierCannotAppearOnAModuleOrNamespaceElement {
+    #[label(primary)]
+    pub span: Span,
+    pub modifier: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An instantiation expression cannot be followed by a property access.")]
+pub struct AnInstantiationExpressionCannotBeFollowedByAPropertyAccess {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'yield' expressions cannot be used in a parameter initializer.")]
+pub struct YieldExpressionsCannotBeUsedInAParameterInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'await' expressions cannot be used in a parameter initializer.")]
+pub struct AwaitExpressionsCannotBeUsedInAParameterInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A destructuring declaration must have an initializer.")]
+pub struct ADestructuringDeclarationMustHaveAnInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'super' must be followed by an argument list or member access.")]
+pub struct SuperMustBeFollowedByAnArgumentListOrMemberAccess {
     #[label(primary)]
     pub span: Span,
 }

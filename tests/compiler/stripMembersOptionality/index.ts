@@ -2,7 +2,8 @@
 
 //@compiler-options: target=es2015
 //@compiler-options: strict
-//@compiler-options: exactOptionalPropertyTypes=true, false
+//@[exactOptionalPropertyTypes=true]  compiler-options: exactOptionalPropertyTypes
+//@[exactOptionalPropertyTypes=false] compiler-options: exactOptionalPropertyTypes=false
 //@compiler-options: noEmit
 
 declare const someVal: Required<{

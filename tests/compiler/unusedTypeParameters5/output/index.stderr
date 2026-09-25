@@ -1,0 +1,12 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/unusedTypeParameters5/index.ts:8:12]
+ 8 │ x
+   · ─
+   ╰────
+
+  × 'K' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedTypeParameters5/index.ts:13:16]
+ 13 │ K
+    · ─
+    ╰────

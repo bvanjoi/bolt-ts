@@ -1,0 +1,5 @@
+  × 'i1' is declared but never used.
+   ╭─[../../tests/compiler/unusedInterfaceinNamespace1/index.ts:8:15]
+ 8 │ i1
+   · ──
+   ╰────

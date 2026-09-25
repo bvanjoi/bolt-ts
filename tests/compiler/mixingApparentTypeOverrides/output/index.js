@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/mixingApparentTypeOverrides.ts`, Apache-2.0 License
 function Tagged(Base) {
   return class extends Base {
     _tag;

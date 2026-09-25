@@ -1,0 +1,23 @@
+  × Type 'CSSStyleDeclaration' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/divergentAccessorsTypes6/index.ts:17:1]
+ 17 │ element.style
+    · ─────────────
+    ╰────
+
+  × Type 'string' does not satisfy the constraint 'never'.
+    ╭─[../../tests/compiler/divergentAccessorsTypes6/index.ts:26:23]
+ 26 │ string
+    · ──────
+    ╰────
+
+  × Type 'string' does not satisfy the constraint 'never'.
+    ╭─[../../tests/compiler/divergentAccessorsTypes6/index.ts:31:23]
+ 31 │ string
+    · ──────
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/divergentAccessorsTypes6/index.ts:38:23]
+ 38 │ 0
+    · ─
+    ╰────

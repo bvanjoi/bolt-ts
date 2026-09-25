@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/inlineConditionalHasSimilarAssignability.ts`, Apache-2.0 License
 function foo(a) {
   var b = 0;
   a = b;

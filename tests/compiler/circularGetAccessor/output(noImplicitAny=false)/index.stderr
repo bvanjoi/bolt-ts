@@ -1,0 +1,5 @@
+  × 'foo' is referenced directly or indirectly in its own type annotation.
+   ╭─[../../tests/compiler/circularGetAccessor/index.ts:8:5]
+ 8 │ get foo(): typeof this.foo;
+   · ───────────────────────────
+   ╰────

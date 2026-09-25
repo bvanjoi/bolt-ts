@@ -1,0 +1,11 @@
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/accessorParameterAccessibilityModifier/index.ts:8:11]
+ 8 │ public
+   · ──────
+   ╰────
+
+  × A parameter property is only allowed in a constructor implementation.
+    ╭─[../../tests/compiler/accessorParameterAccessibilityModifier/index.ts:10:18]
+ 10 │ public
+    · ──────
+    ╰────
