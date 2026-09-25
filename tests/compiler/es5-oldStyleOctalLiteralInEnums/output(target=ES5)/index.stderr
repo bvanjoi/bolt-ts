@@ -1,0 +1,13 @@
+  × Octal literals are not allowed.
+   ╭─[../../tests/compiler/es5-oldStyleOctalLiteralInEnums/index.ts:7:8]
+ 7 │ 01
+   · ──
+   ╰────
+  help: Use the syntax '0o1'.
+
+  × Octal literals are not allowed.
+   ╭─[../../tests/compiler/es5-oldStyleOctalLiteralInEnums/index.ts:9:7]
+ 9 │ 02
+   · ──
+   ╰────
+  help: Use the syntax '0o2'.

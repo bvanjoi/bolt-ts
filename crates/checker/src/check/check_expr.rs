@@ -1037,10 +1037,10 @@ impl<'cx> TyChecker<'cx> {
         let has_extends = match self.p.node(class_like_decl) {
             ast::Node::ClassDecl(c) => c.extends.is_some(),
             ast::Node::ClassExpr(c) => c.extends.is_some(),
-            ast::Node::ObjectLit(n) => {
+            ast::Node::ObjectLit(_) => {
                 return if *self.config.compiler_options().target() < Target::ES2015 {
                     let error = errors::SuperIsOnlyAllowedInMembersOfObjectLiteralExpressionsWhenOptionTargetIsEs2015OrHigher {
-                        span: n.span
+                        span: node.span
                     };
                     self.push_error(Box::new(error));
                     self.error_ty
@@ -2621,11 +2621,19 @@ impl<'cx> TyChecker<'cx> {
             )
         {
             let right = self.check_expression::<false>(assign.right, check_mode);
-            return self.check_destructing_assignment_for_expression::<false>(
-                assign.left,
-                right,
-                check_mode,
-            );
+            return if matches!(assign.right.kind, ast::ExprKind::This(_)) {
+                self.check_destructing_assignment_for_expression::<true>(
+                    assign.left,
+                    right,
+                    check_mode,
+                )
+            } else {
+                self.check_destructing_assignment_for_expression::<false>(
+                    assign.left,
+                    right,
+                    check_mode,
+                )
+            };
         };
         let l = self.check_expression::<false>(assign.left, check_mode);
         let r = self.check_expression::<false>(assign.right, check_mode);

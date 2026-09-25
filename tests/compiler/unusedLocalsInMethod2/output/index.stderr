@@ -1,4 +1,4 @@
-  × All Variables are unused.
+  × All variables are unused.
     ╭─[../../tests/compiler/unusedLocalsInMethod2/index.ts:10:9]
  10 │ var x, y = 10
     · ─────────────

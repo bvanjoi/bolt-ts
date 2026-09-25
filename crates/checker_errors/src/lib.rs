@@ -2267,7 +2267,7 @@ pub struct XIsDeclaredButNeverUsed {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("All Variables are unused.")]
+#[error("All variables are unused.")]
 pub struct AllVariablesAreUnused {
     #[label(primary)]
     pub span: Span,

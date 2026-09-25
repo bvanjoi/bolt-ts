@@ -8,7 +8,7 @@
 class greeter {
     public function1() {
         var x, y = 10;
-        //~^ ERROR: All Variables are unused.
+        //~^ ERROR: All variables are unused.
         y = 1;
     }
 }

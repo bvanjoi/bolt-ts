@@ -1,0 +1,53 @@
+  × 'f' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsInForInOrOf1/index.ts:10:12]
+ 10 │ f
+    · ─
+    ╰────
+
+  × 'f' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsInForInOrOf1/index.ts:17:7]
+ 17 │ f
+    · ─
+    ╰────
+
+  × 'g' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsInForInOrOf1/index.ts:24:12]
+ 24 │ g
+    · ─
+    ╰────
+
+  × 'f2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsInForInOrOf1/index.ts:31:12]
+ 31 │ f2
+    · ──
+    ╰────
+
+  × 'f2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsInForInOrOf1/index.ts:38:7]
+ 38 │ f2
+    · ──
+    ╰────
+
+  × 'g2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsInForInOrOf1/index.ts:45:12]
+ 45 │ g2
+    · ──
+    ╰────
+
+  × 'f3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsInForInOrOf1/index.ts:52:12]
+ 52 │ f3
+    · ──
+    ╰────
+
+  × 'f3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsInForInOrOf1/index.ts:59:7]
+ 59 │ f3
+    · ──
+    ╰────
+
+  × 'g3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsInForInOrOf1/index.ts:66:12]
+ 66 │ g3
+    · ──
+    ╰────

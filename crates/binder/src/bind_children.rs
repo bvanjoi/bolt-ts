@@ -1809,19 +1809,40 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ClassExpr(n) => self.bind_class_expr_children(n),
             NewExpr(n) => self.bind_new_expr_children(n),
             AssignExpr(n) => {
-                self.bind(n.left.id());
-                self.bind(n.right.id());
-                if !self.is_assignment_target(n.id) {
-                    self.bind_assignment_target_flow(n.left);
-                    if n.op == ast::AssignOp::Eq
-                        && let ast::ExprKind::EleAccess(left) = n.left.kind
-                        && self.is_narrowable_operand(left.expr)
-                    {
-                        let f = self.create_flow_array_mutation(
-                            self.current_flow.unwrap(),
-                            FlowArrayMutationNode::AssignmentExpression(n),
-                        );
-                        self.current_flow = Some(f);
+                if matches!(
+                    n.left.kind,
+                    ast::ExprKind::ObjectLit(_) | ast::ExprKind::ArrayLit(_)
+                ) {
+                    debug_assert!(!self.is_narrowable_reference(n.left));
+                    self.in_assignment_pattern = save_in_assignment_pattern;
+                    // bind_destructuring_assignment_flow
+                    if self.in_assignment_pattern {
+                        self.in_assignment_pattern = false;
+                        self.bind(n.right.id());
+                        self.in_assignment_pattern = true;
+                        self.bind(n.left.id());
+                    } else {
+                        self.in_assignment_pattern = true;
+                        self.bind(n.left.id());
+                        self.in_assignment_pattern = false;
+                        self.bind(n.right.id());
+                    }
+                    self.bind_assignment_target_flow_when_expr_is_not_narrowable_reference(n.left);
+                } else {
+                    self.bind(n.left.id());
+                    self.bind(n.right.id());
+                    if !self.is_assignment_target(n.id) {
+                        self.bind_assignment_target_flow(n.left);
+                        if n.op == ast::AssignOp::Eq
+                            && let ast::ExprKind::EleAccess(left) = n.left.kind
+                            && self.is_narrowable_operand(left.expr)
+                        {
+                            let f = self.create_flow_array_mutation(
+                                self.current_flow.unwrap(),
+                                FlowArrayMutationNode::AssignmentExpression(n),
+                            );
+                            self.current_flow = Some(f);
+                        }
                     }
                 }
             }
@@ -1985,40 +2006,49 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
+    fn bind_assignment_target_flow_when_expr_is_not_narrowable_reference(
+        &mut self,
+        n: &'cx ast::Expr<'cx>,
+    ) {
+        debug_assert!(!self.is_narrowable_reference(n));
+        match n.kind {
+            ast::ExprKind::ArrayLit(n) => {
+                for elem in n.elems {
+                    match elem.kind {
+                        ast::ExprKind::SpreadElement(e) => {
+                            self.bind_assignment_target_flow(e.expr);
+                        }
+                        _ => self.bind_destructuring_target_flow(elem),
+                    }
+                }
+            }
+            ast::ExprKind::ObjectLit(n) => {
+                for member in n.members {
+                    match member.kind {
+                        ast::ObjectMemberKind::Shorthand(p) => {
+                            self.current_flow = Some(
+                                self.create_flow_assign(self.current_flow.unwrap(), p.name.id),
+                            );
+                        }
+                        ast::ObjectMemberKind::PropAssignment(e) => {
+                            self.bind_destructuring_target_flow(e.init);
+                        }
+                        ast::ObjectMemberKind::SpreadAssignment(e) => {
+                            self.bind_assignment_target_flow(e.expr);
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub(super) fn bind_assignment_target_flow(&mut self, n: &'cx ast::Expr<'cx>) {
         if self.is_narrowable_reference(n) {
             self.current_flow = Some(self.create_flow_assign(self.current_flow.unwrap(), n.id()));
         } else {
-            match n.kind {
-                ast::ExprKind::ArrayLit(n) => {
-                    for elem in n.elems {
-                        match elem.kind {
-                            ast::ExprKind::SpreadElement(e) => {
-                                self.bind_assignment_target_flow(e.expr);
-                            }
-                            _ => self.bind_destructuring_target_flow(elem),
-                        }
-                    }
-                }
-                ast::ExprKind::ObjectLit(n) => {
-                    for member in n.members {
-                        match member.kind {
-                            ast::ObjectMemberKind::Shorthand(e) => {
-                                self.current_flow =
-                                    Some(self.create_flow_assign(self.current_flow.unwrap(), e.id));
-                            }
-                            ast::ObjectMemberKind::PropAssignment(e) => {
-                                self.bind_destructuring_target_flow(e.init);
-                            }
-                            ast::ObjectMemberKind::SpreadAssignment(e) => {
-                                self.bind_assignment_target_flow(e.expr);
-                            }
-                            _ => unreachable!(),
-                        }
-                    }
-                }
-                _ => {}
-            }
+            self.bind_assignment_target_flow_when_expr_is_not_narrowable_reference(n);
         }
     }
 

@@ -1,0 +1,65 @@
+  × All destructured elements are unused.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:22:12]
+ 22 │ { a, b }
+    · ────────
+    ╰────
+
+  × 'c' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:22:24]
+ 22 │ c
+    · ─
+    ╰────
+
+  × 'e' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:22:34]
+ 22 │ e
+    · ─
+    ╰────
+
+  × 'f' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:22:10]
+ 22 │ f
+    · ─
+    ╰────
+
+  × 'e1' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:32:13]
+ 32 │ e1
+    · ──
+    ╰────
+
+  × All destructured elements are unused.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:10:7]
+ 10 │ { a, b } = o
+    · ────────────
+    ╰────
+
+  × 'c' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:12:9]
+ 12 │ c
+    · ─
+    ╰────
+
+  × 'e0' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:30:13]
+ 30 │ e0
+    · ──
+    ╰────
+
+  × 'e' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:15:9]
+ 15 │ e
+    · ─
+    ╰────
+
+  × 'g' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:17:12]
+ 17 │ g
+    · ─
+    ╰────
+
+  × All variables are unused.
+    ╭─[../../tests/compiler/unusedDestructuring/index.ts:19:1]
+ 19 │ const { h } = o, { i } = o
+    · ──────────────────────────
+    ╰────

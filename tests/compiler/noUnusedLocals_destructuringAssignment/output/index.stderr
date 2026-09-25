@@ -1,0 +1,5 @@
+  × 'f' is declared but its value is never read.
+    ╭─[../../tests/compiler/noUnusedLocals_destructuringAssignment/index.ts:15:13]
+ 15 │ f
+    · ─
+    ╰────

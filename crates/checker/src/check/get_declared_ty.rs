@@ -8,6 +8,7 @@ use bolt_ts_middle::F64Represent;
 use bolt_ts_utils::FxIndexMap;
 
 use super::CheckMode;
+use super::ExpressionOrEntityName;
 use super::InstantiationTyMap;
 use super::TyCacheTrait;
 use super::TyChecker;
@@ -163,7 +164,7 @@ impl<'cx> TyChecker<'cx> {
         };
         self.check_property_access_expression_or_qualified_name(
             node.id,
-            node.left.id(),
+            ExpressionOrEntityName::EntityName(node.left),
             left_ty,
             node.right,
             check_mode,

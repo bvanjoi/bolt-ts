@@ -1,4 +1,6 @@
-use bolt_ts_ast::{self as ast, keyword, pprint_binding, pprint_prop_name};
+use bolt_ts_ast::{
+    self as ast, binding_name_text, keyword, pprint_binding, pprint_ident, pprint_prop_name,
+};
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolTable};
 use bolt_ts_checker_errors as errors;
 use bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver;
@@ -70,6 +72,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         prop: SymbolID,
         node_for_check_write_only: Option<ast::NodeID>,
+        is_self_type_access: bool,
     ) {
         let s = self.symbol(prop);
         if !s.flags.intersects(SymbolFlags::CLASS_MEMBER) {
@@ -95,7 +98,15 @@ impl<'cx> TyChecker<'cx> {
         {
             return;
         }
-        // TODO: is_self_type_access
+        if is_self_type_access
+            && let Some(n) = node_for_check_write_only
+            && let Some(containing_method) = self
+                .node_query(n.module())
+                .find_ancestor(n, |n| self.p.node(n).is_fn_decl_like().then_some(true))
+            && self.final_res(containing_method) == prop
+        {
+            return;
+        }
         let check_flags = self.get_check_flags(prop);
         let prop = if check_flags.contains(CheckFlags::INSTANTIATED) {
             self.get_symbol_links(prop).expect_target()
@@ -184,7 +195,16 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
     fn check_unused_identifier(&self, n: PotentiallyUnusedIdentifier<'cx>) -> Vec<BoxedDiag> {
         let mut diags = vec![];
         match n {
-            PotentiallyUnusedIdentifier::InferTy(_) => {}
+            PotentiallyUnusedIdentifier::InferTy(n) => {
+                // check_unused_infer_type_parameters
+                if self.is_type_parameter_unused(n.ty_param) {
+                    let error = errors::XIsDeclaredButItsValueIsNeverRead {
+                        span: n.ty_param.name.span,
+                        name: self.c.atoms.get(n.ty_param.name.name).to_string(),
+                    };
+                    self.push_unused_parameter_error(n.id, Box::new(error), &mut diags);
+                }
+            }
             PotentiallyUnusedIdentifier::FnDecl(ast::FnDecl { body, id, .. })
             | PotentiallyUnusedIdentifier::ClassCtor(ast::ClassCtor { body, id, .. })
             | PotentiallyUnusedIdentifier::ClassMethodElem(ast::ClassMethodElem {
@@ -527,7 +547,6 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
 
         for (binding_pattern, declarations) in unused_destructure_group {
             let binding_pattern_parent = self.c.parent(binding_pattern).unwrap();
-            let has_root_param_decl = try_get_root_parameter_declaration(binding_pattern_parent);
             let binding_pattern_node = self.c.p.node(binding_pattern);
             let len = match binding_pattern_node {
                 ast::Node::ArrayPat(n) => n.elems.len(),
@@ -559,13 +578,17 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                             span: self.c.node(binding_pattern_parent).span(),
                         })
                     };
-                    if has_same_length {
+                    let has_root_param_decl =
+                        try_get_root_parameter_declaration(binding_pattern_parent);
+                    if has_root_param_decl.is_some() {
                         self.push_unused_parameter_error(binding_pattern, error, diags);
                     } else {
                         self.push_unused_local_error(binding_pattern, error, diags);
                     }
                 }
             } else {
+                let has_root_param_decl =
+                    try_get_root_parameter_declaration(binding_pattern_parent);
                 for e in declarations {
                     let name = self.c.p.node(e).name().unwrap();
                     let error = errors::XIsDeclaredButItsValueIsNeverRead {
@@ -598,10 +621,10 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
             if has_same_length {
                 if declarations.len() == 1 {
                     let declaration = declarations[0];
-                    let name = declaration.name;
+                    let name = binding_name_text(declaration.name);
                     let error = errors::XIsDeclaredButItsValueIsNeverRead {
                         span: name.span,
-                        name: pprint_binding(name, &self.c.atoms),
+                        name: pprint_ident(name, &self.c.atoms),
                     };
                     self.push_unused_local_error(declaration.id, Box::new(error), diags);
                 } else {

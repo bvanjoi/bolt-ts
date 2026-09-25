@@ -511,6 +511,19 @@ pub fn node_query<'cx, 'a>(
     NodeQuery::new(parent_map, p)
 }
 
+enum ExpressionOrEntityName<'cx> {
+    Expression(&'cx ast::Expr<'cx>),
+    EntityName(&'cx ast::EntityName<'cx>),
+}
+impl ExpressionOrEntityName<'_> {
+    fn id(&self) -> ast::NodeID {
+        match self {
+            ExpressionOrEntityName::Expression(expr) => expr.id(),
+            ExpressionOrEntityName::EntityName(entity_name) => entity_name.id(),
+        }
+    }
+}
+
 impl<'cx> TyChecker<'cx> {
     pub fn node_query(&self, module_id: ModuleID) -> NodeQuery<'cx, '_> {
         node_query(module_id, &self.p, &self.binder)
@@ -2367,10 +2380,10 @@ impl<'cx> TyChecker<'cx> {
         self.push_error(Box::new(error));
     }
 
-    pub(super) fn check_property_access_expression_or_qualified_name(
+    fn check_property_access_expression_or_qualified_name(
         &mut self,
         node: ast::NodeID,
-        left: ast::NodeID,
+        left: ExpressionOrEntityName<'cx>,
         left_ty: &'cx ty::Ty<'cx>,
         right: &'cx ast::Ident,
         check_mode: Option<CheckMode>,
@@ -2386,6 +2399,8 @@ impl<'cx> TyChecker<'cx> {
             };
             self.get_apparent_ty(t)
         };
+        let parent_symbol = self.get_node_links(left.id()).get_resolved_symbol();
+
         let is_any_like =
             self.is_type_any(apparent_left_ty) || apparent_left_ty == self.silent_never_ty;
         // TODO: is_private_identifier
@@ -2398,6 +2413,13 @@ impl<'cx> TyChecker<'cx> {
                 apparent_left_ty
             };
         }
+
+        let left_is_super = || match left {
+            ExpressionOrEntityName::Expression(left) => {
+                matches!(left.kind, ast::ExprKind::Super(_))
+            }
+            ExpressionOrEntityName::EntityName(_) => false,
+        };
 
         let name = SymbolName::Atom(right.name);
         let skip_object_function_property_augment = self.is_const_enum_object_ty(apparent_left_ty);
@@ -2413,7 +2435,29 @@ impl<'cx> TyChecker<'cx> {
         };
         let prop_ty = if let Some(prop) = prop {
             self.check_prop_not_used_before_declaration(prop, node, right);
-            self.mark_property_as_referenced(prop, Some(node));
+            let is_self_type_access = match left {
+                ExpressionOrEntityName::Expression(left) => match left.kind {
+                    ast::ExprKind::This(_) => true,
+                    _ => {
+                        if left.is_entity_name_expr()
+                            && let Some(p) = parent_symbol
+                            && let Some(first) = left.get_first_identifier()
+                        {
+                            p == self.resolve_symbol_by_ident(first)
+                        } else {
+                            false
+                        }
+                    }
+                },
+                ExpressionOrEntityName::EntityName(left)
+                    if let Some(parent_symbol) = parent_symbol =>
+                {
+                    let first = left.get_first_identifier();
+                    parent_symbol == self.resolve_symbol_by_ident(first)
+                }
+                _ => false,
+            };
+            self.mark_property_as_referenced(prop, Some(node), is_self_type_access);
             if self.get_node_links(node).get_resolved_symbol().is_none() {
                 self.get_mut_node_links(node).set_resolved_symbol(prop);
             }
@@ -2422,7 +2466,7 @@ impl<'cx> TyChecker<'cx> {
             if is_write_access {
                 self.check_property_accessibility::<true>(
                     node,
-                    self.p.node(left).is_super_expr(),
+                    left_is_super(),
                     apparent_left_ty,
                     prop,
                     true,
@@ -2430,7 +2474,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.check_property_accessibility::<false>(
                     node,
-                    self.p.node(left).is_super_expr(),
+                    left_is_super(),
                     apparent_left_ty,
                     prop,
                     true,
@@ -2886,7 +2930,7 @@ impl<'cx> TyChecker<'cx> {
             let left_ty = self.check_non_null_expr(node.expr);
             self.check_property_access_expression_or_qualified_name(
                 node.id,
-                node.expr.id(),
+                ExpressionOrEntityName::Expression(node.expr),
                 left_ty,
                 node.name,
                 check_mode,
@@ -2957,7 +3001,7 @@ impl<'cx> TyChecker<'cx> {
         let non_null_ty = self.check_non_null_type(non_optional_ty, expr_id);
         let ty = self.check_property_access_expression_or_qualified_name(
             n.id,
-            expr_id,
+            ExpressionOrEntityName::Expression(n.expr),
             non_null_ty,
             n.name,
             check_mode,
@@ -3078,7 +3122,7 @@ impl<'cx> TyChecker<'cx> {
                     let text = self.get_prop_name_from_ty(expr_ty);
                     if let Some(prop) = self.get_prop_of_ty::<false, false>(object_literal_ty, text)
                     {
-                        // TODO: mark
+                        self.mark_property_as_referenced(prop, Some(n.id), RIGHT_IS_THIS);
                         self.check_property_accessibility::<true>(
                             n.id,
                             false,
@@ -3113,7 +3157,7 @@ impl<'cx> TyChecker<'cx> {
                 debug_assert!(expr_ty.usable_as_prop_name());
                 let text = self.get_prop_name_from_ty(expr_ty);
                 if let Some(prop) = self.get_prop_of_ty::<false, false>(object_literal_ty, text) {
-                    // TODO: mark
+                    self.mark_property_as_referenced(prop, Some(n.id), RIGHT_IS_THIS);
                     self.check_property_accessibility::<true>(
                         n.id,
                         false,

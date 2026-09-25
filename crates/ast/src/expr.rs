@@ -149,6 +149,14 @@ impl<'cx> Expr<'cx> {
         }
     }
 
+    pub fn get_first_identifier(&self) -> Option<&'cx Ident> {
+        match self.kind {
+            ExprKind::Ident(ident) => Some(ident),
+            ExprKind::PropAccess(p) => p.expr.get_first_identifier(),
+            _ => None,
+        }
+    }
+
     // fn is_outer_expr<const FLAGS: u8>(&self) -> bool {
     //     match self.kind {
     //         ExprKind::Paren(_) => {

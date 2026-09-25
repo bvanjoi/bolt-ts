@@ -30,6 +30,20 @@ pub fn print_declaration_name(node: &super::DeclarationName, atoms: &AtomIntern)
     }
 }
 
+pub fn binding_name_text<'cx>(binding: &super::Binding<'cx>) -> &'cx super::Ident {
+    match binding.kind {
+        super::BindingKind::Ident(ident) => ident,
+        super::BindingKind::ObjectPat(pat) => match pat.elems[0].name {
+            crate::ObjectBindingName::Shorthand(ident) => ident,
+            crate::ObjectBindingName::Prop { name, .. } => binding_name_text(*name),
+        },
+        super::BindingKind::ArrayPat(pat) => match pat.elems[0].kind {
+            crate::ArrayBindingElemKind::Omit(_) => unreachable!(),
+            crate::ArrayBindingElemKind::Binding(n) => binding_name_text(n.name),
+        },
+    }
+}
+
 pub fn pprint_binding(binding: &super::Binding<'_>, atoms: &AtomIntern) -> String {
     match binding.kind {
         super::BindingKind::Ident(ident) => pprint_ident(ident, atoms),
