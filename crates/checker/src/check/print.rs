@@ -6,6 +6,7 @@ use super::ty::ElementFlags;
 use super::ty::SigKind;
 
 use bolt_ts_ast as ast;
+use bolt_ts_ast::pprint_prop_name;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolName;
@@ -321,19 +322,8 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             match elem.name {
                 ast::ObjectBindingName::Shorthand(n) => res.push_str(self.c.atoms.get(n.name)),
                 ast::ObjectBindingName::Prop { prop_name, name } => {
-                    match prop_name.kind {
-                        ast::PropNameKind::Ident(n) => res.push_str(self.c.atoms.get(n.name)),
-                        ast::PropNameKind::PrivateIdent(n) => {
-                            res.push('#');
-                            res.push_str(self.c.atoms.get(n.name))
-                        }
-                        ast::PropNameKind::StringLit { raw, .. } => {
-                            res.push_str(self.c.atoms.get(raw.val));
-                        }
-                        ast::PropNameKind::NumLit(n) => res.push_str(&n.val.to_string()),
-                        ast::PropNameKind::Computed(_) => res.push_str("[computed]"),
-                        ast::PropNameKind::BigIntLit(_) => todo!(),
-                    }
+                    let prop_name = pprint_prop_name(&prop_name.kind, &self.c.atoms);
+                    res.push_str(&prop_name);
                     res.push_str(": ");
                     res.push_str(&self.print_binding(name));
                 }

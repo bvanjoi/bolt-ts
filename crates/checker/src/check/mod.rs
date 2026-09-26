@@ -99,8 +99,6 @@ use bolt_ts_wf_check::{InvalidInitializerInAmbientContext, IssueExternalExportDe
 use nohash_hasher::IntMap;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
-use crate::check::unused::PotentiallyUnusedIdentifiers;
-
 use self::check_expr::IterationUse;
 use self::check_type_related_to::NOOP_HEADING_ERROR;
 use self::check_type_related_to::RecursionFlags;
@@ -116,7 +114,9 @@ use self::get_context::{InferenceContextual, TyContextual};
 use self::get_contextual::ContextFlags;
 use self::get_contextual::DiscriminateContextualTyByObjectLiteral;
 pub use self::get_declared_ty::EnumMemberValue;
+use self::get_effective_node::SyntheticExpression;
 use self::get_iteration_tys::IterationTypeKind;
+use self::get_ty::AccessNode;
 use self::get_variances::VarianceFlags;
 use self::get_widened_ty::WideningContextArena;
 use self::infer::InferenceCompare;
@@ -146,6 +146,7 @@ use self::relation::UnionOrIntersectionTyPropertyKey;
 use self::transient_symbol::create_transient_symbol;
 use self::type_predicate::TyPred;
 use self::type_predicate::TyPredKind;
+use self::unused::PotentiallyUnusedIdentifiers;
 use self::utils::contains_ty;
 
 use super::ty::TyMapper;
@@ -3142,7 +3143,7 @@ impl<'cx> TyChecker<'cx> {
                     object_literal_ty,
                     expr_ty,
                     Some(access_flags),
-                    Some(n.name.id()),
+                    Some(&AccessNode::PropNameKind(n.name.kind)),
                     None,
                     None,
                 );
@@ -3176,7 +3177,7 @@ impl<'cx> TyChecker<'cx> {
                     object_literal_ty,
                     expr_ty,
                     Some(access_flags),
-                    Some(n.name.id),
+                    Some(&AccessNode::PropNameKind(ast::PropNameKind::Ident(n.name))),
                     None,
                     None,
                 );
@@ -3269,12 +3270,15 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         AccessFlags::empty()
                     };
+
+                let access_node =
+                    SyntheticExpression::new(elem.span(), array.id, false, element_ty, None);
                 let element_ty = self
                     .get_indexed_access_type_or_undefined(
                         source_ty,
                         index_ty,
                         Some(access_flags),
-                        Some(elem.id()),
+                        Some(&&AccessNode::SyntheticExpr(access_node)),
                         None,
                         None,
                     )

@@ -477,15 +477,9 @@ impl<'cx> PropNameKind<'cx> {
     }
 
     pub fn to_string(&self, atoms: &AtomIntern) -> String {
-        match self {
-            PropNameKind::Ident(ident) => atoms.get(ident.name).to_string(),
-            PropNameKind::StringLit { raw, .. } => atoms.get(raw.val).to_string(),
-            PropNameKind::NumLit(num) => num.val.to_string(),
-            PropNameKind::Computed(_n) => "computed".to_string(),
-            PropNameKind::PrivateIdent(ident) => atoms.get(ident.name).to_string(),
-            PropNameKind::BigIntLit(_lit) => todo!(),
-        }
+        pprint_prop_name(self, atoms)
     }
+
     pub fn span(&self) -> Span {
         match self {
             PropNameKind::Ident(ident) => ident.span,

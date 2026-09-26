@@ -24,7 +24,7 @@
     · ───────
     ╰────
 
-  × Property 'computed' has no initializer and is not definitely assigned in
+  × Property '[x = 0]' has no initializer and is not definitely assigned in
   │ the constructor.
     ╭─[../../tests/compiler/indexSignatureWithInitializer/index.ts:13:5]
  13 │ [x = 0]

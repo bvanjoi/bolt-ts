@@ -491,6 +491,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a, const IS_USE: bool>(
                     .members()
                     .and_then(|m| m.0.get(&key))
                     .copied()
+                    && let res = resolver.get_merged_symbol(res)
                     && resolver
                         .symbol(res)
                         .flags

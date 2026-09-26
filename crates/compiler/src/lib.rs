@@ -409,10 +409,14 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
 
     // update referenced
     for result in &early_resolve_result {
-        for (s, referenced) in &result.referenced_symbol {
-            let m = s.module();
-            debug_assert!(!p.get(m).is_declaration);
-            let s = bind_list[m.as_usize()].symbols.get_mut(*s);
+        for (&s, referenced) in &result.referenced_symbol {
+            debug_assert!(!p.get(s.module()).is_declaration);
+            debug_assert!({
+                let symbols = &bind_list[s.module().as_usize()].symbols;
+                let merged = merged_symbols.get_merged_symbol(s, symbols);
+                merged == s
+            });
+            let s = bind_list[s.module().as_usize()].symbols.get_mut(s);
             debug_assert!(s.is_referenced.is_none());
             s.is_referenced = Some(*referenced);
         }

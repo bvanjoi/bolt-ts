@@ -169,8 +169,7 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
     }
 
     fn parent(&self, node: ast::NodeID) -> Option<ast::NodeID> {
-        debug_assert!(node.module() == self.module_id);
-        let idx = self.module_id.as_usize();
+        let idx = node.module().as_usize();
         debug_assert!(idx < self.states.len());
         unsafe { self.states.get_unchecked(idx).parent_map.parent(node) }
     }

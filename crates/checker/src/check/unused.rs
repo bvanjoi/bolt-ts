@@ -74,6 +74,8 @@ impl<'cx> TyChecker<'cx> {
         node_for_check_write_only: Option<ast::NodeID>,
         is_self_type_access: bool,
     ) {
+        // node_for_check_write_only must be exist if is_self_type_access is true
+        debug_assert!(!is_self_type_access || node_for_check_write_only.is_some());
         let s = self.symbol(prop);
         if !s.flags.intersects(SymbolFlags::CLASS_MEMBER) {
             return;
@@ -99,7 +101,7 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
         if is_self_type_access
-            && let Some(n) = node_for_check_write_only
+            && let n = node_for_check_write_only.unwrap()
             && let Some(containing_method) = self
                 .node_query(n.module())
                 .find_ancestor(n, |n| self.p.node(n).is_fn_decl_like().then_some(true))
@@ -197,7 +199,7 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
         match n {
             PotentiallyUnusedIdentifier::InferTy(n) => {
                 // check_unused_infer_type_parameters
-                if self.is_type_parameter_unused(n.ty_param) {
+                if !self.is_type_parameter_used(n.ty_param) {
                     let error = errors::XIsDeclaredButItsValueIsNeverRead {
                         span: n.ty_param.name.span,
                         name: self.c.atoms.get(n.ty_param.name.name).to_string(),
@@ -256,13 +258,13 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
         diags
     }
 
-    fn is_type_parameter_unused(&self, ty_param: &'cx ast::TyParam<'cx>) -> bool {
+    fn is_type_parameter_used(&self, ty_param: &'cx ast::TyParam<'cx>) -> bool {
         let symbol = self.c.final_res(ty_param.id);
         let symbol = self.c.get_merged_symbol(symbol);
         let s = self.c.symbol(symbol);
-        !(s.is_referenced
+        s.is_referenced
             .is_some_and(|r| r.contains(SymbolFlags::TYPE_PARAMETER))
-            || self.is_identifier_that_starts_with_underscore(ty_param.name))
+            || self.is_identifier_that_starts_with_underscore(ty_param.name)
     }
 
     fn check_unused_type_parameters(&self, id: ast::NodeID, diags: &mut Vec<BoxedDiag>) {
@@ -278,7 +280,7 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
         }
         let ty_parameters = self.c.get_effective_ty_param_decls(id);
         for ty_parameter in ty_parameters {
-            if !self.is_type_parameter_unused(ty_parameter) {
+            if self.is_type_parameter_used(ty_parameter) {
                 continue;
             }
             let error = errors::XIsDeclaredButItsValueIsNeverRead {
@@ -331,6 +333,12 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                     ..
                 }) => {
                     let symbol = self.c.final_res(*id);
+                    let symbol = self
+                        .c
+                        .symbol_links(symbol)
+                        .and_then(|links| links.get_late_symbol())
+                        .unwrap_or(symbol);
+                    let symbol = self.c.get_merged_symbol(symbol);
                     let s = self.c.symbol(symbol);
                     if s.is_referenced.is_none()
                         && (modifiers

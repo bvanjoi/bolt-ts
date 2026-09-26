@@ -16,6 +16,8 @@ use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
 use rustc_hash::FxHashMap;
 
+use crate::check::get_ty::AccessNode;
+
 use super::InferenceId;
 use super::IterationTypeKind;
 use super::ObjectFlags;
@@ -3067,7 +3069,7 @@ impl<'cx> TyChecker<'cx> {
                 object_ty,
                 index_ty,
                 Some(access_flags),
-                Some(node.id),
+                Some(&AccessNode::EleAccessExpr(node)),
                 None,
                 None,
             )

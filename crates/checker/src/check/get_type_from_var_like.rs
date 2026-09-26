@@ -2,6 +2,7 @@ use super::CheckMode;
 use super::TyChecker;
 use super::check_expr::IterationUse;
 use super::errors;
+use super::get_ty::AccessNode;
 use super::relation;
 use super::ty;
 use super::ty::AccessFlags;
@@ -199,7 +200,7 @@ impl<'cx> TyChecker<'cx> {
                 parent_parent_ty,
                 index_ty,
                 Some(access_flags),
-                Some(binding.id),
+                Some(&AccessNode::ArrayBinding(binding)),
                 None,
                 None,
             )
@@ -313,12 +314,12 @@ impl<'cx> TyChecker<'cx> {
                     self.get_literal_ty_from_prop_name(&prop_name.kind)
                 }
             };
-            let name = binding.name.name().id();
+            let name = binding.name.name();
             let decl_ty = self.get_indexed_access_ty(
                 parent_parent_ty,
                 index_ty,
                 Some(access_flags),
-                Some(name),
+                Some(&AccessNode::PropNameKind(name)),
                 None,
                 None,
             );
