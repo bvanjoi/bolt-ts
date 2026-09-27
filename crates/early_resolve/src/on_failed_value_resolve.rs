@@ -110,7 +110,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
         ident: &'cx ast::Ident,
     ) -> Option<errors::CannotFindNameHelperKind> {
         let symbol =
-            resolve_symbol_by_ident::<false>(self, ident, SymbolFlags::NAMESPACE_MODULE).symbol();
+            resolve_symbol_by_ident::<false, Self>(self, ident, SymbolFlags::NAMESPACE_MODULE)
+                .symbol();
         if symbol == Symbol::ERR {
             None
         } else {
@@ -144,7 +145,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
         &mut self,
         ident: &'cx ast::Ident,
     ) -> Option<errors::CannotFindNameHelperKind> {
-        let symbol = resolve_symbol_by_ident::<false>(self, ident, SymbolFlags::TYPE).symbol();
+        let symbol =
+            resolve_symbol_by_ident::<false, Self>(self, ident, SymbolFlags::TYPE).symbol();
         if symbol != Symbol::ERR {
             let node = self.symbol(symbol).decls.as_ref().unwrap()[0];
             let n = self.p.node(node);
@@ -180,7 +182,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
         ident: &'cx ast::Ident,
     ) -> Option<errors::CannotFindNameHelperKind> {
         let symbol =
-            resolve_symbol_by_ident::<false>(self, ident, SymbolFlags::NAMESPACE_MODULE).symbol();
+            resolve_symbol_by_ident::<false, Self>(self, ident, SymbolFlags::NAMESPACE_MODULE)
+                .symbol();
         if symbol == Symbol::ERR {
             None
         } else {
@@ -234,7 +237,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             return None;
         }
 
-        let res = resolve_symbol_by_ident::<false>(self, ident, SymbolFlags::TYPE).symbol();
+        let res = resolve_symbol_by_ident::<false, Self>(self, ident, SymbolFlags::TYPE).symbol();
         if res != Symbol::ERR {
             let error = errors::CannotFindNameHelperKind::OnlyReferToATypeButIsBeingUsedAsValueHere(
                 errors::OnlyReferToATypeButIsBeingUsedAsValueHere {

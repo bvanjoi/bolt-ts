@@ -1122,7 +1122,7 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
             return Symbol::ERR;
         }
 
-        let res = resolve_symbol_by_ident::<true>(self, ident, SymbolFlags::TYPE);
+        let res = resolve_symbol_by_ident::<true, Self>(self, ident, SymbolFlags::TYPE);
         let mut symbol = res.symbol();
 
         if symbol == Symbol::ERR {
@@ -1148,9 +1148,9 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
     ) -> ResolvedResult<'cx> {
         // TODO: can we use is_use as a parameter to avoid calling `is_write_only_access`?
         let res = if self.node_query().is_write_only_access(ident.id) {
-            resolve_symbol_by_ident::<false>(self, ident, meaning)
+            resolve_symbol_by_ident::<false, Self>(self, ident, meaning)
         } else {
-            let res = resolve_symbol_by_ident::<true>(self, ident, meaning);
+            let res = resolve_symbol_by_ident::<true, Self>(self, ident, meaning);
             self.record_reference(&res);
             res
         };
@@ -1247,7 +1247,7 @@ fn check_var_declared_names_not_shadowed<'a, 'cx>(
         _ => unreachable!(),
     };
     let local_declaration_symbol_id =
-        resolve_symbol_by_ident::<false>(r, name, SymbolFlags::VARIABLE).symbol();
+        resolve_symbol_by_ident::<false, Resolver>(r, name, SymbolFlags::VARIABLE).symbol();
 
     if local_declaration_symbol_id != Symbol::ERR
         && local_declaration_symbol_id != symbol

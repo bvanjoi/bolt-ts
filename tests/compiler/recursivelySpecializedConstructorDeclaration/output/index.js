@@ -19,9 +19,12 @@ var MsPortal = {};
         ItemList.ViewModel = ViewModel;
         
       })(ItemList);
+      Base.ItemList = ItemList;
       
     })(Base);
+    Controls.Base = Base;
     
   })(Controls);
+  MsPortal.Controls = Controls;
   
 })(MsPortal);

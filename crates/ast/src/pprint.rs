@@ -48,7 +48,7 @@ pub fn print_declaration_name(node: &super::DeclarationName, atoms: &AtomIntern)
     match node {
         Ident(ident) => pprint_ident(ident, atoms),
         NumLit(lit) => lit.val.to_string(),
-        StringLit { raw, .. } => pprint_string_literal(*raw, atoms),
+        StringLit { raw, .. } => pprint_string_literal(raw, atoms),
         Computed(n) => pprint_computed_prop_name(n, atoms),
         PrivateIdent(_n) => todo!(),
         BigIntLit(_n) => todo!(),
@@ -61,7 +61,7 @@ pub fn binding_name_text<'cx>(binding: &super::Binding<'cx>) -> &'cx super::Iden
         super::BindingKind::Ident(ident) => ident,
         super::BindingKind::ObjectPat(pat) => match pat.elems[0].name {
             crate::ObjectBindingName::Shorthand(ident) => ident,
-            crate::ObjectBindingName::Prop { name, .. } => binding_name_text(*name),
+            crate::ObjectBindingName::Prop { name, .. } => binding_name_text(name),
         },
         super::BindingKind::ArrayPat(pat) => match pat.elems[0].kind {
             crate::ArrayBindingElemKind::Omit(_) => unreachable!(),

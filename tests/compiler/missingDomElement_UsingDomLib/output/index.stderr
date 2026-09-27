@@ -1,0 +1,5 @@
+  × Property 'textContent' does not exist on type 'HTMLMissingElement'.
+   ╭─[../../tests/compiler/missingDomElement_UsingDomLib/index.ts:8:37]
+ 8 │ textContent
+   · ───────────
+   ╰────

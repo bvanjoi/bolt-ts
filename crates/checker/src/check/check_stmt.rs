@@ -327,7 +327,7 @@ impl<'cx> TyChecker<'cx> {
                         ast::ModuleReferenceKind::ExternalModuleReference(_) => todo!(),
                     };
                     const MEANING: SymbolFlags = SymbolFlags::VALUE.union(SymbolFlags::NAMESPACE);
-                    let resolved = bolt_ts_early_resolve::resolve_symbol_by_identifier::resolve_symbol_by_ident::<true>(self, module_name, MEANING).symbol();
+                    let resolved = bolt_ts_early_resolve::resolve_symbol_by_identifier::resolve_symbol_by_ident::<true, Self>(self, module_name, MEANING).symbol();
                     let resolved = if self.symbol(resolved).flags.contains(SymbolFlags::ALIAS)
                         && self.get_symbol_flags::<false>(resolved).intersects(MEANING)
                     {

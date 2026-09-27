@@ -1,0 +1,5 @@
+  × 'a' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedImports10/index.ts:15:12]
+ 15 │ a
+    · ─
+    ╰────

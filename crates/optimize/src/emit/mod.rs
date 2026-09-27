@@ -1092,20 +1092,16 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                     this.emitter.content.p_newline();
                     this.visit_nested_module_decl(inner);
                     this.emitter.content.p_newline();
-                    if let Some(ms) = inner.modifiers
-                        && ms.flags.contains(ast::ModifierFlags::EXPORT)
-                        && !ms.flags.contains(ast::ModifierFlags::AMBIENT)
-                    {
-                        this.emitter.content.p(&param_name);
-                        this.emitter.content.p_dot();
-                        this.visit_ident(inner.name);
-                        this.emitter.content.p_whitespace();
-                        this.emitter.content.p_eq();
-                        this.emitter.content.p_whitespace();
-                        this.visit_ident(inner.name);
-                        this.emitter.content.p_semi();
-                        this.emitter.content.p_newline();
-                    }
+
+                    this.emitter.content.p(&param_name);
+                    this.emitter.content.p_dot();
+                    this.visit_ident(inner.name);
+                    this.emitter.content.p_whitespace();
+                    this.emitter.content.p_eq();
+                    this.emitter.content.p_whitespace();
+                    this.visit_ident(inner.name);
+                    this.emitter.content.p_semi();
+                    this.emitter.content.p_newline();
                 });
             }
             ast::NestedModuleBlock::Block(block) => {

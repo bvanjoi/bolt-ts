@@ -2279,3 +2279,15 @@ pub struct AllDestructuredElementsAreUnused {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Property '{property}' is protected and only accessible through an instance of class '{class1}'. This is an instance of class '{class2}'."
+)]
+pub struct PropertyXIsProtectedAndOnlyAccessibleThroughAnInstanceOfClassYThisIsAnInstanceOfClassZ {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+    pub class1: String,
+    pub class2: String,
+}

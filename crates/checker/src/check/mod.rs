@@ -2806,6 +2806,10 @@ impl<'cx> TyChecker<'cx> {
             };
         }
 
+        if is_super {
+            return true;
+        }
+
         let is_class_derived_from_declaring_classes = |this: &mut Self,
                                                        check_class: &'cx ty::Ty<'cx>,
                                                        prop: SymbolID|
@@ -2911,9 +2915,23 @@ impl<'cx> TyChecker<'cx> {
             //TODO:
         }
 
-        // TODO: !containing_ty || xxxxx
+        if let enclosing_class = enclosing_class.unwrap()
+            && !self.has_base_ty(containing_ty, enclosing_class)
+        {
+            if let Some(error_node) = error_node {
+                let error =  errors::PropertyXIsProtectedAndOnlyAccessibleThroughAnInstanceOfClassYThisIsAnInstanceOfClassZ {
+                    span: self.p.node(error_node).span(),
+                    property: self.symbol(prop).name.to_string(&self.atoms),
+                    class1: self.print_ty(enclosing_class, None).to_string(),
+                    class2: self.print_ty(containing_ty, None).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
 
-        true
+            false
+        } else {
+            true
+        }
     }
 
     fn check_property_access_expression(
@@ -3278,7 +3296,7 @@ impl<'cx> TyChecker<'cx> {
                         source_ty,
                         index_ty,
                         Some(access_flags),
-                        Some(&&AccessNode::SyntheticExpr(access_node)),
+                        Some(&AccessNode::SyntheticExpr(access_node)),
                         None,
                         None,
                     )

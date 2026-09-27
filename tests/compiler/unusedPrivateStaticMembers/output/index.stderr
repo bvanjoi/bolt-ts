@@ -1,0 +1,23 @@
+  × 'p1' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateStaticMembers/index.ts:22:20]
+ 22 │ p1
+    · ──
+    ╰────
+
+  × 'm1' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateStaticMembers/index.ts:24:20]
+ 24 │ m1
+    · ──
+    ╰────
+
+  × 'm1' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateStaticMembers/index.ts:29:20]
+ 29 │ m1
+    · ──
+    ╰────
+
+  × 'm2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateStaticMembers/index.ts:34:20]
+ 34 │ m2
+    · ──
+    ╰────
