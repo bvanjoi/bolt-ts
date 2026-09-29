@@ -1,3 +1,4 @@
+use bolt_ts_fs::is_case_sensitivity_absolute_path;
 use bolt_ts_module_resolve_test::should_eq;
 use bolt_ts_module_resolve_test::should_not_found;
 use compile_test::build_temp_files;
@@ -74,4 +75,17 @@ fn test_dir_from_child_dir() {
     should_eq(&from, "../a/", dir.join("./a/index.ts"));
     should_eq(&from, "../a/index", dir.join("./a/index.ts"));
     should_eq(&from, "../a/index.ts", dir.join("./a/index.ts"));
+}
+
+#[test]
+fn test_is_case_sensitivity_absolute_path() {
+    let dir = build_temp_files(serde_json::json!(
+      {
+        "./indeX.ts": "",
+      }
+    ));
+    let p = dir.join("./indeX.ts");
+    assert!(is_case_sensitivity_absolute_path(&p));
+    let p = dir.join("./index.ts");
+    assert!(!is_case_sensitivity_absolute_path(&p));
 }

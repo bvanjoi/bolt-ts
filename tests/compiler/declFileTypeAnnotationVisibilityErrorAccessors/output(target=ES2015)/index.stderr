@@ -1,0 +1,35 @@
+  × Type 'undefined' is not assignable to type 'private1'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorAccessors/index.ts:23:13]
+ 23 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'private1'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorAccessors/index.ts:45:13]
+ 45 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'm.public1'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorAccessors/index.ts:53:13]
+ 53 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'm.public1'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorAccessors/index.ts:75:13]
+ 75 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'm2.public2'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorAccessors/index.ts:83:13]
+ 83 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'm2.public2'.
+     ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorAccessors/index.ts:105:13]
+ 105 │ return;
+     · ───────
+     ╰────

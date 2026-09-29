@@ -1,0 +1,35 @@
+  × Type 'undefined' is not assignable to type 'private1'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorReturnTypeOfFunction/index.ts:17:9]
+ 17 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'private1'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorReturnTypeOfFunction/index.ts:25:9]
+ 25 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'm.public1'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorReturnTypeOfFunction/index.ts:33:9]
+ 33 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'm.public1'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorReturnTypeOfFunction/index.ts:41:9]
+ 41 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'm2.public2'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorReturnTypeOfFunction/index.ts:54:9]
+ 54 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'm2.public2'.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorReturnTypeOfFunction/index.ts:62:9]
+ 62 │ return;
+    · ───────
+    ╰────

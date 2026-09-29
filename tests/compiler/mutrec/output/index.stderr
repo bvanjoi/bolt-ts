@@ -1,0 +1,23 @@
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/mutrec/index.ts:15:3]
+ 15 │ b
+    · ─
+    ╰────
+
+  × Variable 'i2' is used before being assigned.
+    ╭─[../../tests/compiler/mutrec/index.ts:32:3]
+ 32 │ i2
+    · ──
+    ╰────
+
+  × Variable 'i3' is used before being assigned.
+    ╭─[../../tests/compiler/mutrec/index.ts:35:3]
+ 35 │ i3
+    · ──
+    ╰────
+
+  × Variable 'i4' is used before being assigned.
+    ╭─[../../tests/compiler/mutrec/index.ts:47:3]
+ 47 │ i4
+    · ──
+    ╰────

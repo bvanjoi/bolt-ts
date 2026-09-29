@@ -4285,21 +4285,23 @@ impl<'cx> TyChecker<'cx> {
         if assignment_kind != AssignmentKind::None && local_or_export_symbol != Symbol::ERR {
             let flags = self.binder.symbol(local_or_export_symbol).flags;
             if !flags.intersects(SymbolFlags::VARIABLE) {
-                let ty = if flags.contains(SymbolFlags::CLASS) {
-                    "class"
+                let kind = if flags.intersects(SymbolFlags::ENUM) {
+                    "an enum"
+                } else if flags.contains(SymbolFlags::CLASS) {
+                    "a class"
+                } else if flags.intersects(SymbolFlags::MODULE) {
+                    "a namespace"
                 } else if flags.contains(SymbolFlags::FUNCTION) {
-                    "function"
-                } else if flags.intersects(SymbolFlags::ENUM) {
-                    "enum"
-                } else if flags.intersects(SymbolFlags::NAMESPACE) {
-                    "namespace"
+                    "a function"
+                } else if flags.contains(SymbolFlags::ALIAS) {
+                    "an import"
                 } else {
                     unreachable!()
                 };
                 let error = errors::CannotAssignToNameBecauseItIsATy {
                     span: ident.span,
                     name: self.atoms.get(ident.name).to_string(),
-                    ty: ty.to_string(),
+                    kind: kind.to_string(),
                 };
                 self.push_error(Box::new(error));
                 return self.error_ty;

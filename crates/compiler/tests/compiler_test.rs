@@ -1,6 +1,6 @@
 use bolt_ts_config::{NormalizedTsConfig, RawCompilerOptions, RawTsConfig};
 use bolt_ts_errors::miette::Severity;
-use bolt_ts_fs::LocalFS;
+use bolt_ts_fs::{LocalFS, is_case_sensitivity_absolute_path};
 use bolt_ts_utils::path::NormalizePath;
 use compile_test::run_tests::run;
 use compile_test::{ensure_node_exist, run_node};
@@ -118,6 +118,7 @@ fn run_test_with(
                 index_file_path = Some(temp_node_file);
             }
 
+            assert!(!p.exists() || is_case_sensitivity_absolute_path(p));
             expect_test::expect_file![p].assert_eq(content);
         }
 

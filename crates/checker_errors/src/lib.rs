@@ -85,12 +85,12 @@ pub struct ExpectedAtLeastXArgsButGotY {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Cannot assign to '{name}' because it is a {ty}.")]
+#[error("Cannot assign to '{name}' because it is {kind}.")]
 pub struct CannotAssignToNameBecauseItIsATy {
     #[label(primary)]
     pub span: Span,
     pub name: String,
-    pub ty: String,
+    pub kind: String,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
