@@ -26,6 +26,11 @@ pub const fn is_js_variant(variant: u8) -> bool {
     matches!(filter_language_variant(variant), JS_VARIANT)
 }
 
+pub const fn is_js_like_variant(variant: u8) -> bool {
+    debug_assert!(is_valid_language_variant(variant));
+    matches!(filter_language_variant(variant), JS_VARIANT | JSX_VARIANT)
+}
+
 pub const fn is_ts_like_variant(variant: u8) -> bool {
     debug_assert!(is_valid_language_variant(variant));
     matches!(

@@ -17,7 +17,7 @@ Advice:
     · ─
     ╰────
 
-  × Cannot assign to 'E' because it is a enum.
+  × Cannot assign to 'E' because it is an enum.
     ╭─[../../tests/compiler/assignmentToReferenceTypes/index.ts:18:1]
  18 │ E
     · ─

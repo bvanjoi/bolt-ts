@@ -16,7 +16,7 @@ C = null;
 enum E {
 }
 E = null;
-//~^ ERROR: Cannot assign to 'E' because it is a enum.
+//~^ ERROR: Cannot assign to 'E' because it is an enum.
 
 function f() { }
 f = null;

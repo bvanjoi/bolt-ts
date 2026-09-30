@@ -3,6 +3,7 @@ use bolt_ts_ast::{NodeFlags, VarDecls};
 use bolt_ts_ast_factory::ASTFactory;
 
 use super::ast;
+use super::const_variant::is_ts_like_variant;
 use super::errors;
 use super::keyword;
 use super::lookahead::Lookahead;
@@ -1298,7 +1299,11 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         } else {
             None
         };
-        let ty = self.parse_ty_anno()?;
+        let ty = if is_ts_like_variant(VARIANT) {
+            self.parse_ty_anno()?
+        } else {
+            None
+        };
         let init = self.parse_init()?;
         let span = self.new_span(start);
 

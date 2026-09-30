@@ -3355,7 +3355,7 @@ impl<'cx> TyChecker<'cx> {
                         Some(check_mode),
                         contextual_sig,
                     );
-                    // TODO: register potentially_unused_
+                    self.register_potentially_unused_object_method_member(n);
                     self.check_sig_decl(n.id);
                 }
             }

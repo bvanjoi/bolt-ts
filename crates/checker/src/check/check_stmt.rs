@@ -111,8 +111,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) {
+        self.check_block(node.try_block);
         if let Some(catch) = node.catch_clause {
             self.check_block(catch.block);
+        }
+        if let Some(finally) = node.finally_block {
+            self.check_block(finally);
         }
     }
 
@@ -477,6 +481,9 @@ impl<'cx> TyChecker<'cx> {
         }
 
         self.check_stmt(node.body);
+        if self.binder.locals(node.id).is_some() {
+            self.register_potentially_unused_for_statement(node);
+        }
     }
 
     fn check_var_stmt(&mut self, var: &'cx ast::VarStmt<'cx>) {

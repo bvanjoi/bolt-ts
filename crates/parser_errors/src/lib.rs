@@ -998,3 +998,10 @@ pub struct SuperMustBeFollowedByAnArgumentListOrMemberAccess {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type annotations can only be used in TypeScript files.")]
+pub struct TypeAnnotationsCanOnlyBeUsedInTypeScriptFiles {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -1,4 +1,5 @@
 use super::SignatureFlags;
+use super::const_variant::is_js_like_variant;
 use super::const_variant::is_jsx_like_variant;
 use super::const_variant::is_ts_like_variant;
 use super::jsx;
@@ -138,6 +139,13 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 }
             }
 
+            if is_js_like_variant(VARIANT)
+                && let Some(ty) = param.ty
+            {
+                let error =
+                    errors::TypeAnnotationsCanOnlyBeUsedInTypeScriptFiles { span: ty.span() };
+                self.push_error(Box::new(error));
+            }
             if !is_missing_body
                 && matches!(
                     param.name.kind,

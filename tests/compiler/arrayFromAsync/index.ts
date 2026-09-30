@@ -3,6 +3,7 @@
 //@compiler-options: strict=false
 //@compiler-options: module=esnext
 //@compiler-options: target=esnext
+//@run-fail
 
 export { };
 async function * asyncGen (n) {

@@ -1,0 +1,5 @@
+  × Type annotations can only be used in TypeScript files.
+   ╭─[../../tests/compiler/jsFileCompilationTypeOfParameter/index.js:6:15]
+ 6 │ number
+   · ──────
+   ╰────

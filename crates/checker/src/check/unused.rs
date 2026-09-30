@@ -22,6 +22,7 @@ pub enum PotentiallyUnusedIdentifier<'cx> {
     CtorTy(&'cx ast::CtorTy<'cx>),
     CtorSigDecl(&'cx ast::CtorSigDecl<'cx>),
     ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
+    ForStmt(&'cx ast::ForStmt<'cx>),
     ForInStmt(&'cx ast::ForInStmt<'cx>),
     ForOfStmt(&'cx ast::ForOfStmt<'cx>),
     ClassCtor(&'cx ast::ClassCtor<'cx>),
@@ -33,6 +34,7 @@ pub enum PotentiallyUnusedIdentifier<'cx> {
     BlockStmt(&'cx ast::BlockStmt<'cx>),
     CaseBlock(&'cx ast::CaseBlock<'cx>),
     SetterDecl(&'cx ast::SetterDecl<'cx>),
+    ObjectMethodMember(&'cx ast::ObjectMethodMember<'cx>),
 }
 
 impl std::hash::Hash for PotentiallyUnusedIdentifier<'_> {
@@ -222,7 +224,10 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                 self.check_unused_type_parameters(*id, &mut diags);
             }
             PotentiallyUnusedIdentifier::FnExpr(ast::FnExpr { id, .. })
-            | PotentiallyUnusedIdentifier::ArrowFnExpr(ast::ArrowFnExpr { id, .. }) => {
+            | PotentiallyUnusedIdentifier::ArrowFnExpr(ast::ArrowFnExpr { id, .. })
+            | PotentiallyUnusedIdentifier::ObjectMethodMember(ast::ObjectMethodMember {
+                id, ..
+            }) => {
                 let Some(locals) = self.c.binder.locals(*id) else {
                     unreachable!()
                 };
@@ -236,6 +241,7 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
             PotentiallyUnusedIdentifier::Program(ast::Program { id, .. })
             | PotentiallyUnusedIdentifier::ForInStmt(ast::ForInStmt { id, .. })
             | PotentiallyUnusedIdentifier::ForOfStmt(ast::ForOfStmt { id, .. })
+            | PotentiallyUnusedIdentifier::ForStmt(ast::ForStmt { id, .. })
             | PotentiallyUnusedIdentifier::BlockModuleDecl(ast::BlockModuleDecl { id, .. })
             | PotentiallyUnusedIdentifier::BlockStmt(ast::BlockStmt { id, .. })
             | PotentiallyUnusedIdentifier::CaseBlock(ast::CaseBlock { id, .. }) => {
@@ -642,8 +648,13 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                     diags.push(Box::new(error));
                 }
             } else {
-                for _declaration in declarations {
-                    todo!()
+                for declaration in declarations {
+                    let name = binding_name_text(declaration.name);
+                    let error = errors::XIsDeclaredButItsValueIsNeverRead {
+                        span: name.span,
+                        name: self.c.atoms.get(name.name).to_string(),
+                    };
+                    self.push_unused_local_error(declaration.id, Box::new(error), diags);
                 }
             }
         }
@@ -694,6 +705,7 @@ register_potentially_unused!(
     [constructor_signature_declaration, CtorSigDecl],
     [arrow_function_expression, ArrowFnExpr],
     [class_constructor_declaration, ClassCtor],
+    [for_statement, ForStmt],
     [for_in_statement, ForInStmt],
     [for_of_statement, ForOfStmt],
     [class_declaration, ClassDecl],
@@ -705,5 +717,6 @@ register_potentially_unused!(
     [interface_declaration, InterfaceDecl],
     [program, Program],
     [case_block, CaseBlock],
-    [setter_declaration, SetterDecl]
+    [setter_declaration, SetterDecl],
+    [object_method_member, ObjectMethodMember]
 );
