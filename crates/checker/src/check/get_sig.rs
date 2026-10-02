@@ -136,7 +136,7 @@ impl<'cx> TyChecker<'cx> {
         sig
     }
 
-    pub(super) fn get_sigs_of_symbol(&mut self, id: SymbolID) -> ty::Sigs<'cx> {
+    pub fn get_sigs_of_symbol(&mut self, id: SymbolID) -> ty::Sigs<'cx> {
         let s = self.symbol(id);
         let Some(decls) = &s.decls else {
             return self.empty_array();

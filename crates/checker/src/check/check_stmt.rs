@@ -416,7 +416,19 @@ impl<'cx> TyChecker<'cx> {
             ast::ForInitKind::Var(var) => {
                 self.check_var_decl_list(var);
             }
-            ast::ForInitKind::Expr(_) => {}
+            ast::ForInitKind::Expr(init) => {
+                let iterated_ty = self.check_right_hand_side_of_for_of(n);
+                match init.kind {
+                    ast::ExprKind::ObjectLit(n) => {
+                        self.check_object_literal_assignment::<false>(n, iterated_ty);
+                    }
+                    ast::ExprKind::ArrayLit(n) => {
+                        self.check_array_literal_assignment(n, iterated_ty, None);
+                    }
+                    _ => {}
+                }
+                // TODO: check more
+            }
         };
         self.check_stmt(n.body);
         self.register_potentially_unused_for_of_statement(n);
@@ -433,6 +445,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_var_decl_list(declarations);
             }
             ast::ForInitKind::Expr(init) => {
+                // TODO: check more
                 let left_ty = self.check_expression::<false>(init, None);
                 let valid_ty = self.get_index_ty_or_string(right_ty);
 

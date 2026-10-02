@@ -157,3 +157,13 @@ pub struct TheExpressionOfAnExportAssignmentMustBeAnIdentifierOrQualifiedNameInA
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Did you mean to use a ':'? An '=' can only follow a property name when the containing object literal is part of a destructuring pattern."
+)]
+pub struct DidYouMeanToUseAColonAnCanOnlyFollowAPropertyNameWhenTheContainingObjectLiteralIsPartOfADestructuringPattern
+{
+    #[label(primary)]
+    pub span: Span,
+}

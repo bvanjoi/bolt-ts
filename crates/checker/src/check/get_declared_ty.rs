@@ -435,9 +435,18 @@ impl<'cx> TyChecker<'cx> {
                         Some(outer_ty_params)
                     };
                 }
-                ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
-                | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_)
-                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeAliasDecl(_) => {
+                ClassDecl(_)
+                | ClassExpr(_)
+                | InterfaceDecl(_)
+                | CallSigDecl(_)
+                | MethodSignature(_)
+                | FnTy(_)
+                | CtorSigDecl(_)
+                | FnDecl(_)
+                | ClassMethodElem(_)
+                | ArrowFnExpr(_)
+                | TypeAliasDecl(_)
+                | ObjectMethodMember(_) => {
                     let outer_ty_params = self.get_outer_ty_params::<INCLUDE_THIS>(id);
                     if node.is_fn_expr()
                         || node.is_arrow_fn_expr()

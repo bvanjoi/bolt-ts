@@ -779,6 +779,8 @@ bitflags::bitflags! {
         const CONTAINS_SEPARATOR            = 1 << 9;
         const UNICODE_ESCAPE                = 1 << 10;
         const CONTAINS_INVALID_ESCAPE       = 1 << 11;
+        /// `0xa0`
+        const HEX_ESCAPE                    = 1 << 12;
         const CONTAINS_LEADING_ZERO         = 1 << 13;
         /// `0_1`
         const CONTAINS_INVALID_SEPARATOR    = 1 << 14;

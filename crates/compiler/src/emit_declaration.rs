@@ -814,6 +814,13 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_fn_decl(&mut self, n: &'cx ast::FnDecl<'cx>) -> Self::Result {
+        // TODO: top level
+        if self
+            .resolver
+            .is_implementation_of_overload_for_function_declaration(n)
+        {
+            return Self::Result::default();
+        }
         self.emit_export_modifier_if_needed(contain_export_modifier(n.modifiers));
         self.emit_default_modifier(n.modifiers);
         self.emit_declare_if_needed();

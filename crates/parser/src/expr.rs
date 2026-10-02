@@ -915,7 +915,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             let member = self.create_object_shorthand_property_assignment(
                 self.new_span(start),
                 name,
-                equal_token.map(|t| t.span),
                 object_assignment_initializer,
             );
             let member = self.alloc(ast::ObjectMember {

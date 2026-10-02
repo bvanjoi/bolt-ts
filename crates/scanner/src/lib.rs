@@ -40,3 +40,7 @@ impl TokenValue {
         }
     }
 }
+
+pub fn is_hex_digit(ch: u8) -> bool {
+    ch.is_ascii_digit() || (b'a'..=b'f').contains(&ch) || (b'A'..=b'F').contains(&ch)
+}

@@ -3055,14 +3055,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             false
         };
 
-        if !(check_mode.contains(SigCheckMode::STRICT_TOP_SIGNATURE) && is_top_sig(self, source))
-            && is_top_sig(self, target)
-        {
+        let strict_top_signature = check_mode.contains(SigCheckMode::STRICT_TOP_SIGNATURE);
+        if !(strict_top_signature && is_top_sig(self, source)) && is_top_sig(self, target) {
             return Ternary::TRUE;
-        } else if check_mode.contains(SigCheckMode::STRICT_TOP_SIGNATURE)
-            && is_top_sig(self, source)
-            && !is_top_sig(self, target)
-        {
+        } else if strict_top_signature && is_top_sig(self, source) && !is_top_sig(self, target) {
             return Ternary::FALSE;
         }
 

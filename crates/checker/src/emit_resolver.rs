@@ -86,6 +86,22 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         }
     }
 
+    pub fn is_implementation_of_overload_for_function_declaration(
+        &mut self,
+        f: &'cx ast::FnDecl<'cx>,
+    ) -> bool {
+        if f.body.is_none() {
+            return false;
+        }
+        let symbol = self.checker.final_res(f.id);
+        let sigs = self.checker.get_sigs_of_symbol(symbol);
+        if sigs.len() == 1 {
+            sigs[0].node_id != Some(f.id)
+        } else {
+            sigs.len() > 1
+        }
+    }
+
     pub fn node_flags(&self, id: ast::NodeID) -> bolt_ts_ast::NodeFlags {
         self.checker.p.node_flags(id)
     }

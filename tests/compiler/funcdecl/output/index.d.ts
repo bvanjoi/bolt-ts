@@ -18,7 +18,7 @@ declare function withRestParams(a: string, ...myRestParameter: number[]): number
 declare var withRestParamsVar: (a: string, ...myRestParameter: number[]) => number[];
 declare function overload1(n: number): string;
 declare function overload1(s: string): string;
-declare function overload1(ns: any): any;
+
 declare var withOverloadSignature: (n: number) => string;
 declare function f(n: () => void): void;
 declare namespace m2 {

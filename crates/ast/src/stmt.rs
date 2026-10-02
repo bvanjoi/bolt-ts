@@ -756,7 +756,7 @@ pub struct ClassMethodElem<'cx> {
 
 impl ClassMethodElem<'_> {
     pub fn fn_flags(&self) -> FnFlags {
-        let mut flags = FnFlags::INVALID;
+        let mut flags = FnFlags::empty();
         if self.asterisk.is_some() {
             flags |= FnFlags::GENERATOR;
         }

@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
-use bolt_ts_scanner::{Comment, CommentKind, is_ascii_identifier_part, is_ascii_identifier_start};
+use bolt_ts_scanner::{Comment, CommentKind};
+use bolt_ts_scanner::{is_ascii_identifier_part, is_ascii_identifier_start, is_hex_digit};
 use bolt_ts_scanner::{is_identifier_part, is_identifier_start};
 use bolt_ts_scanner::{is_line_break, is_non_ascii_identifier_start};
 use bolt_ts_scanner::{non_ascii_character_code, utf16_encode_as_bytes};
@@ -1197,6 +1198,28 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             }
             return self.input[start..self.pos].to_vec();
         }
+        let push_hexadecimal_digit_error = |this: &mut Self| {
+            this.token_flags |= TokenFlags::CONTAINS_INVALID_ESCAPE;
+            if flags.intersects(EscapeSequenceScanningFlags::REPORT_INVALID_ESCAPE_ERRORS) {
+                let error = errors::HexadecimalDigitExpected {
+                    span: Span::new(start as u32, this.pos as u32, this.module_id),
+                };
+                this.push_error(Box::new(error));
+            }
+            this.input[start..this.pos].to_vec()
+        };
+        let step_hex_digits = |this: &mut Self, count: usize| {
+            while this.pos < start + count {
+                let Some(ch) = this.ch() else {
+                    return Some(push_hexadecimal_digit_error(this));
+                };
+                if !is_hex_digit(ch) {
+                    return Some(push_hexadecimal_digit_error(this));
+                }
+                this.pos += 1;
+            }
+            None
+        };
         match ch {
             b'b' => vec![8],
             b't' => vec![9],
@@ -1223,11 +1246,12 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                     }
                     return result;
                 }
+                if let Some(error_result) = step_hex_digits(self, 6) {
+                    return error_result;
+                }
                 self.token_flags |= TokenFlags::UNICODE_ESCAPE;
                 // TODO: check escaped_value is valid
-                self.pos += 4;
                 let scaped_value = &self.input[start..self.pos];
-                // TODO: check
                 scaped_value.to_vec()
             }
             b'\r' => {
@@ -1235,6 +1259,15 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                     self.pos += 1;
                 }
                 vec![]
+            }
+            b'x' => {
+                // '\xDD'
+                if let Some(error_result) = step_hex_digits(self, 4) {
+                    return error_result;
+                }
+                self.token_flags |= TokenFlags::HEX_ESCAPE;
+                let scaped_value = &self.input[start..self.pos];
+                scaped_value.to_vec()
             }
             b'\n' => vec![],
             // TODO: more case

@@ -528,7 +528,11 @@ impl ObjectMember<'_> {
     }
 
     pub fn has_default_value(&self) -> bool {
-        matches!(self.kind, ObjectMemberKind::Shorthand(n) if n.object_assignment_initializer.is_some())
+        match self.kind {
+            ObjectMemberKind::PropAssignment(n) => n.init.has_default_value(),
+            ObjectMemberKind::Shorthand(n) => n.object_assignment_initializer.is_some(),
+            _ => false,
+        }
     }
 }
 
@@ -576,7 +580,12 @@ pub struct ObjectShorthandMember<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
-    pub equal_token: Option<Span>,
+    /// ```javascript
+    /// // This is a valid syntax:
+    /// ({ x = undefined } = a)
+    /// // But it's not:
+    /// const a = { x = undefined }
+    /// ```
     pub object_assignment_initializer: Option<&'cx Expr<'cx>>,
 }
 

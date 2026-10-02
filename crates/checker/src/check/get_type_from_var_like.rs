@@ -559,7 +559,7 @@ impl<'cx> TyChecker<'cx> {
             })
     }
 
-    fn check_right_hand_side_of_for_of(
+    pub(super) fn check_right_hand_side_of_for_of(
         &mut self,
         stmt: &'cx ast::ForOfStmt<'cx>,
     ) -> &'cx ty::Ty<'cx> {

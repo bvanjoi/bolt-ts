@@ -921,6 +921,14 @@ pub struct PropertyXIsUsedBeforeItsInitialization {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Class '{name}' used before its declaration.")]
+pub struct ClassXUsedBeforeItsDeclaration {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Constructors for derived classes must contain a 'super' call.")]
 pub struct ConstructorsForDerivedClassesMustContainASuperCall {
     #[label(primary)]

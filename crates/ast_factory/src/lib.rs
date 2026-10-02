@@ -1437,7 +1437,6 @@ pub trait ASTFactory<'cx> {
         &mut self,
         span: Span,
         name: &'cx ast::Ident,
-        equal_token: Option<Span>,
         object_assignment_initializer: Option<&'cx ast::Expr<'cx>>,
     ) -> &'cx ast::ObjectShorthandMember<'cx> {
         let id = self.next_node_id();
@@ -1445,7 +1444,6 @@ pub trait ASTFactory<'cx> {
             id,
             span,
             name,
-            equal_token,
             object_assignment_initializer,
         });
         self.insert_node(id, ast::Node::ObjectShorthandMember(prop));

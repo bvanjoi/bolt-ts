@@ -84,7 +84,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let check_flags = self.get_check_flags(symbol);
-        let (symbol, mapper, check_flags) = if check_flags.intersects(CheckFlags::INSTANTIATED) {
+        let (symbol, mapper, check_flags) = if check_flags.contains(CheckFlags::INSTANTIATED) {
             let links = self.get_symbol_links(symbol);
             let ty_mapper = links.get_ty_mapper();
             let symbol = links.get_target().unwrap();

@@ -2620,6 +2620,18 @@ impl<'cx> TyChecker<'cx> {
                 name: self.atoms.get(right.name).to_string(),
             };
             self.push_error(Box::new(error));
+        } else if self.p.node(value_decl).is_class_decl()
+            && !self.p.node(self.parent(node).unwrap()).is_ty_refer_ty()
+            && !self
+                .node_flags(value_decl)
+                .contains(ast::NodeFlags::AMBIENT)
+            && !self.is_block_scoped_name_declared_before_use(value_decl, right.id, right.span)
+        {
+            let error = errors::ClassXUsedBeforeItsDeclaration {
+                span: right.span,
+                name: self.atoms.get(right.name).to_string(),
+            };
+            self.push_error(Box::new(error));
         }
     }
 
@@ -3235,6 +3247,10 @@ impl<'cx> TyChecker<'cx> {
                 self.get_flow_ty_of_reference(id, declared_ty, None, None, None)
             }
             ast::Node::ArrayLit(_) => {
+                // TODO:
+                declared_ty
+            }
+            ast::Node::ForOfStmt(_) => {
                 // TODO:
                 declared_ty
             }

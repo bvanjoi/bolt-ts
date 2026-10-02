@@ -191,8 +191,21 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         };
     }
 
-    fn check_grammar_object_lit_expr(&mut self, _node: &'cx ast::ObjectLit<'cx>) {
-        // TODO:
+    fn check_grammar_object_lit_expr(&mut self, n: &'cx ast::ObjectLit<'cx>) {
+        let is_assignment_target = self.node_query().is_assignment_target(n.id);
+        for member in n.members {
+            match member.kind {
+                ast::ObjectMemberKind::Shorthand(n)
+                    if !is_assignment_target && n.object_assignment_initializer.is_some() =>
+                {
+                    let error = errors::DidYouMeanToUseAColonAnCanOnlyFollowAPropertyNameWhenTheContainingObjectLiteralIsPartOfADestructuringPattern {
+                        span: n.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+                _ => {}
+            }
+        }
     }
 
     fn check_grammar_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) {

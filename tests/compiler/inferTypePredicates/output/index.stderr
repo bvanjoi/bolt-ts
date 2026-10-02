@@ -1,0 +1,68 @@
+  × Type '(null | number)[]' is not assignable to type 'number[]'.
+    ╭─[../../tests/compiler/inferTypePredicates/index.ts:10:7]
+ 10 │ filteredNumsTruthy
+    · ──────────────────
+    ╰────
+
+  × Type '(null | number)[]' is not assignable to type 'number[]'.
+    ╭─[../../tests/compiler/inferTypePredicates/index.ts:14:7]
+ 14 │ evenSquaresInline
+    · ─────────────────
+    ╰────
+
+  × Type '(null | number)[]' is not assignable to type 'number[]'.
+    ╭─[../../tests/compiler/inferTypePredicates/index.ts:22:7]
+ 22 │ evenSquares
+    · ───────────
+    ╰────
+
+  × 'arr' is possibly 'undefined'.
+    ╭─[../../tests/compiler/inferTypePredicates/index.ts:61:17]
+ 61 │ arr
+    · ───
+    ╰────
+
+  × Argument of type 'undefined | string' is not assignable to parameter of
+  │ type 'string'.
+    ╭─[../../tests/compiler/inferTypePredicates/index.ts:64:28]
+ 64 │ obj.data
+    · ────────
+    ╰────
+
+  × Argument of type 'undefined | string' is not assignable to parameter of
+  │ type 'string'.
+    ╭─[../../tests/compiler/inferTypePredicates/index.ts:76:28]
+ 76 │ obj.data
+    · ────────
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+     ╭─[../../tests/compiler/inferTypePredicates/index.ts:102:8]
+ 102 │ 10
+     · ──
+     ╰────
+
+  × Type 'number | string' is not assignable to type 'string'.
+     ╭─[../../tests/compiler/inferTypePredicates/index.ts:126:7]
+ 126 │ t
+     · ─
+     ╰────
+
+  × Type 'number | string' is not assignable to type 'number'.
+     ╭─[../../tests/compiler/inferTypePredicates/index.ts:129:7]
+ 129 │ t
+     · ─
+     ╰────
+
+  × Type '{ }' is missing the following properties from type 'Date':
+  │ getVarDate, toDateString, and 40 more.
+     ╭─[../../tests/compiler/inferTypePredicates/index.ts:148:7]
+ 148 │ t
+     · ─
+     ╰────
+
+  × Property 'z' is missing.
+     ╭─[../../tests/compiler/inferTypePredicates/index.ts:221:7]
+ 221 │ c2
+     · ──
+     ╰────
