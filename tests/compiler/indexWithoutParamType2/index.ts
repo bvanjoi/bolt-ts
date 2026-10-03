@@ -6,5 +6,5 @@ class C {
     // Used to be indexer, now it is a computed property
     [x]: string
     //~^ ERROR: Cannot find name 'x'.
-    //~| ERROR: Property 'computed' has no initializer and is not definitely assigned in the constructor.
+    //~| ERROR: Property '[x]' has no initializer and is not definitely assigned in the constructor.
 }

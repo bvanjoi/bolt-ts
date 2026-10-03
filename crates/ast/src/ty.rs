@@ -477,15 +477,9 @@ impl<'cx> PropNameKind<'cx> {
     }
 
     pub fn to_string(&self, atoms: &AtomIntern) -> String {
-        match self {
-            PropNameKind::Ident(ident) => atoms.get(ident.name).to_string(),
-            PropNameKind::StringLit { raw, .. } => atoms.get(raw.val).to_string(),
-            PropNameKind::NumLit(num) => num.val.to_string(),
-            PropNameKind::Computed(_n) => "computed".to_string(),
-            PropNameKind::PrivateIdent(ident) => atoms.get(ident.name).to_string(),
-            PropNameKind::BigIntLit(_lit) => todo!(),
-        }
+        pprint_prop_name(self, atoms)
     }
+
     pub fn span(&self) -> Span {
         match self {
             PropNameKind::Ident(ident) => ident.span,
@@ -534,7 +528,11 @@ impl ObjectMember<'_> {
     }
 
     pub fn has_default_value(&self) -> bool {
-        matches!(self.kind, ObjectMemberKind::Shorthand(n) if n.object_assignment_initializer.is_some())
+        match self.kind {
+            ObjectMemberKind::PropAssignment(n) => n.init.has_default_value(),
+            ObjectMemberKind::Shorthand(n) => n.object_assignment_initializer.is_some(),
+            _ => false,
+        }
     }
 }
 
@@ -582,7 +580,12 @@ pub struct ObjectShorthandMember<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
-    pub equal_token: Option<Span>,
+    /// ```javascript
+    /// // This is a valid syntax:
+    /// ({ x = undefined } = a)
+    /// // But it's not:
+    /// const a = { x = undefined }
+    /// ```
     pub object_assignment_initializer: Option<&'cx Expr<'cx>>,
 }
 

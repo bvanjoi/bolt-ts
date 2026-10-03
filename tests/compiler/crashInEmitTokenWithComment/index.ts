@@ -8,6 +8,6 @@ const fn = (param: string) => undefined;
 
 const foo = {bar: 'a'};
 fn(({[foo.bar]: c}) => undefined);
-//~^ ERROR: Argument of type '({ [computed]: c }: { }) => undefined' is not assignable to parameter of type 'string'.
+//~^ ERROR: Argument of type '({ [foo.bar]: c }: { }) => undefined' is not assignable to parameter of type 'string'.
 //~| ERROR: Type '{ }' has no matching index signature for type 'string'.
 //~| ERROR: Type '{ }' has no matching index signature for type 'string'.

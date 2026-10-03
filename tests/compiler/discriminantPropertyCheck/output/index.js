@@ -1,5 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/discriminantPropertyCheck.ts`, Apache-2.0 License
-//@compiler-options: target=es2015
 function goo1(x) {
   if (x.kind === 'A' && x.foo !== undefined) {
     x.foo.length;

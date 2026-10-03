@@ -1,0 +1,6 @@
+  × The expression of an export assignment must be an identifier or qualified
+  │ name in an ambient context.
+    ╭─[../../tests/compiler/typeAliasExport/index.ts:14:18]
+ 14 │ null
+    · ────
+    ╰────

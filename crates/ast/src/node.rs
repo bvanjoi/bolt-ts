@@ -591,6 +591,7 @@ impl<'cx> Node<'cx> {
             self::Node::ClassMethodElem(f) => f.body.map(super::ArrowFnExprBody::Block),
             self::Node::ClassCtor(f) => f.body.map(super::ArrowFnExprBody::Block),
             self::Node::GetterDecl(f) => f.body.map(super::ArrowFnExprBody::Block),
+            self::Node::SetterDecl(f) => f.body.map(super::ArrowFnExprBody::Block),
             _ => None,
         }
     }
@@ -715,6 +716,13 @@ impl<'cx> Node<'cx> {
             Node::ParamDecl(n) => n.modifiers,
             Node::IndexSigDecl(n) => n.modifiers,
             Node::EnumDecl(n) => n.modifiers,
+            Node::TyParam(n) => {
+                return if n.const_modifier.is_some() {
+                    Some(super::ModifierFlags::CONST)
+                } else {
+                    None
+                };
+            }
             Node::ImportEqualsDecl(n) => {
                 return if n.export_modifier.is_some() {
                     Some(super::ModifierFlags::EXPORT)
@@ -759,20 +767,16 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_question(&self) -> bool {
+        self.question().is_some()
+    }
+
+    pub fn question(&self) -> Option<bolt_ts_span::Span> {
         match self {
-            Node::ParamDecl(n) => n.question.is_some(),
-            Node::MethodSignature(n) => n.question.is_some(),
-            Node::ObjectShorthandMember(_) => {
-                // TODO: n.question
-                false
-            }
-            Node::ObjectPropAssignment(_) => {
-                // TODO: n.question
-                false
-            }
-            Node::ClassPropElem(n) => n.question.is_some(),
-            Node::PropSignature(n) => n.question.is_some(),
-            _ => false,
+            Node::ParamDecl(n) => n.question,
+            Node::MethodSignature(n) => n.question,
+            Node::ClassPropElem(n) => n.question,
+            Node::PropSignature(n) => n.question,
+            _ => None,
         }
     }
 

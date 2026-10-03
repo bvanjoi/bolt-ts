@@ -5,4 +5,6 @@
 function f<X, Y>(x: X, y: Y) {
 }
 
-f<number,string>. //~ERROR: Identifier expected.
+f<number,string>. 
+//~^ ERROR: An instantiation expression cannot be followed by a property access.
+//~ ERROR: Identifier expected.

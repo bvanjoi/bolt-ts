@@ -2,8 +2,9 @@
 
 //@compiler-options: target=es2015
 //@compiler-options: strict
-//@compiler-options: exactOptionalPropertyTypes=true, false
 //@compiler-options: noEmit
+//@[exactOptionalPropertyTypes=true]  compiler-options: exactOptionalPropertyTypes
+//@[exactOptionalPropertyTypes=false] compiler-options: exactOptionalPropertyTypes=false
 
 type Box<T> = { done?: false } | { done: true; value: T };
 

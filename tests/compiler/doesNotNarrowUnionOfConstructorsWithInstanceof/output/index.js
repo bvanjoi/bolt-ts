@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/doesNotNarrowUnionOfConstructorsWithInstanceof.ts`, Apache-2.0 License
 class A {
   length;
   constructor() {this.length = 1;}

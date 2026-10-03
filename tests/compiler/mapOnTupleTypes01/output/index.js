@@ -1,7 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/mapOnTupleTypes01.ts`, Apache-2.0 License
-//@compiler-options: target=es2015
-//@compiler-options: declaration
-//@compiler-options: strictNullChecks
 var mapOnLooseArrayLiteral = [1, 2, 3, 4].map((n) => (n * n));
 var numTuple = [1];
 var a = numTuple.map((x) => (x * x));

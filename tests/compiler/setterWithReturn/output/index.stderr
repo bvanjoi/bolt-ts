@@ -4,14 +4,21 @@
    · ────
    ╰────
 
+  × Property 'p1' implicitly has type 'any', because its set accessor lacks a
+  │ parameter type annotation.
+   ╭─[../../tests/compiler/setterWithReturn/index.ts:4:14]
+ 4 │ p1
+   · ──
+   ╰────
+
   × Setters cannot return a value.
-   ╭─[../../tests/compiler/setterWithReturn/index.ts:7:11]
- 7 │ return arg1;
+   ╭─[../../tests/compiler/setterWithReturn/index.ts:8:11]
+ 8 │ return arg1;
    · ────────────
    ╰────
 
   × Setters cannot return a value.
-    ╭─[../../tests/compiler/setterWithReturn/index.ts:10:11]
- 10 │ return 0;
+    ╭─[../../tests/compiler/setterWithReturn/index.ts:11:11]
+ 11 │ return 0;
     · ─────────
     ╰────

@@ -1,0 +1,25 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/unusedPrivateVariableInClass2/index.ts:8:13]
+ 8 │ x
+   · ─
+   ╰────
+
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/unusedPrivateVariableInClass2/index.ts:11:13]
+ 11 │ y
+    · ─
+    ╰────
+
+  × 'x' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedPrivateVariableInClass2/index.ts:8:13]
+ 8 │ x
+   · ─
+   ╰────
+
+  × 'y' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateVariableInClass2/index.ts:11:13]
+ 11 │ y
+    · ─
+    ╰────

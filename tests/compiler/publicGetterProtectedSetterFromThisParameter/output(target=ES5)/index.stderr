@@ -1,0 +1,13 @@
+  × Property 'q' is protected and only accessible within class 'B' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/publicGetterProtectedSetterFromThisParameter/index.ts:38:5]
+ 38 │ b.q
+    · ───
+    ╰────
+
+  × Property 'u' is protected and only accessible within class 'B' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/publicGetterProtectedSetterFromThisParameter/index.ts:40:5]
+ 40 │ b.u
+    · ───
+    ╰────

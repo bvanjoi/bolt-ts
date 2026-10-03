@@ -1,0 +1,35 @@
+  × 'ADerived' index signatures are incompatible.
+    ╭─[../../tests/compiler/duplicateErrorClassExpression/index.ts:22:5]
+ 22 │ foo
+    · ───
+    ╰────
+
+  × Type 'typeof Derived' cannot be used as an index type.
+    ╭─[../../tests/compiler/duplicateErrorClassExpression/index.ts:30:5]
+ 30 │ x
+    · ─
+    ╰────
+
+  × 'ADerived' index signatures are incompatible.
+    ╭─[../../tests/compiler/duplicateErrorClassExpression/index.ts:22:5]
+ 22 │ foo
+    · ───
+    ╰────
+
+  × 'ADerived' index signatures are incompatible.
+    ╭─[../../tests/compiler/duplicateErrorClassExpression/index.ts:22:5]
+ 22 │ foo
+    · ───
+    ╰────
+
+  × 'ADerived' index signatures are incompatible.
+    ╭─[../../tests/compiler/duplicateErrorClassExpression/index.ts:22:5]
+ 22 │ foo
+    · ───
+    ╰────
+
+  × 'ADerived' index signatures are incompatible.
+    ╭─[../../tests/compiler/duplicateErrorClassExpression/index.ts:22:5]
+ 22 │ foo
+    · ───
+    ╰────

@@ -1,0 +1,11 @@
+  × 'person' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedSingleParameterInMethodDeclaration/index.ts:8:20]
+ 8 │ person
+   · ──────
+   ╰────
+
+  × 'unused' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedSingleParameterInMethodDeclaration/index.ts:10:13]
+ 10 │ unused
+    · ──────
+    ╰────

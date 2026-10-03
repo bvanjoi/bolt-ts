@@ -1,0 +1,35 @@
+  × Cannot find name 'wrapSuccessCallback'.
+    ╭─[../../tests/compiler/objectLiteralParameterResolution/index.ts:13:14]
+ 13 │ wrapSuccessCallback
+    · ───────────────────
+    ╰────
+
+  × Cannot find name 'requestContext'.
+    ╭─[../../tests/compiler/objectLiteralParameterResolution/index.ts:13:34]
+ 13 │ requestContext
+    · ──────────────
+    ╰────
+
+  × Cannot find name 'callback'.
+    ╭─[../../tests/compiler/objectLiteralParameterResolution/index.ts:13:50]
+ 13 │ callback
+    · ────────
+    ╰────
+
+  × Cannot find name 'wrapErrorCallback'.
+    ╭─[../../tests/compiler/objectLiteralParameterResolution/index.ts:17:12]
+ 17 │ wrapErrorCallback
+    · ─────────────────
+    ╰────
+
+  × Cannot find name 'requestContext'.
+    ╭─[../../tests/compiler/objectLiteralParameterResolution/index.ts:17:30]
+ 17 │ requestContext
+    · ──────────────
+    ╰────
+
+  × Cannot find name 'errorCallback'.
+    ╭─[../../tests/compiler/objectLiteralParameterResolution/index.ts:17:46]
+ 17 │ errorCallback
+    · ─────────────
+    ╰────

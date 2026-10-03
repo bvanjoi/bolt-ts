@@ -1,5 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/bestChoiceType.ts`, Apache-2.0 License
-//@compiler-options: target=es2015
 (''.match(/ /) || []).map((s) => (s.toLowerCase()));
 function f1() {
   var x = ''.match(/ /);

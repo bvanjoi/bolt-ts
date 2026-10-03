@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/collisionSuperAndLocalVarInProperty.ts`, Apache-2.0 License
 var _super = 10;
 class Foo {
   prop1 = {

@@ -1,10 +1,12 @@
 mod errors;
+mod is_case_sensitivity_absolute_path;
 mod memory;
 mod path;
 mod real;
 mod tree;
 
 pub use self::errors::{FsError, FsResult};
+pub use self::is_case_sensitivity_absolute_path::is_case_sensitivity_absolute_path;
 pub use self::memory::MemoryFS;
 pub use self::path::PathId;
 pub use self::real::Counter;

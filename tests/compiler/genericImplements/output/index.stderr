@@ -1,0 +1,6 @@
+  × Property 'f' in type 'X<X>' is not assignable to the same property in base
+  │ type 'I'.
+    ╭─[../../tests/compiler/genericImplements/index.ts:15:5]
+ 15 │ f
+    · ─
+    ╰────

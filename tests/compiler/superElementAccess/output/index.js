@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/superElementAccess.ts`, Apache-2.0 License
 class MyBase {
   m1(a) {
     return a;

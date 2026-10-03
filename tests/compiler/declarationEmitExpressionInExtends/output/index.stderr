@@ -1,0 +1,18 @@
+  × Property 's' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends/index.ts:11:5]
+ 11 │ s
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends/index.ts:15:17]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Variable 'q' is used before being assigned.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends/index.ts:20:1]
+ 20 │ q
+    · ─
+    ╰────

@@ -1,5 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/narrowingByDiscriminantInLoop.ts`, Apache-2.0 License
-//@compiler-options: target=es2015
 function insertInterface(callbackType) {
   for ( var memberType of callbackType.members) {
     if (memberType.type === 'const') {

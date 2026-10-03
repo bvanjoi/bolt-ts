@@ -3,6 +3,7 @@
 class f {
     set x(value) {
     //~^ ERROR: Parameter 'value' implicitly has an 'any' type.
+    //~| ERROR: Property 'x' implicitly has type 'any', because its set accessor lacks a parameter type annotation.
         return null; // Should be an error
         //~^ ERROR: Setters cannot return a value.
     }

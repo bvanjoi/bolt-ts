@@ -8,6 +8,7 @@ use bolt_ts_middle::F64Represent;
 use bolt_ts_utils::FxIndexMap;
 
 use super::CheckMode;
+use super::ExpressionOrEntityName;
 use super::InstantiationTyMap;
 use super::TyCacheTrait;
 use super::TyChecker;
@@ -163,7 +164,7 @@ impl<'cx> TyChecker<'cx> {
         };
         self.check_property_access_expression_or_qualified_name(
             node.id,
-            node.left.id(),
+            ExpressionOrEntityName::EntityName(node.left),
             left_ty,
             node.right,
             check_mode,
@@ -434,9 +435,18 @@ impl<'cx> TyChecker<'cx> {
                         Some(outer_ty_params)
                     };
                 }
-                ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
-                | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_)
-                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeAliasDecl(_) => {
+                ClassDecl(_)
+                | ClassExpr(_)
+                | InterfaceDecl(_)
+                | CallSigDecl(_)
+                | MethodSignature(_)
+                | FnTy(_)
+                | CtorSigDecl(_)
+                | FnDecl(_)
+                | ClassMethodElem(_)
+                | ArrowFnExpr(_)
+                | TypeAliasDecl(_)
+                | ObjectMethodMember(_) => {
                     let outer_ty_params = self.get_outer_ty_params::<INCLUDE_THIS>(id);
                     if node.is_fn_expr()
                         || node.is_arrow_fn_expr()

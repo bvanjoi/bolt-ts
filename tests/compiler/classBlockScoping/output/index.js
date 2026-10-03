@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/classBlockScoping.ts`, Apache-2.0 License
 function f(b) {
   var Foo;
   if (b) {

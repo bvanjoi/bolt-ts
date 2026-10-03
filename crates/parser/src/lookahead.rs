@@ -1,4 +1,4 @@
-use super::state::is_jsx_like_variant;
+use super::const_variant::is_jsx_like_variant;
 use super::{PResult, ParserState, Tristate, utils::ParseSuccess};
 
 use bolt_ts_ast::{BinPrec, TokenKind, keyword};
@@ -429,6 +429,16 @@ impl<'a, 'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     // TODO: split it into single function such as `is_start_of_decl_for_module_or_namespace`.
     pub(super) fn is_start_of_decl(&mut self) -> bool {
         self.lookahead(Lookahead::is_decl)
+    }
+
+    pub(super) fn is_start_of_declaration_when_current_token_is_type_or_interface_kw(
+        &mut self,
+    ) -> bool {
+        debug_assert!(matches!(
+            self.token.kind,
+            TokenKind::Type | TokenKind::Interface
+        ));
+        self.lookahead(|this| this.next_token_is_identifier_on_same_line())
     }
 
     pub(super) fn is_paren_arrow_fn_expr(&mut self) -> Tristate {

@@ -1,0 +1,5 @@
+  × 'i' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedVariablesinForLoop/index.ts:8:13]
+ 8 │ i
+   · ─
+   ╰────

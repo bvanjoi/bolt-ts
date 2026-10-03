@@ -1,0 +1,27 @@
+  × Property 'p' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/declFileTypeAnnotationUnionType/index.ts:8:13]
+ 8 │ p
+   · ─
+   ╰────
+
+  × Property 'q' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declFileTypeAnnotationUnionType/index.ts:13:17]
+ 13 │ q
+    · ─
+    ╰────
+
+  × Property 'r' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declFileTypeAnnotationUnionType/index.ts:17:17]
+ 17 │ r
+    · ─
+    ╰────
+
+  × Property 's' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declFileTypeAnnotationUnionType/index.ts:22:13]
+ 22 │ s
+    · ─
+    ╰────

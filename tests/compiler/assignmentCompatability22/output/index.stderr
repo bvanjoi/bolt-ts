@@ -1,5 +1,5 @@
   × Type '__test1__.interfaceWithPublicAndOptional<number, string>' is not
-  │ assignable to type '{ one: (boolean)[]; }'.
+  │ assignable to type '{ one: boolean[]; }'.
     ╭─[../../tests/compiler/assignmentCompatability22/index.ts:13:1]
  13 │ __test2__.__val__obj
     · ────────────────────

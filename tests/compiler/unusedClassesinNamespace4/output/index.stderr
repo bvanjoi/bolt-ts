@@ -1,0 +1,5 @@
+  × 'c3' is declared but never used.
+    ╭─[../../tests/compiler/unusedClassesinNamespace4/index.ts:16:11]
+ 16 │ c3
+    · ──
+    ╰────

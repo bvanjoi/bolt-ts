@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/recursivelySpecializedConstructorDeclaration.ts`, Apache-2.0 License
 var MsPortal = {};
 (function (MsPortal) {
 
@@ -20,9 +19,12 @@ var MsPortal = {};
         ItemList.ViewModel = ViewModel;
         
       })(ItemList);
+      Base.ItemList = ItemList;
       
     })(Base);
+    Controls.Base = Base;
     
   })(Controls);
+  MsPortal.Controls = Controls;
   
 })(MsPortal);

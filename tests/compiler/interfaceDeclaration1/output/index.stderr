@@ -1,0 +1,56 @@
+  × Duplicate identifier 'item'.
+   ╭─[../../tests/compiler/interfaceDeclaration1/index.ts:7:5]
+ 6 │ item:number;
+   · ─────┬─────
+   ·      ╰── Previous definition here
+ 7 │     item:number
+   ·     ───────────
+   ╰────
+
+  × Duplicate identifier 'item'.
+    ╭─[../../tests/compiler/interfaceDeclaration1/index.ts:14:5]
+ 13 │ item:any;
+    · ────┬───
+    ·     ╰── Previous definition here
+ 14 │     item:number
+    ·     ───────────
+    ╰────
+
+  × Subsequent property declarations must have the same type. Property 'item'
+  │ must be of type 'any', but here has type 'number'.
+    ╭─[../../tests/compiler/interfaceDeclaration1/index.ts:14:5]
+ 14 │ item
+    · ────
+    ╰────
+
+  × Type 'I5' recursively references itself as a base type.
+    ╭─[../../tests/compiler/interfaceDeclaration1/index.ts:30:11]
+ 30 │ I5 extends I5
+    · ──         ─┬
+    ·  │          ╰── Base type is defined here.
+    ╰────
+
+  × Variable 'v1' is used before being assigned.
+    ╭─[../../tests/compiler/interfaceDeclaration1/index.ts:42:1]
+ 42 │ v1
+    · ──
+    ╰────
+
+  × Property 'prototype' is missing.
+    ╭─[../../tests/compiler/interfaceDeclaration1/index.ts:45:7]
+ 45 │ C1
+    · ──
+    ╰────
+
+  × Type 'i8' recursively references itself as a base type.
+    ╭─[../../tests/compiler/interfaceDeclaration1/index.ts:52:11]
+ 52 │ i8 extends i9
+    · ──         ─┬
+    ·  │          ╰── Base type is defined here.
+    ╰────
+
+  × Interface 'i12' cannot simultaneously extend types 'i10' and 'i11'.
+    ╭─[../../tests/compiler/interfaceDeclaration1/index.ts:64:11]
+ 64 │ i12
+    · ───
+    ╰────

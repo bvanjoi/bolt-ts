@@ -1,0 +1,5 @@
+  × 'U' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedTypeParameters_infer/index.ts:6:44]
+ 6 │ U
+   · ─
+   ╰────

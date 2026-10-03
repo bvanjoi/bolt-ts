@@ -1,0 +1,48 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/declarationEmitExpressionInExtends3/index.ts:8:2]
+ 8 │ x
+   · ─
+   ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends3/index.ts:13:5]
+ 13 │ x
+    · ─
+    ╰────
+
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends3/index.ts:15:5]
+ 15 │ y
+    · ─
+    ╰────
+
+  × Argument of type 'undefined' is not assignable to parameter of type
+  │ 'LocalInterface'.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends3/index.ts:37:60]
+ 37 │ undefined
+    · ─────────
+    ╰────
+
+  × Argument of type 'undefined' is not assignable to parameter of type
+  │ 'LocalInterface'.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends3/index.ts:42:64]
+ 42 │ undefined
+    · ─────────
+    ╰────
+
+  × Argument of type 'undefined' is not assignable to parameter of type
+  │ 'LocalInterface'.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends3/index.ts:47:64]
+ 47 │ undefined
+    · ─────────
+    ╰────
+
+  × Argument of type 'undefined' is not assignable to parameter of type
+  │ 'LocalInterface'.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends3/index.ts:52:64]
+ 52 │ undefined
+    · ─────────
+    ╰────

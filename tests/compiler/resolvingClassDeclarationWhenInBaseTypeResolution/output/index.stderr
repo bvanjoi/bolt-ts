@@ -1,0 +1,143 @@
+  × Class 'nitidus' used before its declaration.
+   ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:8:45]
+ 8 │ nitidus
+   · ───────
+   ╰────
+
+  × Class 'gilbertii' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:125:48]
+ 125 │ gilbertii
+     · ─────────
+     ╰────
+
+  × Class 'mixtus' used before its declaration.
+    ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:16:56]
+ 16 │ mixtus
+    · ──────
+    ╰────
+
+  × Class 'pygmaea' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:213:47]
+ 213 │ pygmaea
+     · ───────
+     ╰────
+
+  × Class 'psilurus' used before its declaration.
+    ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:53:48]
+ 53 │ psilurus
+    · ────────
+    ╰────
+
+  × Class 'jugularis' used before its declaration.
+    ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:69:44]
+ 69 │ jugularis
+    · ─────────
+    ╰────
+
+  × Class 'aurata' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:106:44]
+ 106 │ aurata
+     · ──────
+     ╰────
+
+  × Class 'johorensis' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:138:43]
+ 138 │ johorensis
+     · ──────────
+     ╰────
+
+  × Class 'falconeri' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:195:54]
+ 195 │ falconeri
+     · ─────────
+     ╰────
+
+  × Class 'ciliolabrum' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:262:46]
+ 262 │ ciliolabrum
+     · ───────────
+     ╰────
+
+  × Class 'coludo' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:288:35]
+ 288 │ coludo
+     · ──────
+     ╰────
+
+  × Class 'oreas' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:318:41]
+ 318 │ oreas
+     · ─────
+     ╰────
+
+  × Class 'johorensis' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:421:53]
+ 421 │ johorensis
+     · ──────────
+     ╰────
+
+  × Class 'punicus' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:455:55]
+ 455 │ punicus
+     · ───────
+     ╰────
+
+  × Class 'stolzmanni' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:489:52]
+ 489 │ stolzmanni
+     · ──────────
+     ╰────
+
+  × Class 'portoricensis' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:511:42]
+ 511 │ portoricensis
+     · ─────────────
+     ╰────
+
+  × Class 'pelurus' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:517:50]
+ 517 │ pelurus
+     · ───────
+     ╰────
+
+  × Class 'stolzmanni' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:558:50]
+ 558 │ stolzmanni
+     · ──────────
+     ╰────
+
+  × Class 'lasiurus' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:523:49]
+ 523 │ lasiurus
+     · ────────
+     ╰────
+
+  × Class 'daphaenodon' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:574:53]
+ 574 │ daphaenodon
+     · ───────────
+     ╰────
+
+  × Class 'johorensis' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:606:54]
+ 606 │ johorensis
+     · ──────────
+     ╰────
+
+  × Class 'stolzmanni' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:616:52]
+ 616 │ stolzmanni
+     · ──────────
+     ╰────
+
+  × Class 'psilurus' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:633:55]
+ 633 │ psilurus
+     · ────────
+     ╰────
+
+  × Class 'lasiurus' used before its declaration.
+     ╭─[../../tests/compiler/resolvingClassDeclarationWhenInBaseTypeResolution/index.ts:798:53]
+ 798 │ lasiurus
+     · ────────
+     ╰────

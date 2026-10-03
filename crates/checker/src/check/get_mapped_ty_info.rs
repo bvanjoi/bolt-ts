@@ -199,7 +199,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_base_constraint_of_ty(modifier_ty)
             }
             && self.every_type(base_constraint, |this, t| {
-                this.is_array_or_tuple(t) || this.is_array_or_tuple_or_intersection(t)
+                this.is_array_or_tuple_ty(t) || this.is_array_or_tuple_or_intersection(t)
             })
         {
             let mapper = self.prepend_ty_mapping(ty_var, base_constraint, m.mapper);

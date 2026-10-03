@@ -1,0 +1,11 @@
+  × Expected ','.
+   ╭─[../../tests/compiler/jsFileCompilationTypeSyntaxOfVar/index.js:6:6]
+ 6 │ :
+   · ─
+   ╰────
+
+  × Cannot find name 'number'.
+   ╭─[../../tests/compiler/jsFileCompilationTypeSyntaxOfVar/index.js:6:14]
+ 6 │ number
+   · ──────
+   ╰────

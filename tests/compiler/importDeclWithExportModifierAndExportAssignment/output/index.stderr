@@ -1,0 +1,12 @@
+  × Namespace 'x' has no exported member 'c'.
+    ╭─[../../tests/compiler/importDeclWithExportModifierAndExportAssignment/index.ts:10:21]
+ 10 │ c
+    · ─
+    ╰────
+
+  × An export assignment cannot be used in a module with other exported
+  │ elements.
+    ╭─[../../tests/compiler/importDeclWithExportModifierAndExportAssignment/index.ts:12:1]
+ 12 │ export = x;
+    · ───────────
+    ╰────

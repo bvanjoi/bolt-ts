@@ -1,0 +1,48 @@
+  × Duplicate identifier 'a'.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty/index.ts:25:9]
+ 23 │ a() { return 0; },
+    · ┬
+    · ╰── Previous definition here
+ 24 │     set a(v: number) { },
+ 25 │     get a
+    ·         ─
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+   ╭─[../../tests/compiler/duplicateObjectLiteralProperty/index.ts:9:5]
+ 7 │ a: 1,
+   · ┬
+   · ╰── Previous definition here
+ 8 │     b: true, // OK
+ 9 │     a
+   ·     ─
+   ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty/index.ts:11:5]
+  9 │ a: 56,   // Duplicate
+    · ┬
+    · ╰── Previous definition here
+ 10 │     //~^ ERROR: An object literal cannot have multiple properties with the same name.
+ 11 │     \u0061
+    ·     ──────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty/index.ts:13:5]
+ 11 │ \u0061: "ss", // Duplicate
+    · ───┬──
+    ·    ╰── Previous definition here
+ 12 │     //~^ ERROR: An object literal cannot have multiple properties with the same name.
+ 13 │     a
+    ·     ─
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty/index.ts:16:9]
+ 15 │ c: 1,
+    · ┬
+    · ╰── Previous definition here
+ 16 │         "c"
+    ·         ───
+    ╰────

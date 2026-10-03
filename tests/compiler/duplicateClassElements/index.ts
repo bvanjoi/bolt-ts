@@ -29,10 +29,14 @@ class a {
 
     public z() {
     }
-    get z() { //~ERROR: Duplicate identifier 'z'.
+    get z() { 
+        //~^ ERROR: Duplicate identifier 'z'.
+        //~| ERROR: Duplicate identifier 'z'.
         return "Hello";
     }
-    set z(_y: string) { //~ERROR: Duplicate identifier 'z'.
+    set z(_y: string) { 
+        //~^ ERROR: Duplicate identifier 'z'.
+        //~| ERROR: Duplicate identifier 'z'.
     }
 
     get x2() {
@@ -42,14 +46,16 @@ class a {
     }
     public x2;
     //~^ ERROR: Duplicate identifier 'x2'.
-    //~| ERROR: Subsequent variable declarations must have the same type. Variable 'x2' must be of type 'number', but here has type 'any'.
+    //~| ERROR: Subsequent property declarations must have the same type. Property 'x2' must be of type 'number', but here has type 'any'.
 
     get z2() {
         return "Hello";
     }
     set z2(_y: string) {
     }
-    public z2() { //~ERROR: Duplicate identifier 'z2'.
+    public z2() { 
+        //~^ ERROR: Duplicate identifier 'z2'.
+        //~| ERROR: Duplicate identifier 'z2'.
     }
 
 }

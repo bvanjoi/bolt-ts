@@ -1,0 +1,6 @@
+  × Initializer of instance member variable 'p' cannot reference identifier
+  │ 'x' declared in the constructor.
+    ╭─[../../tests/compiler/classMemberInitializerScoping2/index.ts:15:9]
+ 15 │ x
+    · ─
+    ╰────

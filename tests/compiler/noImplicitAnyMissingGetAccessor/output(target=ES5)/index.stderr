@@ -1,0 +1,25 @@
+  × Parameter 'str' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/noImplicitAnyMissingGetAccessor/index.ts:9:33]
+ 9 │ str
+   · ───
+   ╰────
+
+  × Property 'message' implicitly has type 'any', because its set accessor
+  │ lacks a parameter type annotation.
+   ╭─[../../tests/compiler/noImplicitAnyMissingGetAccessor/index.ts:9:25]
+ 9 │ message
+   · ───────
+   ╰────
+
+  × Parameter 'str' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyMissingGetAccessor/index.ts:16:24]
+ 16 │ str
+    · ───
+    ╰────
+
+  × Property 'message' implicitly has type 'any', because its set accessor
+  │ lacks a parameter type annotation.
+    ╭─[../../tests/compiler/noImplicitAnyMissingGetAccessor/index.ts:16:16]
+ 16 │ message
+    · ───────
+    ╰────

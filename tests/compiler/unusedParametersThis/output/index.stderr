@@ -1,0 +1,6 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/unusedParametersThis/index.ts:9:12]
+ 9 │ a
+   · ─
+   ╰────

@@ -1,0 +1,41 @@
+  × 'person' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedLocalsOnFunctionDeclarationWithinFunctionExpression2/index.ts:7:25]
+ 7 │ person
+   · ──────
+   ╰────
+
+  × 'maker' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsOnFunctionDeclarationWithinFunctionExpression2/index.ts:11:14]
+ 11 │ maker
+    · ─────
+    ╰────
+
+  × 'unused' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedLocalsOnFunctionDeclarationWithinFunctionExpression2/index.ts:9:9]
+ 9 │ unused
+   · ──────
+   ╰────
+
+  × 'child' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsOnFunctionDeclarationWithinFunctionExpression2/index.ts:11:20]
+ 11 │ child
+    · ─────
+    ╰────
+
+  × 'unused2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsOnFunctionDeclarationWithinFunctionExpression2/index.ts:14:13]
+ 14 │ unused2
+    · ───────
+    ╰────
+
+  × 'child2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsOnFunctionDeclarationWithinFunctionExpression2/index.ts:17:21]
+ 17 │ child2
+    · ──────
+    ╰────
+
+  × 'unused3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedLocalsOnFunctionDeclarationWithinFunctionExpression2/index.ts:19:13]
+ 19 │ unused3
+    · ───────
+    ╰────

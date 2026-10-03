@@ -346,6 +346,7 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
         }
     }
 
+    // TODO: remove this
     fn stmt_is_omitted(&self, stmt: &'cx ast::Stmt<'cx>) -> bool {
         use ast::StmtKind::*;
         match stmt.kind {
@@ -622,24 +623,24 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
         });
     }
 
-    fn emit_leading_comments(&mut self, pos: u32) {
-        if self.resolver.config().compiler_options().remove_comments() {
-            return;
-        }
-        bolt_ts_scanner::iterate_comment_ranges::<false, false>(
-            &self.origin,
-            pos as usize,
-            |kind, start, end, has_trailing_newline| {
-                let comment = &self.origin[start..end];
-                self.emitter.print().p(comment);
-                if has_trailing_newline {
-                    self.emitter.print().p_newline();
-                } else if matches!(kind, bolt_ts_scanner::CommentKind::MultiLine) {
-                    self.emitter.print().p_whitespace();
-                }
-                false
-            },
-        );
+    fn emit_leading_comments(&mut self, _pos: u32) {
+        // if self.resolver.config().compiler_options().remove_comments() {
+        //     return;
+        // }
+        // bolt_ts_scanner::iterate_comment_ranges::<false, false>(
+        //     &self.origin,
+        //     pos as usize,
+        //     |kind, start, end, has_trailing_newline| {
+        //         let comment = &self.origin[start..end];
+        //         self.emitter.print().p(comment);
+        //         if has_trailing_newline {
+        //             self.emitter.print().p_newline();
+        //         } else if matches!(kind, bolt_ts_scanner::CommentKind::MultiLine) {
+        //             self.emitter.print().p_whitespace();
+        //         }
+        //         false
+        //     },
+        // );
     }
 }
 
@@ -1091,20 +1092,16 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                     this.emitter.content.p_newline();
                     this.visit_nested_module_decl(inner);
                     this.emitter.content.p_newline();
-                    if let Some(ms) = inner.modifiers
-                        && ms.flags.contains(ast::ModifierFlags::EXPORT)
-                        && !ms.flags.contains(ast::ModifierFlags::AMBIENT)
-                    {
-                        this.emitter.content.p(&param_name);
-                        this.emitter.content.p_dot();
-                        this.visit_ident(inner.name);
-                        this.emitter.content.p_whitespace();
-                        this.emitter.content.p_eq();
-                        this.emitter.content.p_whitespace();
-                        this.visit_ident(inner.name);
-                        this.emitter.content.p_semi();
-                        this.emitter.content.p_newline();
-                    }
+
+                    this.emitter.content.p(&param_name);
+                    this.emitter.content.p_dot();
+                    this.visit_ident(inner.name);
+                    this.emitter.content.p_whitespace();
+                    this.emitter.content.p_eq();
+                    this.emitter.content.p_whitespace();
+                    this.visit_ident(inner.name);
+                    this.emitter.content.p_semi();
+                    this.emitter.content.p_newline();
                 });
             }
             ast::NestedModuleBlock::Block(block) => {
@@ -1786,7 +1783,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                 }
             }
             ExprWithTyArgs(n) => self.visit_expr_with_ty_args(n),
-            Import(_) => todo!(),
+            Import(n) => self.visit_import_expression(n),
         }
     }
 

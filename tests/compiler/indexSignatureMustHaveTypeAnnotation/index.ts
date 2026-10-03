@@ -13,7 +13,7 @@ interface I {
 class C {
     // Used to be indexer, now it is a computed property
     [x]: string
-    //~^ ERROR: Property 'computed' has no initializer and is not definitely assigned in the constructor.
+    //~^ ERROR: Property '[x]' has no initializer and is not definitely assigned in the constructor.
     //~| ERROR: Cannot find name 'x'.
     
 }

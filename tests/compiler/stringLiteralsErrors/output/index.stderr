@@ -1,0 +1,137 @@
+  × Unterminated string literal.
+   ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:6:10]
+ 6 │  "line 1     //~ ERROR: Unterminated string literal.
+   · ─────────────────────────────────────────────────────
+   ╰────
+
+  × Unterminated string literal.
+   ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:7:1]
+ 7 │ ";                    //~ ERROR: Unterminated string literal.
+   · ──────────────────────────────────────────────────────────────
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:7:1]
+ 7 │ ";                    //~ ERROR: Unterminated string literal.
+   · ──────────────────────────────────────────────────────────────
+   ╰────
+
+  × Unterminated string literal.
+   ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:9:10]
+ 9 │  'line 1     //~ ERROR: Unterminated string literal.
+   · ─────────────────────────────────────────────────────
+   ╰────
+
+  × Unterminated string literal.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:10:1]
+ 10 │ ';                    //~ ERROR: Unterminated string literal.
+    · ──────────────────────────────────────────────────────────────
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:10:1]
+ 10 │ ';                    //~ ERROR: Unterminated string literal.
+    · ──────────────────────────────────────────────────────────────
+    ╰────
+
+  × Unterminated string literal.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:13:10]
+ 13 │  'line 1\    //~ ERROR: Unterminated string literal.
+    · ─────────────────────────────────────────────────────
+    ╰────
+
+  × Unterminated string literal.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:14:1]
+ 14 │ ';                    //~ ERROR: Unterminated string literal.
+    · ──────────────────────────────────────────────────────────────
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:14:1]
+ 14 │ ';                    //~ ERROR: Unterminated string literal.
+    · ──────────────────────────────────────────────────────────────
+    ╰────
+
+  × Unterminated string literal.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:16:10]
+ 16 │  'line 1\    //~ ERROR: Unterminated string literal.
+    · ─────────────────────────────────────────────────────
+    ╰────
+
+  × Unterminated string literal.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:17:1]
+ 17 │ ';                    //~ ERROR: Unterminated string literal.
+    · ──────────────────────────────────────────────────────────────
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:17:1]
+ 17 │ ';                    //~ ERROR: Unterminated string literal.
+    · ──────────────────────────────────────────────────────────────
+    ╰────
+
+  × Unterminated string literal.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:21:10]
+ 21 │  "unterminated     //~ERROR: Unterminated string literal.
+    · ──────────────────────────────────────────────────────────
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:22:1]
+ 22 │ var
+    · ───
+    ╰────
+
+  × Unterminated string literal.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:22:10]
+ 22 │  'unterminated     //~ERROR: Unterminated string literal.
+    · ──────────────────────────────────────────────────────────
+    ╰────
+
+  × Unterminated string literal.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:26:10]
+ 26 │  "unterminated '   //~ERROR: Unterminated string literal.
+    · ──────────────────────────────────────────────────────────
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:27:1]
+ 27 │ var
+    · ───
+    ╰────
+
+  × Unterminated string literal.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:27:10]
+ 27 │  'unterminated "   //~ERROR: Unterminated string literal.
+    · ──────────────────────────────────────────────────────────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:31:12]
+ 31 │ \u00
+    · ────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:32:13]
+ 32 │ \u00
+    · ────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:33:13]
+ 33 │ \x0
+    · ───
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:34:13]
+ 34 │ \x
+    · ──
+    ╰────
+
+  × Unterminated string literal.
+    ╭─[../../tests/compiler/stringLiteralsErrors/index.ts:37:11]
+ 37 │  " 
+    · ────
+    ╰────

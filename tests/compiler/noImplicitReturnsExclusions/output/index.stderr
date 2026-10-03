@@ -1,0 +1,45 @@
+  × Not all code paths return a value.
+    ╭─[../../tests/compiler/noImplicitReturnsExclusions/index.ts:23:26]
+ 23 │ string | undefined
+    · ──────────────────
+    ╰────
+
+  × Not all code paths return a value.
+    ╭─[../../tests/compiler/noImplicitReturnsExclusions/index.ts:32:26]
+ 32 │ unknown
+    · ───────
+    ╰────
+
+  × Not all code paths return a value.
+    ╭─[../../tests/compiler/noImplicitReturnsExclusions/index.ts:49:10]
+ 49 │ f13
+    · ───
+    ╰────
+
+  × Not all code paths return a value.
+    ╭─[../../tests/compiler/noImplicitReturnsExclusions/index.ts:54:10]
+ 54 │ f14
+    · ───
+    ╰────
+
+  × Not all code paths return a value.
+    ╭─[../../tests/compiler/noImplicitReturnsExclusions/index.ts:59:10]
+ 59 │ f15
+    · ───
+    ╰────
+
+  × Not all code paths return a value.
+    ╭─[../../tests/compiler/noImplicitReturnsExclusions/index.ts:65:10]
+ 65 │ f16
+    · ───
+    ╰────
+
+  × Not all code paths return a value.
+     ╭─[../../tests/compiler/noImplicitReturnsExclusions/index.ts:101:53]
+ 101 │ ╭─▶ async (item) => { // Error, contextual return type of Promise<unknown>
+ 102 │ │     //~^ ERROR: Not all code paths return a value.
+ 103 │ │     if (item instanceof HistoryItem) {
+ 104 │ │       return executeCommand("vscode.open", item.input.location.uri);
+ 105 │ │     }
+ 106 │ ╰─▶ }
+     ╰────

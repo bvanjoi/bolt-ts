@@ -54,20 +54,34 @@
     · ─────
     ╰────
 
+  × Property 'x' is protected and only accessible through an instance of class
+  │ 'C'. This is an instance of class 'A'.
+    ╭─[../../tests/compiler/protectedMembers/index.ts:81:9]
+ 81 │ a.x
+    · ───
+    ╰────
+
+  × Property 'x' is protected and only accessible through an instance of class
+  │ 'C'. This is an instance of class 'B'.
+    ╭─[../../tests/compiler/protectedMembers/index.ts:83:9]
+ 83 │ b.x
+    · ───
+    ╰────
+
   × Type 'B1' is not assignable to type 'A1'.
-     ╭─[../../tests/compiler/protectedMembers/index.ts:110:1]
- 110 │ a1
+     ╭─[../../tests/compiler/protectedMembers/index.ts:112:1]
+ 112 │ a1
      · ──
      ╰────
 
   × Type 'A1' is not assignable to type 'B1'.
-     ╭─[../../tests/compiler/protectedMembers/index.ts:112:1]
- 112 │ b1
+     ╭─[../../tests/compiler/protectedMembers/index.ts:114:1]
+ 114 │ b1
      · ──
      ╰────
 
   × Class 'B3' incorrectly extends base class 'A3'.
-     ╭─[../../tests/compiler/protectedMembers/index.ts:126:7]
- 126 │ B3
+     ╭─[../../tests/compiler/protectedMembers/index.ts:128:7]
+ 128 │ B3
      · ──
      ╰────

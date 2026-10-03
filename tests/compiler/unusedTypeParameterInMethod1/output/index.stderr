@@ -1,0 +1,5 @@
+  × 'X' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedTypeParameterInMethod1/index.ts:8:15]
+ 8 │ X
+   · ─
+   ╰────

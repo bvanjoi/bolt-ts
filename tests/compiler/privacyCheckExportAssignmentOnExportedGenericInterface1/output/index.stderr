@@ -1,0 +1,5 @@
+  × Variable 'Foo' is used before being assigned.
+    ╭─[../../tests/compiler/privacyCheckExportAssignmentOnExportedGenericInterface1/index.ts:14:10]
+ 14 │ Foo
+    · ───
+    ╰────

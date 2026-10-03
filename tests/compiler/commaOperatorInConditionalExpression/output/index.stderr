@@ -1,4 +1,4 @@
-  × Type '{ }' is not assignable to type '{ __Index: error; }'.
+  × 'string' index signatures are incompatible.
     ╭─[../../tests/compiler/commaOperatorInConditionalExpression/index.ts:12:11]
  12 │ a2
     · ──

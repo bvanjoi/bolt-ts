@@ -1,5 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/indexedAccessCanBeHighOrder.ts`, Apache-2.0 License
-//@compiler-options: target=es2015
 function impl(a, b) {
   var item = get(a, b);
   return find(item);

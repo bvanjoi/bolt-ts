@@ -6,11 +6,14 @@ class A {
     m1: string;
     //~^ ERROR: Property 'm1' has no initializer and is not definitely assigned in the constructor.
     f() {}
-    m1 (a: string): void;
+    m1 (a: string): void; 
     //~^ ERROR: Duplicate identifier 'm1'.
+    //~| ERROR: Duplicate identifier 'm1'.
     m1 (a: number): void;
     //~^ ERROR: Duplicate identifier 'm1'.
+    //~| ERROR: Duplicate identifier 'm1'.
     m1 (a: any): void {
     //~^ ERROR: Duplicate identifier 'm1'.
+    //~| ERROR: Duplicate identifier 'm1'.
     }
 }

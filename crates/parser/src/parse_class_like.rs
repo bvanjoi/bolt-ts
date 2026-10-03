@@ -4,9 +4,9 @@ use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
 use super::CheckParameterFlags;
+use super::const_variant::is_js_variant;
 use super::errors;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::is_js_variant;
 use super::{PResult, ParserState};
 use super::{SignatureFlags, keyword};
 
@@ -295,7 +295,16 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         {
             let error = errors::ClassesMayNotHaveAFieldNamedConstructor { span: name.span() };
             self.push_error(Box::new(error));
+        } else if self.target < bolt_ts_config::Target::ES2015
+            && !self.node_context_flags.contains(ast::NodeFlags::AMBIENT)
+            && modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ACCESSOR))
+        {
+            let error = errors::PropertiesWithTheAccessorModifierAreOnlyAvailableWhenTargetingEcmascript2015AndHigher {
+                span: name.span()
+            };
+            self.push_error(Box::new(error));
         }
+
         self.do_inside_of_parse_context(ParseContext::CLASS_FIELD_DEFINITION, |this| {
             let excl = if question_token.is_none() && !this.has_preceding_line_break() {
                 this.parse_optional(TokenKind::Excl)
@@ -585,14 +594,11 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     ) -> &'cx ast::ClassElems<'cx> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace);
-        let elems = self.do_outside_of_parse_context(
-            ParseContext::TOP_LEVEL.union(ParseContext::ASYNC),
-            |this| {
-                this.parse_list(ParsingContext::CLASS_MEMBERS, |this| {
-                    this.parse_class_element::<ALLOW_ABSTRACT_MODIFIER>()
-                })
-            },
-        );
+        let elems = self.do_outside_of_parse_context(ParseContext::ASYNC, |this| {
+            this.parse_list(ParsingContext::CLASS_MEMBERS, |this| {
+                this.parse_class_element::<ALLOW_ABSTRACT_MODIFIER>()
+            })
+        });
         let end = self.token.end();
         self.expect(TokenKind::RBrace);
         let span = Span::new(start, end, self.module_id);

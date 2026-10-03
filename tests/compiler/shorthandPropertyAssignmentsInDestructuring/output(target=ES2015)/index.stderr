@@ -1,0 +1,85 @@
+  × Cannot find name 's'.
+     ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:127:12]
+ 127 │ s
+     · ─
+     ╰────
+
+Advice: 
+  ☞ Shorthand property need an initializer.
+     ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:127:12]
+ 127 │ s
+     · ─
+     ╰────
+
+  × Did you mean to use a ':'? An '=' can only follow a property name when the
+  │ containing object literal is part of a destructuring pattern.
+     ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:127:12]
+ 127 │ s = 5
+     · ─────
+     ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:43:9]
+ 43 │ s3
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:50:12]
+ 50 │ s3
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:77:5]
+ 77 │ y1
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:83:8]
+ 83 │ y1
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:83:8]
+ 83 │ y1
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:90:5]
+ 90 │ y2
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:90:20]
+ 90 │ x
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:97:8]
+ 97 │ y2
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:97:26]
+ 97 │ x
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:97:8]
+ 97 │ y2
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/shorthandPropertyAssignmentsInDestructuring/index.ts:97:26]
+ 97 │ x
+    · ─
+    ╰────

@@ -1,0 +1,5 @@
+  × Property 'Bar' does not exist on type 'typeof Foo2'.
+    ╭─[../../tests/compiler/moduleAndInterfaceWithSameName/index.ts:25:15]
+ 25 │ Bar
+    · ───
+    ╰────

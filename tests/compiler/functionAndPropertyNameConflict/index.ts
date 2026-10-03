@@ -2,7 +2,9 @@
 
 class C65 {
     public aaaaa() { }
-    public get aaaaa() { //~ ERROR: Duplicate identifier 'aaaaa'.
+    public get aaaaa() {
+    //~^ ERROR: Duplicate identifier 'aaaaa'.
+    //~| ERROR: Duplicate identifier 'aaaaa'.
         return 1;
     }
 }

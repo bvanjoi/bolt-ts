@@ -1,0 +1,5 @@
+  × Namespace 'b' has no exported member 'ma'.
+    ╭─[../../tests/compiler/importAnImport/index.ts:10:23]
+ 10 │ ma
+    · ──
+    ╰────

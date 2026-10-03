@@ -1,0 +1,5 @@
+  × 'y' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedPrivateVariableInClass5/index.ts:9:13]
+ 9 │ y
+   · ─
+   ╰────

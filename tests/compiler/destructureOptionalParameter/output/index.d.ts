@@ -2,7 +2,7 @@ declare function f1({a, b}?: {
   a: number;
   b: string;
 }): void;
-declare function f2({a, b}: {
+declare function f2({a, b}?: {
   a: number;
   b: number;
 }): void;

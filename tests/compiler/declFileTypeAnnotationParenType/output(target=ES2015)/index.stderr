@@ -1,0 +1,18 @@
+  × Property 'p' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/declFileTypeAnnotationParenType/index.ts:8:13]
+ 8 │ p
+   · ─
+   ╰────
+
+  × This kind of expression is always truthy.
+    ╭─[../../tests/compiler/declFileTypeAnnotationParenType/index.ts:15:29]
+ 15 │ (() => new c())
+    · ───────────────
+    ╰────
+
+  × This kind of expression is always truthy.
+    ╭─[../../tests/compiler/declFileTypeAnnotationParenType/index.ts:17:9]
+ 17 │ (() => new c())
+    · ───────────────
+    ╰────

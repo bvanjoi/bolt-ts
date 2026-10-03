@@ -3,6 +3,7 @@ use bolt_ts_ast::ArrowFnExprBody;
 use bolt_ts_binder::{SymbolFlags, SymbolID};
 use bolt_ts_span::Span;
 
+use super::InferenceCompare;
 use super::TyChecker;
 use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::check_type_related_to::TypeRelatedChecker;
@@ -417,7 +418,7 @@ impl<'cx> TyChecker<'cx> {
             target,
             check_mode,
             false,
-            |this, source, target, _report_errorr| {
+            |this, source, target, _report_error| {
                 if this
                     .c
                     .check_type_assignable_to(source, target, None, NOOP_HEADING_ERROR)
@@ -427,6 +428,7 @@ impl<'cx> TyChecker<'cx> {
                     Ternary::FALSE
                 }
             },
+            InferenceCompare::CompareTypesAssignable,
         ) != Ternary::FALSE
     }
 }

@@ -756,7 +756,7 @@ pub struct ClassMethodElem<'cx> {
 
 impl ClassMethodElem<'_> {
     pub fn fn_flags(&self) -> FnFlags {
-        let mut flags = FnFlags::INVALID;
+        let mut flags = FnFlags::empty();
         if self.asterisk.is_some() {
             flags |= FnFlags::GENERATOR;
         }
@@ -1063,6 +1063,14 @@ pub struct ParamDecl<'cx> {
 impl ParamDecl<'_> {
     pub fn is_rest(&self) -> bool {
         self.dotdotdot.is_some()
+    }
+
+    pub fn is_parameter_property_declaration(&self) -> bool {
+        // TODO: can we ignore the parent is class constructor?
+        self.modifiers.is_some_and(|ms| {
+            ms.flags
+                .intersects(ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+        })
     }
 }
 

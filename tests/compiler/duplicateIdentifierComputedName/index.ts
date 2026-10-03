@@ -4,10 +4,10 @@
 
 class C {
     ["a"]: string;
-    //~^ ERROR: Property 'computed' has no initializer and is not definitely assigned in the constructor.
+    //~^ ERROR: Property '["a"]' has no initializer and is not definitely assigned in the constructor.
     ["a"]: string;
     //~^ ERROR: Duplicate identifier 'a'.
-    //~| ERROR: Property 'computed' has no initializer and is not definitely assigned in the constructor.
+    //~| ERROR: Property '["a"]' has no initializer and is not definitely assigned in the constructor.
 }
 
 

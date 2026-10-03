@@ -1,0 +1,71 @@
+  × Expected 0-1 arguments, but got 2.
+    ╭─[../../tests/compiler/errorCause/index.ts:11:28]
+ 11 │ { cause: new Error("bar") }
+    · ───────────────────────────
+    ╰────
+
+  × Property 'cause' does not exist on type 'Error'.
+    ╭─[../../tests/compiler/errorCause/index.ts:13:5]
+ 13 │ cause
+    · ─────
+    ╰────
+
+  × Expected 0-1 arguments, but got 2.
+    ╭─[../../tests/compiler/errorCause/index.ts:15:35]
+ 15 │ { cause: a }
+    · ────────────
+    ╰────
+
+  × Property 'cause' does not exist on type 'Error'.
+    ╭─[../../tests/compiler/errorCause/index.ts:17:12]
+ 17 │ cause
+    · ─────
+    ╰────
+
+  × Expected 0-1 arguments, but got 2.
+    ╭─[../../tests/compiler/errorCause/index.ts:20:22]
+ 20 │ { cause: new Error("bar") }
+    · ───────────────────────────
+    ╰────
+
+  × Expected 0-1 arguments, but got 2.
+    ╭─[../../tests/compiler/errorCause/index.ts:22:22]
+ 22 │ { cause: a }
+    · ────────────
+    ╰────
+
+  × Expected 0-1 arguments, but got 2.
+    ╭─[../../tests/compiler/errorCause/index.ts:24:23]
+ 24 │ { cause: new Error("bar") }
+    · ───────────────────────────
+    ╰────
+
+  × Expected 0-1 arguments, but got 2.
+    ╭─[../../tests/compiler/errorCause/index.ts:26:27]
+ 26 │ { cause: new Error("bar") }
+    · ───────────────────────────
+    ╰────
+
+  × Expected 0-1 arguments, but got 2.
+    ╭─[../../tests/compiler/errorCause/index.ts:28:24]
+ 28 │ { cause: new Error("bar") }
+    · ───────────────────────────
+    ╰────
+
+  × Expected 0-1 arguments, but got 2.
+    ╭─[../../tests/compiler/errorCause/index.ts:30:22]
+ 30 │ { cause: new Error("bar") }
+    · ───────────────────────────
+    ╰────
+
+  × Expected 0-1 arguments, but got 2.
+    ╭─[../../tests/compiler/errorCause/index.ts:32:21]
+ 32 │ { cause: new Error("bar") }
+    · ───────────────────────────
+    ╰────
+
+  × Expected 1-2 arguments, but got 3.
+    ╭─[../../tests/compiler/errorCause/index.ts:34:31]
+ 34 │ { cause: new Error("bar") }
+    · ───────────────────────────
+    ╰────

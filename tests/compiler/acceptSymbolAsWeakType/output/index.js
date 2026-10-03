@@ -1,6 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/acceptSymbolAsWeakType.ts`, Apache-2.0 License
-//@compiler-options: target=esnext
-//@compiler-options: lib=[esnext]
 var s = Symbol('s');
 var ws = new WeakSet([s]);
 ws.add(s);

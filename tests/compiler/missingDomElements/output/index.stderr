@@ -1,0 +1,36 @@
+  × Property 'textContent' does not exist on type 'Element'.
+    ╭─[../../tests/compiler/missingDomElements/index.ts:11:24]
+ 11 │ textContent
+    · ───────────
+    ╰────
+
+  × Property 'textContent' does not exist on type 'HTMLElement'.
+    ╭─[../../tests/compiler/missingDomElements/index.ts:13:28]
+ 13 │ textContent
+    · ───────────
+    ╰────
+
+  × Property 'textContent' does not exist on type 'HTMLInputElement'.
+    ╭─[../../tests/compiler/missingDomElements/index.ts:15:33]
+ 15 │ textContent
+    · ───────────
+    ╰────
+
+  × Property 'textContent' does not exist on type 'EventTarget &
+  │ HTMLInputElement'.
+    ╭─[../../tests/compiler/missingDomElements/index.ts:17:47]
+ 17 │ textContent
+    · ───────────
+    ╰────
+
+  × Property 'textContent' does not exist on type 'HTMLElementFake'.
+    ╭─[../../tests/compiler/missingDomElements/index.ts:25:32]
+ 25 │ textContent
+    · ───────────
+    ╰────
+
+  × Property 'textContent' does not exist on type 'Node'.
+    ╭─[../../tests/compiler/missingDomElements/index.ts:27:21]
+ 27 │ textContent
+    · ───────────
+    ╰────

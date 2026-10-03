@@ -5,7 +5,7 @@ pub fn pprint_ident(ident: &super::Ident, atoms: &AtomIntern) -> String {
     atoms.get(ident.name).to_string()
 }
 
-pub fn print_prop_name(node: &super::PropNameKind<'_>, atoms: &AtomIntern) -> String {
+pub fn pprint_prop_name(node: &super::PropNameKind<'_>, atoms: &AtomIntern) -> String {
     use super::PropNameKind::*;
     match node {
         Ident(ident) => pprint_ident(ident, atoms),
@@ -13,7 +13,33 @@ pub fn print_prop_name(node: &super::PropNameKind<'_>, atoms: &AtomIntern) -> St
         StringLit { raw, .. } => atoms.get(raw.val).to_string(),
         BigIntLit(lit) => atoms.get(lit.val.1).to_string(),
         NumLit(lit) => lit.val.to_string(),
-        Computed(_) => "[computed]".to_string(),
+        Computed(n) => pprint_computed_prop_name(n, atoms),
+    }
+}
+
+fn pprint_computed_prop_name(node: &super::ComputedPropName<'_>, atoms: &AtomIntern) -> String {
+    let expr = pprint_expression(node.expr, atoms);
+    format!("[{}]", expr)
+}
+
+fn pprint_string_literal(node: &super::StringLit, atoms: &AtomIntern) -> String {
+    let s = atoms.get(node.val);
+    format!("\"{}\"", s)
+}
+
+fn pprint_expression(node: &super::Expr<'_>, atoms: &AtomIntern) -> String {
+    match node.kind {
+        super::ExprKind::Ident(ident) => pprint_ident(ident, atoms),
+        super::ExprKind::NumLit(lit) => lit.val.to_string(),
+        super::ExprKind::StringLit(node) => pprint_string_literal(node, atoms),
+        super::ExprKind::PropAccess(expr) => pprint_prop_access_expr(expr, atoms),
+        super::ExprKind::EleAccess(expr) => pprint_elem_access_expr(expr, atoms),
+        super::ExprKind::Assign(n) => {
+            let left = pprint_expression(n.left, atoms);
+            let right = pprint_expression(n.right, atoms);
+            format!("{} {} {}", left, n.op.as_str(), right)
+        }
+        _ => "UNSUPPORTED_EXPRESSION".to_string(),
     }
 }
 
@@ -22,10 +48,25 @@ pub fn print_declaration_name(node: &super::DeclarationName, atoms: &AtomIntern)
     match node {
         Ident(ident) => pprint_ident(ident, atoms),
         NumLit(lit) => lit.val.to_string(),
-        StringLit { raw, .. } => atoms.get(raw.val).to_string(),
-        Computed(_) => "todo: computed name".to_string(),
+        StringLit { raw, .. } => pprint_string_literal(raw, atoms),
+        Computed(n) => pprint_computed_prop_name(n, atoms),
         PrivateIdent(_n) => todo!(),
         BigIntLit(_n) => todo!(),
+        ElementAccess(_) => todo!(),
+    }
+}
+
+pub fn binding_name_text<'cx>(binding: &super::Binding<'cx>) -> &'cx super::Ident {
+    match binding.kind {
+        super::BindingKind::Ident(ident) => ident,
+        super::BindingKind::ObjectPat(pat) => match pat.elems[0].name {
+            crate::ObjectBindingName::Shorthand(ident) => ident,
+            crate::ObjectBindingName::Prop { name, .. } => binding_name_text(name),
+        },
+        super::BindingKind::ArrayPat(pat) => match pat.elems[0].kind {
+            crate::ArrayBindingElemKind::Omit(_) => unreachable!(),
+            crate::ArrayBindingElemKind::Binding(n) => binding_name_text(n.name),
+        },
     }
 }
 

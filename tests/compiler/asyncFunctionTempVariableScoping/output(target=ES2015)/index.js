@@ -1,0 +1,1 @@
+async ({foo, bar, ...rest}) => (bar(await foo));

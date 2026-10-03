@@ -1,0 +1,35 @@
+  × Variable 'zipWith' is used before being assigned.
+   ╭─[../../tests/compiler/inferentialTypingWithFunctionTypeZip/index.ts:7:14]
+ 7 │ zipWith
+   · ───────
+   ╰────
+
+  × Variable 'zipWith' is used before being assigned.
+   ╭─[../../tests/compiler/inferentialTypingWithFunctionTypeZip/index.ts:7:14]
+ 7 │ zipWith
+   · ───────
+   ╰────
+
+  × Variable 'pair' is used before being assigned.
+   ╭─[../../tests/compiler/inferentialTypingWithFunctionTypeZip/index.ts:7:42]
+ 7 │ pair
+   · ────
+   ╰────
+
+  × Variable 'pair' is used before being assigned.
+   ╭─[../../tests/compiler/inferentialTypingWithFunctionTypeZip/index.ts:7:42]
+ 7 │ pair
+   · ────
+   ╰────
+
+  × Variable 'pair' is used before being assigned.
+   ╭─[../../tests/compiler/inferentialTypingWithFunctionTypeZip/index.ts:7:42]
+ 7 │ pair
+   · ────
+   ╰────
+
+  × Variable 'pair' is used before being assigned.
+   ╭─[../../tests/compiler/inferentialTypingWithFunctionTypeZip/index.ts:7:42]
+ 7 │ pair
+   · ────
+   ╰────

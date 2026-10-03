@@ -1,0 +1,5 @@
+  × 'Z' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedTypeParameterInMethod3/index.ts:8:21]
+ 8 │ Z
+   · ─
+   ╰────

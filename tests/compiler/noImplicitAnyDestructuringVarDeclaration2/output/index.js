@@ -1,5 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/noImplicitAnyDestructuringVarDeclaration2.ts`, Apache-2.0 License
-//@compiler-options: target=es2015
 var [a, b, c] = [1, 2, 3];
 var [a1 = 10, b1 = 10, c1 = 10] = [1, 2, 3];
 var [a2 = undefined, b2 = undefined, c2 = undefined] = [1, 2, 3];

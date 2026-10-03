@@ -1,0 +1,5 @@
+  × Type 'C' is not assignable to type '{ x: any; }'.
+    ╭─[../../tests/compiler/propertyParameterWithQuestionMark/index.ts:14:5]
+ 14 │ v3
+    · ──
+    ╰────

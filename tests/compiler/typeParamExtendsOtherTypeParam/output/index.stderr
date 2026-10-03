@@ -1,0 +1,56 @@
+  × Property 'data' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/typeParamExtendsOtherTypeParam/index.ts:7:5]
+ 7 │ data
+   · ────
+   ╰────
+
+  × Type '{ b: string; }' does not satisfy the constraint '{ a: string; }'.
+    ╭─[../../tests/compiler/typeParamExtendsOtherTypeParam/index.ts:17:26]
+ 17 │ { b: string }
+    · ─────────────
+    ╰────
+
+  × Type '{ a: number; }' does not satisfy the constraint '{ a: string; }'.
+    ╭─[../../tests/compiler/typeParamExtendsOtherTypeParam/index.ts:19:26]
+ 19 │ { a: number }
+    · ─────────────
+    ╰────
+
+  × Type '{ b: string; }' does not satisfy the constraint '{ a: string; }'.
+    ╭─[../../tests/compiler/typeParamExtendsOtherTypeParam/index.ts:21:26]
+ 21 │ { b: string }
+    · ─────────────
+    ╰────
+
+  × Type '{ a: number; }' does not satisfy the constraint '{ a: string; }'.
+    ╭─[../../tests/compiler/typeParamExtendsOtherTypeParam/index.ts:23:26]
+ 23 │ { a: number }
+    · ─────────────
+    ╰────
+
+  × Type '{ a: string; }' does not satisfy the constraint '{ a: string; b:
+  │ number; }'.
+    ╭─[../../tests/compiler/typeParamExtendsOtherTypeParam/index.ts:25:37]
+ 25 │ { a: string }
+    · ─────────────
+    ╰────
+
+  × Type '{ a: string; }' does not satisfy the constraint '{ a: string; b:
+  │ number; }'.
+    ╭─[../../tests/compiler/typeParamExtendsOtherTypeParam/index.ts:27:37]
+ 27 │ { a: string }
+    · ─────────────
+    ╰────
+
+  × Type 'I1' does not satisfy the constraint 'I2'.
+    ╭─[../../tests/compiler/typeParamExtendsOtherTypeParam/index.ts:39:15]
+ 39 │ I1
+    · ──
+    ╰────
+
+  × Type 'I1' does not satisfy the constraint 'I2'.
+    ╭─[../../tests/compiler/typeParamExtendsOtherTypeParam/index.ts:41:15]
+ 41 │ I1
+    · ──
+    ╰────

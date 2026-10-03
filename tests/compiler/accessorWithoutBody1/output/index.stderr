@@ -3,3 +3,10 @@
  5 │ }
    · ─
    ╰────
+
+  × Property 'foo' implicitly has type 'any', because its get accessor lacks a
+  │ return type annotation.
+   ╭─[../../tests/compiler/accessorWithoutBody1/index.ts:5:15]
+ 5 │ foo
+   · ───
+   ╰────

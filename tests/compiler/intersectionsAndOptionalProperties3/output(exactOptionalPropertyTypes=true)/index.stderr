@@ -1,0 +1,11 @@
+  × Type 'undefined' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/intersectionsAndOptionalProperties3/index.ts:27:1]
+ 27 │ ab_primitive.disabled
+    · ─────────────────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'Foo'.
+    ╭─[../../tests/compiler/intersectionsAndOptionalProperties3/index.ts:53:1]
+ 53 │ ab_obj.prop
+    · ───────────
+    ╰────

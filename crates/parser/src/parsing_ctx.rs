@@ -44,7 +44,7 @@ bitflags::bitflags! {
         const FN_BLOCK                            = 1 << 4;
         const YIELD                               = 1 << 6;
         const ASYNC                               = 1 << 7;
-        const AWAIT                               = 1 << 8;
+        // const AWAIT                               = 1 << 8;
         const DISALLOW_IN                         = 1 << 9;
         const DECORATOR                           = 1 << 10;
         const DISALLOW_CONDITIONAL_TYPES          = 1 << 11;
@@ -58,8 +58,6 @@ bitflags::bitflags! {
         const ALLOW_RETURN                              = Self::CLASS_STATIC_BLOCK.bits()
                                                             | Self::FN_BLOCK.bits();
 
-        const TYPE_EXCLUDES_FLAGS                       = Self::YIELD.bits()
-                                                            | Self::AWAIT.bits();
         const DISALLOW_IN_AND_DECORATOR                 = Self::DISALLOW_IN.bits()
                                                             | Self::DECORATOR.bits();
     }

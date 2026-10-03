@@ -1,0 +1,5 @@
+  × Type of property 'M' circularly references itself in mapped type '{ }'.
+   ╭─[../../tests/compiler/recursivelyExpandingUnionNoStackoverflow/index.ts:7:10]
+ 7 │ N<number, "M">
+   · ──────────────
+   ╰────

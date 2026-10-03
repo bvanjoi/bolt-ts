@@ -1,6 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/capturedLetConstInLoop3_ES6.ts`, Apache-2.0 License
-//@compiler-options: target=es6
-//@compiler-options: strict=false
 function foo0(x) {
   for ( var x of []) {
     var v = x;

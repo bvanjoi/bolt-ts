@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/accessorDeclarationEmitVisibilityErrors.ts`, Apache-2.0 License
 var str;
 var arr = [1, 2, 3];
 str = arr.toLocaleString();

@@ -3,6 +3,7 @@ mod scan_integer;
 mod scan_str;
 mod unicode;
 
+pub use self::comments::{Comment, CommentId, Comments, LeadingTrailingComments};
 pub use self::comments::{CommentKind, iterate_comment_ranges};
 pub use self::scan_integer::parse_integer;
 pub use self::scan_str::is_ascii_identifier_part;
@@ -38,4 +39,8 @@ impl TokenValue {
             TokenValue::Number { .. } => unreachable!(),
         }
     }
+}
+
+pub fn is_hex_digit(ch: u8) -> bool {
+    ch.is_ascii_digit() || (b'a'..=b'f').contains(&ch) || (b'A'..=b'F').contains(&ch)
 }

@@ -1,0 +1,17 @@
+  × Expected '{'.
+   ╭─[../../tests/compiler/jsFileCompilationTypeParameterSyntaxOfClass/index.js:6:8]
+ 6 │ <
+   · ─
+   ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/jsFileCompilationTypeParameterSyntaxOfClass/index.js:6:8]
+ 6 │ <
+   · ─
+   ╰────
+
+  × Cannot find name 'T'.
+   ╭─[../../tests/compiler/jsFileCompilationTypeParameterSyntaxOfClass/index.js:6:9]
+ 6 │ T
+   · ─
+   ╰────

@@ -1,0 +1,122 @@
+  × Property 'unusedprivatevariable' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:15:13]
+ 15 │ unusedprivatevariable
+    · ─────────────────────
+    ╰────
+
+  × Property 'unusedpublicvariable' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:20:12]
+ 20 │ unusedpublicvariable
+    · ────────────────────
+    ╰────
+
+  × Property 'typedvariable' has no initializer and is not definitely assigned
+  │ in the constructor.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:22:12]
+ 22 │ typedvariable
+    · ─────────────
+    ╰────
+
+  × 'person' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:7:18]
+ 7 │ person
+   · ──────
+   ╰────
+
+  × 'unused' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:9:9]
+ 9 │ unused
+   · ──────
+   ╰────
+
+  × 'message' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:25:17]
+ 25 │ message
+    · ───────
+    ╰────
+
+  × 'unused2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:27:13]
+ 27 │ unused2
+    · ───────
+    ╰────
+
+  × 'person' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:32:20]
+ 32 │ person
+    · ──────
+    ╰────
+
+  × 'unused' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:34:13]
+ 34 │ unused
+    · ──────
+    ╰────
+
+  × 'unusedprivatevariable' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:15:13]
+ 15 │ unusedprivatevariable
+    · ─────────────────────
+    ╰────
+
+  × 'greeting' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:18:13]
+ 18 │ greeting
+    · ────────
+    ╰────
+
+  × 'unUsedPrivateFunction' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:42:13]
+ 42 │ unUsedPrivateFunction
+    · ─────────────────────
+    ╰────
+
+  × 'unusedtypeparameter' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:13:32]
+ 13 │ unusedtypeparameter
+    · ───────────────────
+    ╰────
+
+  × 'unUsedPrivateFunction' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:64:17]
+ 64 │ unUsedPrivateFunction
+    · ─────────────────────
+    ╰────
+
+  × 'usedLocallyInterface2' is declared but never used.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:78:15]
+ 78 │ usedLocallyInterface2
+    · ─────────────────────
+    ╰────
+
+  × 'dummy' is declared but never used.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:86:11]
+ 86 │ dummy
+    · ─────
+    ╰────
+
+  × 'unusedInterface' is declared but never used.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:90:15]
+ 90 │ unusedInterface
+    · ───────────────
+    ╰────
+
+  × 'numberRegexp' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:56:11]
+ 56 │ numberRegexp
+    · ────────────
+    ╰────
+
+  × 'class3' is declared but never used.
+     ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:103:11]
+ 103 │ class3
+     · ──────
+     ╰────
+
+  × 'interface5' is declared but never used.
+     ╭─[../../tests/compiler/unusedIdentifiersConsolidated1/index.ts:124:15]
+ 124 │ interface5
+     · ──────────
+     ╰────
