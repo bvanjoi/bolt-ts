@@ -113,9 +113,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 if ms
                     .flags
                     .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
-                    && !flags.contains(
-                        CheckParameterFlags::MISSING_BODY.union(CheckParameterFlags::CONSTRUCTOR),
-                    )
+                    && (!is_container || is_missing_body)
                 {
                     let error = Box::new(
                         errors::AParameterPropertyIsOnlyAllowedInAConstructorImplementation {
@@ -829,9 +827,10 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         };
         let ty_params = self.parse_ty_params();
         let params = self.parse_parameters(flags);
-        self.check_parameters(params, CheckParameterFlags::empty());
         let ty = self.parse_return_ty::<true, false>()?;
         let body = self.parse_fn_block(flags);
+        self.check_parameters(params, CheckParameterFlags::empty());
+        self.check_use_strict_simple_parameters(params, body);
         let span = self.new_span(start);
         let node = self.create_object_method_member(
             span,

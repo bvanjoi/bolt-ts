@@ -11,9 +11,9 @@ use bolt_ts_utils::path::NormalizePath;
 use std::sync::{Arc, Mutex};
 
 use super::PResult;
+use super::const_variant::is_dts_variant;
 use super::parsing_ctx::ParseContext;
 use super::parsing_ctx::ParsingContext;
-use super::utils::is_declaration_filename;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
 use super::{PragmaMap, errors};
 
@@ -43,9 +43,7 @@ pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) line: usize,
     pub(super) line_start: usize, // offset
     pub(super) line_map: Vec<u32>,
-    pub(super) is_declaration: bool,
     pub(super) filepath: Atom,
-    pub(super) _in_ambient_module: bool,
     pub(super) has_no_default_lib: bool,
     pub(super) parsing_context: ParsingContext,
     pub(super) parse_context: ParseContext,
@@ -68,9 +66,8 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
         let p = file_path.to_string_lossy();
         let atom = atoms.lock().unwrap().atom(p.as_ref());
-        let is_declaration = is_declaration_filename(p.as_bytes());
         let mut node_context_flags = ast::NodeFlags::empty();
-        if is_declaration {
+        if is_dts_variant(VARIANT) {
             node_context_flags |= ast::NodeFlags::AMBIENT;
         }
         Self {
@@ -100,8 +97,6 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             line_map: Vec::with_capacity(input.len() / 12),
             line: 0,
             filepath: atom,
-            is_declaration,
-            _in_ambient_module: false,
             lib_reference_directives: Vec::with_capacity(8),
             pragmas: PragmaMap::default(),
             has_no_default_lib: false,
@@ -377,6 +372,31 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             }
             Ok(stmt)
         });
+
+        // check_grammar_sourcefile
+        if is_dts_variant(VARIANT) {
+            // check_grammar_top_level_elements_for_required_declare_modifier
+            for stmt in stmts {
+                use ast::StmtKind::*;
+                match stmt.kind {
+                    Interface(_) | TypeAlias(_) | Import(_) | ImportEquals(_) | Export(_)
+                    | ExportAssign(_) => {}
+                    _ => {
+                        if stmt.modifiers().is_some_and(|ms| {
+                            ms.flags.intersects(ast::ModifierFlags::AMBIENT.union(
+                                ast::ModifierFlags::EXPORT.union(ast::ModifierFlags::DEFAULT),
+                            ))
+                        }) {
+                            // nothing
+                        } else if stmt.is_declaration() || matches!(stmt.kind, Var(_)) {
+                            let error =
+                                errors::TopLevelDeclarationsInDTsFilesMustStartWithEitherADeclareOrExportModifier { span: stmt.span() };
+                            self.push_error(Box::new(error));
+                        }
+                    }
+                }
+            }
+        }
 
         self.create_program(self.new_span(start as u32), stmts)
     }

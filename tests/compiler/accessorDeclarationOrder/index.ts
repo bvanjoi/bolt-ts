@@ -37,3 +37,38 @@ c1.name;
 
 // no error
 c2.name;
+
+function f0({ bar } = { bar: 0}) {
+    //~^ ERROR: This parameter is not allowed with 'use strict' directive.
+    "use strict";
+}
+
+class C3 {
+    constructor({ bar } = { bar: 0}) {
+    //~^ ERROR: This parameter is not allowed with 'use strict' directive.
+        "use strict";
+    }
+
+    f({ bar } = { bar: 0}) {
+    //~^ ERROR: This parameter is not allowed with 'use strict' directive.
+        'use strict'
+    }
+
+    get a({ bar } = { bar: 0}) {
+    //~^ ERROR: A 'get' accessor cannot have parameters.
+        'use strict'
+        return 123;
+    }
+}
+
+const f1 = function({ bar } = { bar: 0}) {
+    //~^ ERROR: This parameter is not allowed with 'use strict' directive.
+    "use strict";
+}
+
+const f2 = {
+    f({ bar } = { bar: 0}) {
+    //~^ ERROR: This parameter is not allowed with 'use strict' directive.
+        'use strict'
+    }
+}

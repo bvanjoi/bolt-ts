@@ -34,6 +34,7 @@ use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
 use self::const_variant::PRESERVE_COMMENT;
+use self::const_variant::is_dts_variant;
 use self::const_variant::{DTS_VARIANT, JS_VARIANT, JSX_VARIANT, TS_VARIANT, TSX_VARIANT};
 use self::expr::CheckParameterFlags;
 pub use self::nodes::Nodes;
@@ -245,12 +246,12 @@ fn parser_state_parse<'cx, 'p, const VARIANT: u8, const ALWAYS_STRICT: bool>(
     debug_assert!(s.line_map.is_sorted(), "line_map: {:#?}", s.line_map);
     let root = s.nodes.root();
     let is_external_module_file = s.external_module_indicator.is_some();
-    let c = collect_deps(
-        s.is_declaration,
-        is_external_module_file,
-        root,
-        s.atoms.clone(),
-    );
+    let is_declaration: bool = is_dts_variant(VARIANT);
+    let c = if is_declaration {
+        collect_deps::<true>(is_external_module_file, root, s.atoms.clone())
+    } else {
+        collect_deps::<false>(is_external_module_file, root, s.atoms.clone())
+    };
 
     ParseResult {
         diags: s.diags,
@@ -263,7 +264,7 @@ fn parser_state_parse<'cx, 'p, const VARIANT: u8, const ALWAYS_STRICT: bool>(
         leading_trailing_comments: s.leading_trailing_comments,
         line_map: s.line_map,
         filepath: s.filepath,
-        is_declaration: s.is_declaration,
+        is_declaration,
         imports: c.imports,
         module_augmentations: c.module_augmentations,
         ambient_modules: c.ambient_modules,

@@ -1097,7 +1097,8 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         }
         let _ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
-        if body.is_some() {
+        if let Some(body) = body {
+            self.check_use_strict_simple_parameters(params, body);
             self.check_parameters(params, CheckParameterFlags::empty());
         } else {
             self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
@@ -1114,11 +1115,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             false
         }
     }
-}
-
-pub(super) fn is_declaration_filename(filename: &[u8]) -> bool {
-    const SUFFIX: &[u8] = b".d.ts";
-    filename.ends_with(SUFFIX)
 }
 
 pub fn parse_pseudo_bigint<'a>(s: &'a str) -> std::borrow::Cow<'a, str> {

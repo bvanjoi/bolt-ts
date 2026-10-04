@@ -2299,3 +2299,19 @@ pub struct PropertyXIsProtectedAndOnlyAccessibleThroughAnInstanceOfClassYThisIsA
     pub class1: String,
     pub class2: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Only a void function can be called with the 'new' keyword.")]
+pub struct OnlyAVoidFunctionCanBeCalledWithTheNewKeyword {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "A function that is called with the 'new' keyword cannot have a 'this' type that is 'void'."
+)]
+pub struct AFunctionThatIsCalledWithTheNewKeywordCannotHaveAThisTypeThatIsVoid {
+    #[label(primary)]
+    pub span: Span,
+}

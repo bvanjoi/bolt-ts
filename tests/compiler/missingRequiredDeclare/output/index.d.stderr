@@ -1,0 +1,12 @@
+  × Top-level declarations in .d.ts files must start with either a 'declare'
+  │ or 'export' modifier.
+   ╭─[../../tests/compiler/missingRequiredDeclare/index.d.ts:5:1]
+ 5 │ var x = 1
+   · ─────────
+   ╰────
+
+  × Initializers are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/missingRequiredDeclare/index.d.ts:5:9]
+ 5 │ 1
+   · ─
+   ╰────

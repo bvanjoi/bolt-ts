@@ -16,8 +16,6 @@ use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
 use rustc_hash::FxHashMap;
 
-use crate::check::get_ty::AccessNode;
-
 use super::InferenceId;
 use super::IterationTypeKind;
 use super::ObjectFlags;
@@ -27,6 +25,7 @@ use super::errors;
 use super::eval::EvalResult;
 use super::flow::flow_loop_ctx_len;
 use super::get_syntactic_semantics::PredicateSemantics;
+use super::get_ty::AccessNode;
 use super::node_check_flags::NodeCheckFlags;
 use super::ty;
 use super::ty::AccessFlags;

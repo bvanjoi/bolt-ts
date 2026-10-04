@@ -6,15 +6,14 @@ use std::sync::{Arc, Mutex};
 
 use super::ImportInfo;
 
-pub(super) fn collect_deps<'cx>(
-    is_declaration: bool,
+pub(super) fn collect_deps<'cx, const IS_DECLARATION: bool>(
     is_external_module_file: bool,
     root: &'cx ast::Program<'cx>,
     atoms: Arc<Mutex<AtomIntern>>,
 ) -> CollectDepsResult<'cx> {
     let mut visitor = CollectDepsVisitor {
         in_ambient_module: false,
-        is_declaration,
+        is_declaration: IS_DECLARATION,
         is_external_module_file,
         atoms,
         imports: Vec::with_capacity(32),

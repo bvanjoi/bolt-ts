@@ -64,4 +64,28 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             push_error(self);
         }
     }
+
+    pub(super) fn check_use_strict_simple_parameters(
+        &mut self,
+        params: ast::ParamsDecl<'cx>,
+        body: &'cx ast::BlockStmt<'cx>,
+    ) {
+        if self.target >= bolt_ts_config::Target::ES2016
+            && let Some(first_stmt) = body.stmts.first()
+            && first_stmt.is_use_strict_directive()
+        {
+            for p in params {
+                if p.init.is_some()
+                    || !matches!(p.name.kind, ast::BindingKind::Ident(_))
+                    || p.is_rest()
+                {
+                    let error = errors::ThisParameterIsNotAllowedWithUseStrictDirective {
+                        span: p.span,
+                        use_strict_directive_span: first_stmt.span(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+        }
+    }
 }

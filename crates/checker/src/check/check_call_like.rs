@@ -675,6 +675,18 @@ impl<'cx> TyChecker<'cx> {
         let call_sigs = self.get_signatures_of_type(expr_ty, ty::SigKind::Call);
         if !call_sigs.is_empty() {
             let sig = self.resolve_call(expr, call_sigs, None, check_mode, SigFlags::empty());
+            if !self.config.compiler_options().no_implicit_any() {
+                if sig.node_id.is_some() && self.get_return_type_of_signature(sig) != self.void_ty {
+                    // TODO: !is_js_constructor
+                    let error =
+                        errors::OnlyAVoidFunctionCanBeCalledWithTheNewKeyword { span: expr.span() };
+                    self.push_error(Box::new(error));
+                }
+                if self.get_this_ty_of_sig(sig) == Some(self.void_ty) {
+                    let error = errors::AFunctionThatIsCalledWithTheNewKeywordCannotHaveAThisTypeThatIsVoid { span: expr.span() };
+                    self.push_error(Box::new(error));
+                }
+            }
             return sig;
         }
 

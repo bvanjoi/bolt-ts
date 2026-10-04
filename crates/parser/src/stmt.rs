@@ -16,7 +16,7 @@ use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
 
 impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
-    pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
+    pub(super) fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use bolt_ts_ast::TokenKind::*;
         let kind = self.token.kind;
         let kind = match kind {

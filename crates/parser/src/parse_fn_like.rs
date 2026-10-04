@@ -136,12 +136,12 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                 };
                 let params = this.parse_parameters(flags);
                 let ret_ty = this.parse_fn_decl_ret_type()?;
-
                 let body = this.parse_fn_block_or_semi(flags);
-                if body.is_none() {
-                    this.check_parameters(params, CheckParameterFlags::MISSING_BODY);
-                } else {
+                if let Some(body) = body {
+                    this.check_use_strict_simple_parameters(params, body);
                     this.check_parameters(params, CheckParameterFlags::empty());
+                } else {
+                    this.check_parameters(params, CheckParameterFlags::MISSING_BODY);
                 }
                 let span = this.new_span(start);
                 Ok(mode.finish(

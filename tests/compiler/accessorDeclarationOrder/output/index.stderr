@@ -1,3 +1,59 @@
+  × This parameter is not allowed with 'use strict' directive.
+    ╭─[../../tests/compiler/accessorDeclarationOrder/index.ts:41:13]
+ 41 │ { bar } = { bar: 0}) {
+    · ───────────────────
+ 42 │     //~^ ERROR: This parameter is not allowed with 'use strict' directive.
+ 43 │     "use strict";
+    ·     ──────┬──────
+    ·           ╰── use strict directive used here
+    ╰────
+
+  × This parameter is not allowed with 'use strict' directive.
+    ╭─[../../tests/compiler/accessorDeclarationOrder/index.ts:47:17]
+ 47 │ { bar } = { bar: 0}) {
+    · ───────────────────
+ 48 │     //~^ ERROR: This parameter is not allowed with 'use strict' directive.
+ 49 │         "use strict";
+    ·         ──────┬──────
+    ·               ╰── use strict directive used here
+    ╰────
+
+  × This parameter is not allowed with 'use strict' directive.
+    ╭─[../../tests/compiler/accessorDeclarationOrder/index.ts:52:7]
+ 52 │ { bar } = { bar: 0}) {
+    · ───────────────────
+ 53 │     //~^ ERROR: This parameter is not allowed with 'use strict' directive.
+ 54 │         'use strict'
+    ·         ──────┬─────
+    ·               ╰── use strict directive used here
+    ╰────
+
+  × A 'get' accessor cannot have parameters.
+    ╭─[../../tests/compiler/accessorDeclarationOrder/index.ts:57:9]
+ 57 │ a
+    · ─
+    ╰────
+
+  × This parameter is not allowed with 'use strict' directive.
+    ╭─[../../tests/compiler/accessorDeclarationOrder/index.ts:64:21]
+ 64 │ { bar } = { bar: 0}) {
+    · ───────────────────
+ 65 │     //~^ ERROR: This parameter is not allowed with 'use strict' directive.
+ 66 │     "use strict";
+    ·     ──────┬──────
+    ·           ╰── use strict directive used here
+    ╰────
+
+  × This parameter is not allowed with 'use strict' directive.
+    ╭─[../../tests/compiler/accessorDeclarationOrder/index.ts:70:7]
+ 70 │ { bar } = { bar: 0}) {
+    · ───────────────────
+ 71 │     //~^ ERROR: This parameter is not allowed with 'use strict' directive.
+ 72 │         'use strict'
+    ·         ──────┬─────
+    ·               ╰── use strict directive used here
+    ╰────
+
   × Property '#name' has no initializer and is not definitely assigned in the
   │ constructor.
    ╭─[../../tests/compiler/accessorDeclarationOrder/index.ts:6:5]

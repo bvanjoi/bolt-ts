@@ -374,7 +374,8 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             let params = self.parse_parameters(flags);
             let ty = self.parse_return_ty::<true, false>()?;
             let body = self.parse_fn_block_or_semi(flags);
-            if body.is_some() {
+            if let Some(body) = body {
+                self.check_use_strict_simple_parameters(params, body);
                 self.check_parameters(params, CheckParameterFlags::empty());
             } else {
                 self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
@@ -440,13 +441,6 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                     SignatureFlags::empty()
                 };
                 let body = this.p().parse_fn_block_or_semi(flags);
-                let flags = CheckParameterFlags::CONSTRUCTOR
-                    | if body.is_some() {
-                        CheckParameterFlags::MISSING_BODY
-                    } else {
-                        CheckParameterFlags::empty()
-                    };
-                this.p().check_parameters(params, flags);
                 for p in params {
                     if let Some(ms) = p.modifiers
                         && ms.flags.intersects(ast::ModifierFlags::ACCESSIBILITY)
@@ -459,13 +453,22 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                         this.p().push_error(Box::new(error));
                     }
                 }
-
                 let span = this.p().new_span(start);
-                if is_js_variant(VARIANT) && body.is_none() {
-                    let error =
-                        errors::SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles { span };
-                    this.p().push_error(Box::new(error));
-                }
+                if let Some(body) = body {
+                    this.p().check_use_strict_simple_parameters(params, body);
+                    this.p()
+                        .check_parameters(params, CheckParameterFlags::CONSTRUCTOR);
+                } else {
+                    this.p().check_parameters(
+                        params,
+                        CheckParameterFlags::CONSTRUCTOR.union(CheckParameterFlags::MISSING_BODY),
+                    );
+                    if is_js_variant(VARIANT) {
+                        let error =
+                            errors::SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles { span };
+                        this.p().push_error(Box::new(error));
+                    }
+                };
                 let ctor = this
                     .p()
                     .create_class_constructor(span, mods, name_span, params, ret, body);

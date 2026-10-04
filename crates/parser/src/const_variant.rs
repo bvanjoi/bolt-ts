@@ -16,6 +16,11 @@ const fn is_valid_language_variant(variant: u8) -> bool {
     )
 }
 
+pub fn is_dts_variant(variant: u8) -> bool {
+    debug_assert!(is_valid_language_variant(variant));
+    matches!(filter_language_variant(variant), DTS_VARIANT)
+}
+
 pub const fn is_jsx_like_variant(variant: u8) -> bool {
     debug_assert!(is_valid_language_variant(variant));
     matches!(filter_language_variant(variant), JSX_VARIANT | TSX_VARIANT)

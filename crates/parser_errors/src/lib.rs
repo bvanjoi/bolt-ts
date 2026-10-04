@@ -1005,3 +1005,21 @@ pub struct TypeAnnotationsCanOnlyBeUsedInTypeScriptFiles {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier."
+)]
+pub struct TopLevelDeclarationsInDTsFilesMustStartWithEitherADeclareOrExportModifier {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("This parameter is not allowed with 'use strict' directive.")]
+pub struct ThisParameterIsNotAllowedWithUseStrictDirective {
+    #[label(primary)]
+    pub span: Span,
+    #[label("use strict directive used here")]
+    pub use_strict_directive_span: Span,
+}

@@ -1,0 +1,6 @@
+  × Augmentations for the global scope can only be directly nested in external
+  │ modules or ambient module declarations.
+   ╭─[../../tests/compiler/moduleAugmentationGlobal8/index.ts:9:13]
+ 9 │ global
+   · ──────
+   ╰────

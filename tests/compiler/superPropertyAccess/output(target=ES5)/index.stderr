@@ -1,0 +1,54 @@
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:26:9]
+ 26 │ super.m2
+    · ────────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:26:9]
+ 26 │ super.m2
+    · ────────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:26:9]
+ 26 │ super.m2
+    · ────────
+    ╰────
+
+  × Property 'p1' is private and only accessible within class 'MyBase'.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:34:9]
+ 34 │ super.p1
+    · ────────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:37:18]
+ 37 │ super.d1
+    · ────────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:41:18]
+ 41 │ super.d2
+    · ────────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:47:9]
+ 47 │ super.value
+    · ───────────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:50:17]
+ 50 │ super.value
+    · ───────────
+    ╰────

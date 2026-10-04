@@ -1,0 +1,41 @@
+  × Only a void function can be called with the 'new' keyword.
+    ╭─[../../tests/compiler/bigintWithLib/index.ts:10:1]
+ 10 │ new BigInt(123)
+    · ───────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/bigintWithLib/index.ts:26:15]
+ 26 │ new BigInt64Array([1, 2, 3])
+    · ────────────────────────────
+    ╰────
+
+  × Cannot assign to 'length' because it is a read-only property.
+    ╭─[../../tests/compiler/bigintWithLib/index.ts:32:13]
+ 32 │ length
+    · ──────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/bigintWithLib/index.ts:40:16]
+ 40 │ new BigUint64Array([1, 2, 3])
+    · ─────────────────────────────
+    ╰────
+
+  × Cannot assign to 'length' because it is a read-only property.
+    ╭─[../../tests/compiler/bigintWithLib/index.ts:46:13]
+ 46 │ length
+    · ──────
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'bigint'.
+    ╭─[../../tests/compiler/bigintWithLib/index.ts:54:25]
+ 54 │ -1
+    · ──
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'bigint'.
+    ╭─[../../tests/compiler/bigintWithLib/index.ts:58:26]
+ 58 │ 123
+    · ───
+    ╰────

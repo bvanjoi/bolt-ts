@@ -1,0 +1,37 @@
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superInLambdas/index.ts:70:34]
+ 70 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superInLambdas/index.ts:70:34]
+ 70 │ ;
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superInLambdas/index.ts:76:34]
+ 76 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superInLambdas/index.ts:76:34]
+ 76 │ ;
+    · ─
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superInLambdas/index.ts:52:43]
+ 52 │ super.name
+    · ──────────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superInLambdas/index.ts:58:43]
+ 58 │ super.name
+    · ──────────
+    ╰────

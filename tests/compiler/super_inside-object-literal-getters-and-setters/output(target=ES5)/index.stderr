@@ -1,0 +1,27 @@
+  × 'super' is only allowed in members of object literal expressions when
+  │ option 'target' is 'ES2015' or higher.
+    ╭─[../../tests/compiler/super_inside-object-literal-getters-and-setters/index.ts:10:20]
+ 10 │ super
+    · ─────
+    ╰────
+
+  × 'super' is only allowed in members of object literal expressions when
+  │ option 'target' is 'ES2015' or higher.
+    ╭─[../../tests/compiler/super_inside-object-literal-getters-and-setters/index.ts:14:13]
+ 14 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/super_inside-object-literal-getters-and-setters/index.ts:18:20]
+ 18 │ super
+    · ─────
+    ╰────
+
+  × 'super' is only allowed in members of object literal expressions when
+  │ option 'target' is 'ES2015' or higher.
+    ╭─[../../tests/compiler/super_inside-object-literal-getters-and-setters/index.ts:29:24]
+ 29 │ super
+    · ─────
+    ╰────

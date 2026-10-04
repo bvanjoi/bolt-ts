@@ -60,6 +60,7 @@ with_option!(
     (no_error_truncation, bool),
     (no_unused_locals, bool),
     (no_unused_parameters, bool),
+    (no_implicit_use_strict, bool),
     (always_strict, bool),
     (allow_unused_labels, bool),
     (allow_unreachable_code, bool),
@@ -125,7 +126,13 @@ impl RawCompilerOptions {
             flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_THIS);
         }
         if get_strict_option_value(self.strict_bind_call_apply) {
+            if get_strict_option_value(self.strict_function_types) {
+                flags.insert(super::CompilerOptionFlags::STRICT_FUNCTION_TYPES);
+            }
             flags.insert(super::CompilerOptionFlags::STRICT_BIND_CALL_APPLY);
+        }
+        if get_strict_option_value(self.use_unknown_in_catch_variables) {
+            flags.insert(super::CompilerOptionFlags::USE_UNKNOWN_IN_CATCH_VARIABLES);
         }
         if self.no_unchecked_indexed_access.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_UNCHECKED_INDEXED_ACCESS);
@@ -145,8 +152,8 @@ impl RawCompilerOptions {
         if self.no_lib.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_LIB);
         }
-        if get_strict_option_value(self.strict_function_types) {
-            flags.insert(super::CompilerOptionFlags::STRICT_FUNCTION_TYPES);
+        if self.no_implicit_use_strict.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_USE_STRICT);
         }
         if self.preserve_symlinks.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::PRESERVE_SYMLINKS);
@@ -166,9 +173,7 @@ impl RawCompilerOptions {
         if self.remove_comments.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::REMOVE_COMMENTS);
         }
-        if get_strict_option_value(self.use_unknown_in_catch_variables) {
-            flags.insert(super::CompilerOptionFlags::USE_UNKNOWN_IN_CATCH_VARIABLES);
-        }
+
         match self.use_define_for_class_fields {
             Some(true) => flags.insert(super::CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS),
             None if target >= super::Target::ES2022 => {
