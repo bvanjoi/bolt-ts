@@ -1362,7 +1362,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         match p {
             ast::Node::ParenExpr(_) => self.get_reference_root(parent),
             ast::Node::AssignExpr(n) if n.left.id() == node => self.get_reference_root(parent),
-            ast::Node::BinExpr(n) if n.op.kind == ast::BinOpKind::Comma && n.right.id() == node => {
+            ast::Node::BinExpr(n) if n.op == ast::BinOpKind::Comma && n.right.id() == node => {
                 self.get_reference_root(parent)
             }
             _ => node,
@@ -1377,7 +1377,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         let ast::Node::BinExpr(n) = self.node(parent) else {
             return false;
         };
-        n.op.kind == ast::BinOpKind::Instanceof && n.right.id() == node
+        n.op == ast::BinOpKind::Instanceof && n.right.id() == node
     }
 
     pub fn is_right_side_of_qualified_name_or_prop_access(&self, node: ast::NodeID) -> bool {

@@ -5,6 +5,7 @@ class EventBase {
   }
 }
 class StringEvent extends EventBase {
+  // should work
   add(listener) {
     super.add(listener);
   }

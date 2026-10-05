@@ -472,7 +472,7 @@ impl<'cx> ExprKind<'cx> {
 
     pub fn is_logical_or_coalescing_binary(&self) -> bool {
         match self {
-            ExprKind::Bin(bin) => bin.op.kind.is_logical_or_coalescing_op(),
+            ExprKind::Bin(bin) => bin.op.is_logical_or_coalescing_op(),
             _ => false,
         }
     }
@@ -555,7 +555,7 @@ impl<'cx> ExprKind<'cx> {
         let n = self.skip_paren();
         match n {
             ExprKind::BoolLit(lit) => !lit.val,
-            ExprKind::Bin(bin) => match bin.op.kind {
+            ExprKind::Bin(bin) => match bin.op {
                 BinOpKind::LogicalOr => bin.left.kind.is_false() && bin.right.kind.is_false(),
                 BinOpKind::LogicalAnd => bin.left.kind.is_false() || bin.right.kind.is_false(),
                 _ => false,
@@ -911,7 +911,7 @@ impl AssignExpr<'_> {
     pub fn is_compound_assignment(&self) -> bool {
         let right = self.right.kind.skip_paren();
         match right {
-            ExprKind::Bin(e) => e.op.kind.is_shift_op_or_higher(),
+            ExprKind::Bin(e) => e.op.is_shift_op_or_higher(),
             _ => false,
         }
     }
@@ -1151,7 +1151,7 @@ impl From<BinOpKind> for TokenKind {
 pub struct BinExpr<'cx> {
     pub id: NodeID,
     pub left: &'cx Expr<'cx>,
-    pub op: BinOp,
+    pub op: BinOpKind,
     pub right: &'cx Expr<'cx>,
     pub span: Span,
 }

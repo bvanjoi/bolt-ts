@@ -23,6 +23,7 @@ class Foo2 extends Foo {
 }
 class Foo4 extends Foo {
   constructor(_super) {super();}
+  // no code gen - no error
   y(_super) {
     var lambda = () => ((x) => (this));
   }

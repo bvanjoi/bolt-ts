@@ -11,5 +11,6 @@ class C extends B {
   raw = 'edge';
   ro = 'readonly please';
   readonlyProp;
+  // don't have to give a value, in fact
   m() {}
 }

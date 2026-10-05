@@ -1068,7 +1068,7 @@ impl<'cx> Node<'cx> {
 
     pub fn is_instance_of_expr(&self) -> bool {
         self.as_bin_expr()
-            .is_some_and(|e| matches!(e.op.kind, super::BinOpKind::Instanceof))
+            .is_some_and(|e| matches!(e.op, super::BinOpKind::Instanceof))
     }
 
     pub fn get_expando_init(&self, is_prototype_assignment: bool) -> Option<super::ExprKind<'cx>> {

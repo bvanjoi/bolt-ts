@@ -37,6 +37,7 @@ class Foo3 {
   constructor(_this) {var x2 = {
           doStuff: (callback) => (() => (callback(this)))      
     };}
+  // no code gen - no error
   z(_this) {
     var lambda = () => ((x) => (this));
   }

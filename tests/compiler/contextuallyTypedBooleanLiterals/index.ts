@@ -27,3 +27,6 @@ interface Observable<T>
 declare function observable<T>(value: T): Observable<T>;
 
 const x: Observable<boolean> = observable(false);
+
+type StringWithInnerEscape = 'ab"c\'c';
+type StringWithInnerEscape2 = "ab\"c'c";

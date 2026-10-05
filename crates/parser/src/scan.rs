@@ -522,11 +522,8 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                             if is_leading_comment {
                                 leading_comments.push(comment);
                             } else {
-                                self.leading_trailing_comments.add_trailing_comment(
-                                    start as u32,
-                                    comment,
-                                    &mut self.comments,
-                                );
+                                self.leading_trailing_comments
+                                    .add_trailing_comment(start as u32, comment);
                             }
                         }
                         continue;
@@ -549,11 +546,8 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                             if is_leading_comment {
                                 leading_comments.push(comment);
                             } else {
-                                self.leading_trailing_comments.add_trailing_comment(
-                                    start as u32,
-                                    comment,
-                                    &mut self.comments,
-                                );
+                                self.leading_trailing_comments
+                                    .add_trailing_comment(start as u32, comment);
                             }
                         }
                         continue;
@@ -1030,11 +1024,8 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             };
             if is_preserve_comment(VARIANT) {
                 for comment in leading_comments {
-                    self.leading_trailing_comments.add_leading_comment(
-                        token.start(),
-                        comment,
-                        &mut self.comments,
-                    );
+                    self.leading_trailing_comments
+                        .add_leading_comment(token.start(), comment);
                 }
             }
             self.token = token;

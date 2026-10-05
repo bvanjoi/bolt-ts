@@ -1,4 +1,5 @@
 class C {
+  // error
   x1(a, callback) {
     callback('hi');
     callback('bye');

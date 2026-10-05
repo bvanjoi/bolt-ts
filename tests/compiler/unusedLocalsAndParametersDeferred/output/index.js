@@ -22,6 +22,7 @@ var farrow = (a) => {
 farrow(2);
 var prop1;
 class C {
+  // Method declaration paramter
   method(a) {
     defered(() => {
       a;
@@ -39,6 +40,7 @@ class C {
 new C();
 var prop2;
 var E = class {
+  // Method declaration paramter
   method(a) {
     defered(() => {
       a;

@@ -64,7 +64,7 @@ impl<'cx> TyChecker<'cx> {
                 let right = self.eval_expr(n.right, location);
                 match (left, right) {
                     (EvalResult::Number(left), EvalResult::Number(right)) => {
-                        let result = match n.op.kind {
+                        let result = match n.op {
                             ast::BinOpKind::Add => left + right,
                             ast::BinOpKind::Sub => left - right,
                             ast::BinOpKind::Mul => left * right,

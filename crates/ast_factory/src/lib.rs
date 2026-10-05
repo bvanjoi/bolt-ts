@@ -327,7 +327,7 @@ pub trait ASTFactory<'cx> {
         &mut self,
         span: Span,
         left: &'cx ast::Expr<'cx>,
-        op: ast::BinOp,
+        op: ast::BinOpKind,
         right: &'cx ast::Expr<'cx>,
     ) -> &'cx ast::BinExpr<'cx> {
         let id = self.next_node_id();

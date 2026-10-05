@@ -3,7 +3,7 @@ use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_config::Target;
-use bolt_ts_scanner::{Comments, LeadingTrailingComments};
+use bolt_ts_scanner::LeadingTrailingComments;
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::path::NormalizePath;
@@ -38,7 +38,6 @@ pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) pragmas: PragmaMap,
     pub(super) has_export_decl: bool,
     pub(super) comment_directives: Vec<CommentDirective>,
-    pub(super) comments: Comments,
     pub(super) leading_trailing_comments: LeadingTrailingComments,
     pub(super) line: usize,
     pub(super) line_start: usize, // offset
@@ -90,7 +89,6 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             has_export_decl: false,
 
             comment_directives: Vec::with_capacity(16),
-            comments: Comments::default(),
             leading_trailing_comments: LeadingTrailingComments::default(),
 
             line_start: 0,

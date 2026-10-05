@@ -4,7 +4,7 @@ enum E {
   A = 0,
   B = 1,
   C = 2,
-  "non identifier" = 3
+  'non identifier' = 3
 }
 var c1: "abc";
 var c2: 123;

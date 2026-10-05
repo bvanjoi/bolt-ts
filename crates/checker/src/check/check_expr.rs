@@ -193,7 +193,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_nullish_coalesce_op_left(&mut self, node: &'cx ast::BinExpr) {
-        debug_assert!(node.op.kind == ast::BinOpKind::Nullish);
+        debug_assert!(node.op == ast::BinOpKind::Nullish);
         const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ALL_FLAGS;
         let left_target = ast::Expr::skip_outer_expr::<FLAGS>(node.left);
         let semantics = self.get_syntactic_nullishness_semantics(left_target);
@@ -218,7 +218,7 @@ impl<'cx> TyChecker<'cx> {
         left_ty: &'cx ty::Ty<'cx>,
         right_ty: &'cx ty::Ty<'cx>,
         error_span: Span,
-        op: ast::BinOp,
+        op: ast::BinOpKind,
         f: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool + Copy,
     ) {
         if !f(self, left_ty, right_ty) {
@@ -231,7 +231,7 @@ impl<'cx> TyChecker<'cx> {
         left_ty: &'cx ty::Ty<'cx>,
         right_ty: &'cx ty::Ty<'cx>,
         error_span: Span,
-        op: ast::BinOp,
+        op: ast::BinOpKind,
         f: Option<impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool + Copy>,
     ) {
         let would_work_with_await = false;
@@ -256,7 +256,7 @@ impl<'cx> TyChecker<'cx> {
 
         // try_give_better_primary_error
         if matches!(
-            op.kind,
+            op,
             ast::BinOpKind::EqEq
                 | ast::BinOpKind::EqEqEq
                 | ast::BinOpKind::NEq
@@ -272,7 +272,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let error = errors::OperatorCannotBeAppliedToTypesXAndY {
                 span: error_span,
-                op: op.kind.as_str(),
+                op: op.as_str(),
                 ty1: self.print_ty(effective_left_ty, None).to_string(),
                 ty2: self.print_ty(effective_right_ty, None).to_string(),
             };
@@ -343,10 +343,9 @@ impl<'cx> TyChecker<'cx> {
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
         use bolt_ts_ast::BinOpKind::*;
-        let ast::BinExpr {
-            left, right, op, ..
-        } = node;
-        match op.kind {
+        let ast::BinExpr { left, right, .. } = node;
+        let op = node.op;
+        match op {
             Add => self.check_binary_like_expr_for_add(
                 left,
                 left_ty,
@@ -360,8 +359,8 @@ impl<'cx> TyChecker<'cx> {
                 left_ty,
                 right,
                 right_ty,
-                op.kind.into(),
-                op.span,
+                op.into(),
+                node.span,
             ),
             BitOr => {
                 let _leftt = self.check_non_null_type(left_ty, left.id());
@@ -420,9 +419,9 @@ impl<'cx> TyChecker<'cx> {
                 if !check_mode.is_some_and(|check_mode| check_mode.contains(CheckMode::TYPE_ONLY)) {
                     if (is_literal_expression_of_object(left) || is_literal_expression_of_object(right)) &&
                         // only report for === and !== in JS, not == or !=
-                        (!self.node_query(left.id().module()).is_in_js_file(left.id()) || (matches!(op.kind, EqEqEq | NEqEq )))
+                        (!self.node_query(left.id().module()).is_in_js_file(left.id()) || (matches!(op, EqEqEq | NEqEq )))
                     {
-                        let eq_type = matches!(op.kind, EqEq | EqEqEq);
+                        let eq_type = matches!(op, EqEq | EqEqEq);
                         let error = errors::ThisConditionWillAlwaysReturnXSinceJavaScriptComparesObjectsByReferenceNotValue {
                             span: node.span,
                             return_value: if eq_type { "false" } else { "true" }.to_string(),
@@ -435,7 +434,7 @@ impl<'cx> TyChecker<'cx> {
                     {
                         let error = errors::ThisConditionWillAlwaysReturnX {
                             span: node.span,
-                            result: !matches!(op.kind, EqEq | EqEqEq),
+                            result: !matches!(op, EqEq | EqEqEq),
                         };
                         self.push_error(Box::new(error));
                     }
@@ -444,7 +443,7 @@ impl<'cx> TyChecker<'cx> {
                         left_ty,
                         right_ty,
                         node.span,
-                        *op,
+                        op,
                         |this, left, right| {
                             this.is_type_equality_comparable_to(left, right)
                                 || this.is_type_equality_comparable_to(right, left)
@@ -459,7 +458,7 @@ impl<'cx> TyChecker<'cx> {
                     left_ty,
                     right,
                     right_ty,
-                    op.kind.into(),
+                    op.into(),
                 ) {
                     let left_ty = self.check_non_null_type(left_ty, left.id());
                     let left_ty = self.get_base_ty_of_literal_ty_for_comparison(left_ty);
@@ -468,8 +467,8 @@ impl<'cx> TyChecker<'cx> {
                     self.report_operator_error_unless(
                         left_ty,
                         right_ty,
-                        op.span,
-                        *op,
+                        node.span,
+                        op,
                         |this, l, r| {
                             if this.is_type_any(l) || this.is_type_any(r) {
                                 true
@@ -1713,10 +1712,7 @@ impl<'cx> TyChecker<'cx> {
             cond_expr = ast::Expr::skip_parens(cond_expr);
             helper(this, cond_expr, cond_ty, body);
             while let ast::ExprKind::Bin(bin) = cond_expr.kind
-                && matches!(
-                    bin.op.kind,
-                    ast::BinOpKind::LogicalOr | ast::BinOpKind::Nullish
-                )
+                && matches!(bin.op, ast::BinOpKind::LogicalOr | ast::BinOpKind::Nullish)
             {
                 cond_expr = ast::Expr::skip_parens(bin.left);
                 helper(this, cond_expr, cond_ty, body);
@@ -1730,7 +1726,7 @@ impl<'cx> TyChecker<'cx> {
             body: Option<ast::NodeID>,
         ) {
             let loc = if let ast::ExprKind::Bin(bin) = cond_expr.kind
-                && bin.op.kind.is_logical_or_coalescing_op()
+                && bin.op.is_logical_or_coalescing_op()
             {
                 ast::Expr::skip_parens(bin.right)
             } else {
@@ -1801,7 +1797,7 @@ impl<'cx> TyChecker<'cx> {
                 // is_symbol_used_in_binary_expression_chain
                 while let Some(p) = parent
                     && let Some(b) = this.p.node(p).as_bin_expr()
-                    && matches!(b.op.kind, ast::BinOpKind::LogicalAnd)
+                    && matches!(b.op, ast::BinOpKind::LogicalAnd)
                 {
                     struct Visitor<'a, 'cx> {
                         cx: &'a mut TyChecker<'cx>,
@@ -3111,7 +3107,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
         use ast::Node::*;
-        if matches!(node.expr.kind, ast::ExprKind::Bin(n) if n.op.kind == ast::BinOpKind::In)
+        if matches!(node.expr.kind, ast::ExprKind::Bin(n) if n.op == ast::BinOpKind::In)
             && let Some(parent) = self.parent(node.id)
             && !matches!(self.p.node(parent), GetterDecl(_) | SetterDecl(_))
             && let Some(parent_parent) = self.parent(parent)

@@ -40,10 +40,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
 
         while let Some(t) = self.parse_optional(TokenKind::Comma) {
             debug_assert_eq!(t.kind, TokenKind::Comma);
-            let op = ast::BinOp {
-                kind: t.kind.into(),
-                span: t.span,
-            };
+            let op = t.kind.into();
             let right = self.parse_assign_expr_or_higher::<false>()?;
             let span = self.new_span(start);
             let kind = self.create_binary_expression(span, expr, op, right);
@@ -430,10 +427,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     ast::ExprKind::As(expr)
                 }
             } else {
-                let op = ast::BinOp {
-                    kind: t.kind.into(),
-                    span: t.span,
-                };
+                let op = t.kind.into();
                 let right = self.parse_binary_expr(next_prec)?;
                 let expr = self.create_binary_expression(self.new_span(start), left, op, right);
                 ast::ExprKind::Bin(expr)

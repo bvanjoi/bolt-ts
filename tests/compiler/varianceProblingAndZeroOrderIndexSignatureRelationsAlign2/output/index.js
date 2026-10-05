@@ -3,6 +3,7 @@ class Left {
   _A;
   _L;
   constructor(value) {}
+  /** The given function is applied if this is a `Right` */
   map(f) {
     return this;
   }
@@ -27,6 +28,7 @@ class Type {
   _O;
   _I;
   constructor(name, is, validate, encode) {}
+  /** a version of `validate` with a default context */
   decode(i) {
     return null;
   }

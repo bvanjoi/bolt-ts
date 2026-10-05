@@ -28,7 +28,7 @@ use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_config::{CompilerOptionFlags, Target};
 use bolt_ts_middle::Extension;
 use bolt_ts_parser_errors as errors;
-use bolt_ts_scanner::{Comments, LeadingTrailingComments, TokenValue};
+use bolt_ts_scanner::{LeadingTrailingComments, TokenValue};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
@@ -89,7 +89,6 @@ pub struct ParseResult<'cx> {
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
-    pub comments: Comments,
     pub leading_trailing_comments: LeadingTrailingComments,
     pub line_map: Vec<u32>,
     pub filepath: Atom,
@@ -122,7 +121,6 @@ pub struct ParseResultForGraph<'cx> {
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
-    pub comments: Comments,
     pub leading_trailing_comments: LeadingTrailingComments,
     pub line_map: Vec<u32>,
     pub filepath: Atom,
@@ -212,7 +210,6 @@ pub fn parse_parallel<'cx, 'p>(
                 external_module_indicator: p.external_module_indicator,
                 commonjs_module_indicator: p.commonjs_module_indicator,
                 comment_directives: p.comment_directives,
-                comments: p.comments,
                 leading_trailing_comments: p.leading_trailing_comments,
                 line_map: p.line_map,
                 filepath: p.filepath,
@@ -260,7 +257,6 @@ fn parser_state_parse<'cx, 'p, const VARIANT: u8, const ALWAYS_STRICT: bool>(
         external_module_indicator: s.external_module_indicator,
         commonjs_module_indicator: s.commonjs_module_indicator,
         comment_directives: s.comment_directives,
-        comments: s.comments,
         leading_trailing_comments: s.leading_trailing_comments,
         line_map: s.line_map,
         filepath: s.filepath,
@@ -286,18 +282,35 @@ pub fn parse<'cx, 'p>(
     let file_path = module_arena.get_path(module_id);
     let always_strict = flags.contains(CompilerOptionFlags::ALWAYS_STRICT);
     let preserve_comment = !flags.contains(CompilerOptionFlags::REMOVE_COMMENTS);
+    let is_default_lib = module_arena.get_module(module_id).is_default_lib();
     macro_rules! parse_with_variant {
         ($variant:expr) => {
             match (always_strict, preserve_comment) {
-                (true, true) => parser_state_parse::<{ $variant | PRESERVE_COMMENT }, true>(
-                    atoms, arena, nodes, input, module_id, file_path, target,
-                ),
+                (true, true) => {
+                    if is_default_lib {
+                        parser_state_parse::<{ $variant }, true>(
+                            atoms, arena, nodes, input, module_id, file_path, target,
+                        )
+                    } else {
+                        parser_state_parse::<{ $variant | PRESERVE_COMMENT }, true>(
+                            atoms, arena, nodes, input, module_id, file_path, target,
+                        )
+                    }
+                }
                 (true, false) => parser_state_parse::<{ $variant }, true>(
                     atoms, arena, nodes, input, module_id, file_path, target,
                 ),
-                (false, true) => parser_state_parse::<{ $variant | PRESERVE_COMMENT }, false>(
-                    atoms, arena, nodes, input, module_id, file_path, target,
-                ),
+                (false, true) => {
+                    if is_default_lib {
+                        parser_state_parse::<{ $variant }, false>(
+                            atoms, arena, nodes, input, module_id, file_path, target,
+                        )
+                    } else {
+                        parser_state_parse::<{ $variant | PRESERVE_COMMENT }, false>(
+                            atoms, arena, nodes, input, module_id, file_path, target,
+                        )
+                    }
+                }
                 (false, false) => parser_state_parse::<{ $variant }, false>(
                     atoms, arena, nodes, input, module_id, file_path, target,
                 ),

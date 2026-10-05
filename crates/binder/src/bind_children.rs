@@ -2276,7 +2276,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn is_top_level_logical_expr(&self, mut n: ast::NodeID) -> bool {
         let p = &self.p;
         debug_assert!(match p.node(n) {
-            ast::Node::BinExpr(bin) => bin.op.kind.is_logical_or_coalescing_op(),
+            ast::Node::BinExpr(bin) => bin.op.is_logical_or_coalescing_op(),
             _ => p.node_flags(n).contains(ast::NodeFlags::OPTIONAL_CHAIN),
         });
         let mut parent = self.parent_map.parent(n).unwrap();
@@ -2306,7 +2306,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
         if parent_node
             .as_bin_expr()
-            .is_some_and(|expr| expr.op.kind.is_logical_or_coalescing_op())
+            .is_some_and(|expr| expr.op.is_logical_or_coalescing_op())
         {
             return false;
         }
@@ -2355,7 +2355,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             this.has_flow_effects |= save_has_flow_effects;
         }
 
-        let op_is_comma = match n.op.kind {
+        let op_is_comma = match n.op {
             BinOpKind::LogicalAnd => {
                 if self.is_top_level_logical_expr(n.id) {
                     bind_top_level_logical_expr::<true>(self, n);

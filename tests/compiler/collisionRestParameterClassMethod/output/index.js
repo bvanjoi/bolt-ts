@@ -5,9 +5,11 @@ class c1 {
   fooNoError(_i) {
     var _i = 10;
   }
+  // no codegen no error
   f4(_i, ...rest) {
     var _i;
   }
+  // no error
   f4NoError(_i) {
     var _i;
   }

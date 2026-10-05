@@ -3,6 +3,7 @@ mod print;
 use std::borrow::Cow;
 
 use bolt_ts_ast as ast;
+use bolt_ts_ast::TokenKind;
 use bolt_ts_ast_visitor::{Visitor, noop_visit_type_node};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_checker::emit_resolver::EmitResolver;
@@ -35,6 +36,7 @@ pub fn emit_js<'cx, 'a>(
         scope,
         max_scope,
         origin,
+        module_id: module,
     };
     let root = js_emitter.resolver.program(module);
     js_emitter.visit_program(root);
@@ -89,6 +91,7 @@ struct JSEmitter<'cx, 'a> {
     scope: ScopeID,
     max_scope: ScopeID,
     origin: String,
+    module_id: ModuleID,
 }
 
 impl<'cx, 'a> JSEmitter<'cx, 'a> {
@@ -121,7 +124,7 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
             decls,
             |this, decl| this.visit_var_decl(decl),
             |this, _| {
-                this.emitter.content.p_comma();
+                this.emitter.content.p_token(TokenKind::Comma);
                 this.emitter.content.p_whitespace();
             },
         );
@@ -129,50 +132,43 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
 
     fn emit_as_string(&mut self, val: Atom) {
         let s = self.atoms().get(val);
-        self.emitter.print().p("'");
-        for c in s.chars() {
-            match c {
-                '\'' => self.emitter.print().p("\\'"),
-                _ => self.emitter.print().content.push(c),
-            }
-        }
-        self.emitter.print().p("'");
+        self.emitter.print().p_string_literal(s);
     }
 
     fn emit_params(&mut self, params: ast::ParamsDecl<'cx>) {
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
         self.emit_list(
             params,
             |this, item| this.visit_param_decl(item),
             |this, _| {
-                this.emitter.content.p_comma();
+                this.emitter.content.p_token(TokenKind::Comma);
                 this.emitter.content.p_whitespace();
             },
         );
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
     }
 
     fn emit_args(&mut self, args: ast::Exprs<'cx>) {
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
         self.emit_list(
             args,
             |this, arg| this.visit_expr(arg),
             |this, _| {
-                this.emitter.content.p_comma();
+                this.emitter.content.p_token(TokenKind::Comma);
                 this.emitter.content.p_whitespace();
             },
         );
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
     }
 
     fn emit_export_modifier_if_root(&mut self, modifiers: Option<&'cx ast::Modifiers<'cx>>) {
         if let Some(ms) = modifiers {
             if self.scope == ScopeID::root() && ms.flags.contains(ast::ModifierFlags::EXPORT) {
-                self.emitter.print().p("export");
+                self.emitter.print().p_token(TokenKind::Export);
                 self.emitter.print().p_whitespace();
             }
             if self.scope == ScopeID::root() && ms.flags.contains(ast::ModifierFlags::DEFAULT) {
-                self.emitter.print().p("default");
+                self.emitter.print().p_token(TokenKind::Default);
                 self.emitter.print().p_whitespace();
             }
         }
@@ -182,13 +178,13 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
         if let Some(ms) = modifiers
             && ms.flags.contains(ast::ModifierFlags::STATIC)
         {
-            self.emitter.print().p("static");
+            self.emitter.print().p_token(TokenKind::Static);
             self.emitter.print().p_whitespace();
         }
     }
 
     fn emit_class_extends_clause(&mut self, extends: &'cx ast::ClassExtendsClause<'cx>) {
-        self.emitter.print().p("extends");
+        self.emitter.print().p_token(TokenKind::Extends);
         self.emitter.print().p_whitespace();
         self.visit_expr_with_ty_args(extends.expr_with_ty_args);
         self.emitter.print().p_whitespace();
@@ -202,29 +198,30 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
     ) {
         let name = decl_name.name;
         if self.ns_names.insert((self.scope, name)) {
-            self.emitter.print().p("var");
+            self.emitter.print().p_token(TokenKind::Var);
             self.emitter.print().p_whitespace();
             self.visit_ident(decl_name);
             self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
+            self.emitter.print().p_token(TokenKind::Eq);
             self.emitter.print().p_whitespace();
-            self.emitter.print().p("{}");
-            self.emitter.print().p_semi();
+            self.emitter.print().p_token(TokenKind::LBrace);
+            self.emitter.print().p_token(TokenKind::RBrace);
+            self.emitter.print().p_token(TokenKind::Semi);
         }
 
         self.emitter.print().p_newline();
 
-        self.emitter.print().p_l_paren();
-        self.emitter.print().p("function");
+        self.emitter.print().p_token(TokenKind::LParen);
+        self.emitter.print().p_token(TokenKind::Function);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
 
         self.emitter.print().p(param_name);
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
         self.emitter.print().p_whitespace();
 
         // emit block
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         self.emitter.print().p_newline();
         self.emitter.print().indent += self.emitter.options.indent;
         let old = self.scope;
@@ -235,13 +232,13 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
         self.scope = old;
         self.emitter.print().indent -= self.emitter.options.indent;
         self.emitter.print().p_newline();
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
 
-        self.emitter.print().p_r_paren();
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
+        self.emitter.print().p_token(TokenKind::LParen);
         self.visit_ident(decl_name);
-        self.emitter.print().p_r_paren();
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::RParen);
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn sub_names_of_binding(&self, binding: &'cx ast::Binding<'cx>) -> Vec<Atom> {
@@ -289,10 +286,10 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
                     {
                         for item in v.list {
                             self.emitter.content.p(param_name);
-                            self.emitter.content.p_dot();
+                            self.emitter.content.p_token(TokenKind::Dot);
                             self.visit_binding(item.name);
                             self.emitter.content.p_whitespace();
-                            self.emitter.content.p_eq();
+                            self.emitter.content.p_token(TokenKind::Eq);
                             self.emitter.content.p_whitespace();
                             self.visit_binding(item.name);
                             self.emitter.content.p_newline();
@@ -334,13 +331,13 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
                 && !ms.flags.contains(ast::ModifierFlags::AMBIENT)
             {
                 self.emitter.content.p(param_name);
-                self.emitter.content.p_dot();
+                self.emitter.content.p_token(TokenKind::Dot);
                 self.visit_ident(name);
                 self.emitter.content.p_whitespace();
-                self.emitter.content.p_eq();
+                self.emitter.content.p_token(TokenKind::Eq);
                 self.emitter.content.p_whitespace();
                 self.visit_ident(name);
-                self.emitter.content.p_semi();
+                self.emitter.content.p_token(TokenKind::Semi);
                 self.emitter.content.p_newline();
             }
         }
@@ -403,7 +400,7 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
     }
 
     fn emit_params_without_this(&mut self, params: ast::ParamsDecl<'cx>) {
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
         let filtered: Vec<_> = params
             .iter()
             .enumerate()
@@ -419,11 +416,11 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
             &filtered,
             |this, item| this.visit_param_decl(item),
             |this, _| {
-                this.emitter.content.p_comma();
+                this.emitter.content.p_token(TokenKind::Comma);
                 this.emitter.content.p_whitespace();
             },
         );
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
     }
 
     fn emit_class_body(&mut self, elems: &'cx ast::ClassElems<'cx>) {
@@ -433,7 +430,7 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
             .filter(|e| !self.class_elem_is_empty(e))
             .copied()
             .collect();
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         if !items.is_empty() {
             self.emitter.print().indent += self.emitter.options.indent;
             self.emitter.print().p_newline();
@@ -449,7 +446,7 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
             self.emitter.print().indent -= self.emitter.options.indent;
             self.emitter.print().p_newline();
         }
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn emit_enum_member_name(&mut self, name: &'cx ast::EnumMemberNameKind<'cx>) {
@@ -470,7 +467,7 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
     fn emit_for_init(&mut self, init: ast::ForInitKind<'cx>) {
         match init {
             ast::ForInitKind::Var(decls) => {
-                self.emitter.print().p("var");
+                self.emitter.print().p_token(TokenKind::Var);
                 self.emitter.print().p_whitespace();
                 self.emit_var_decls(decls);
             }
@@ -492,7 +489,7 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
             Shorthand(n) => self.visit_object_shorthand_member(n),
             Method(n) => self.visit_object_method_member(n),
             SpreadAssignment(n) => {
-                self.emitter.print().p("...");
+                self.emitter.print().p_token(TokenKind::DotDotDot);
                 self.visit_expr(n.expr);
             }
             Getter(n) => self.visit_getter_decl(n),
@@ -506,22 +503,22 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
             Ident(n) => self.visit_ident(n),
             Ns(n) => self.visit_jsx_ns_name(n),
             PropAccess(n) => self.visit_prop_access_expr(n),
-            This(_) => self.emitter.print().p("this"),
+            This(_) => self.emitter.print().p_token(TokenKind::This),
         }
     }
 
     fn visit_jsx_attr(&mut self, node: &'cx ast::JsxAttr<'cx>) {
         match node {
             ast::JsxAttr::Spread(n) => {
-                self.emitter.print().p_l_brace();
-                self.emitter.print().p_dot_dot_dot();
+                self.emitter.print().p_token(TokenKind::LBrace);
+                self.emitter.print().p_token(TokenKind::DotDotDot);
                 self.visit_expr(n.expr);
-                self.emitter.print().p_r_brace();
+                self.emitter.print().p_token(TokenKind::RBrace);
             }
             ast::JsxAttr::Named(n) => {
                 self.visit_jsx_attr_name(n.name.clone());
                 if let Some(v) = n.init {
-                    self.emitter.print().p_eq();
+                    self.emitter.print().p_token(TokenKind::Eq);
                     self.visit_jsx_attr_value(v);
                 }
             }
@@ -623,24 +620,21 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
         });
     }
 
-    fn emit_leading_comments(&mut self, _pos: u32) {
-        // if self.resolver.config().compiler_options().remove_comments() {
-        //     return;
-        // }
-        // bolt_ts_scanner::iterate_comment_ranges::<false, false>(
-        //     &self.origin,
-        //     pos as usize,
-        //     |kind, start, end, has_trailing_newline| {
-        //         let comment = &self.origin[start..end];
-        //         self.emitter.print().p(comment);
-        //         if has_trailing_newline {
-        //             self.emitter.print().p_newline();
-        //         } else if matches!(kind, bolt_ts_scanner::CommentKind::MultiLine) {
-        //             self.emitter.print().p_whitespace();
-        //         }
-        //         false
-        //     },
-        // );
+    fn emit_leading_comments(&mut self, start: u32) {
+        if self.resolver.config().compiler_options().remove_comments() {
+            return;
+        }
+        let module_id = self.module_id;
+        let Some(leading_comments) = self.resolver.leading_comment(module_id, start as usize)
+        else {
+            return;
+        };
+        for c in leading_comments {
+            let text = &self.origin[c.start() as usize..c.end() as usize];
+            let text = text.replace("\r\n", "\n");
+            self.emitter.content.p(&text);
+            self.emitter.content.p_newline();
+        }
     }
 }
 
@@ -648,8 +642,6 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     type Result = ();
 
     fn visit_program(&mut self, node: &'cx ast::Program<'cx>) -> Self::Result {
-        let span = node.span();
-        self.emit_leading_comments(span.lo());
         let mut first = true;
         for stmt in node.stmts() {
             if self.stmt_is_omitted(stmt) {
@@ -670,17 +662,17 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         {
             return;
         }
-        self.emitter.print().p("var");
+        self.emitter.print().p_token(TokenKind::Var);
         self.emitter.print().p_whitespace();
         self.emit_var_decls(node.list);
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_var_decl(&mut self, node: &'cx ast::VarDecl<'cx>) -> Self::Result {
         self.visit_binding(node.name);
         if let Some(init) = node.init {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
+            self.emitter.print().p_token(TokenKind::Eq);
             self.emitter.print().p_whitespace();
             self.visit_expr(init);
         }
@@ -711,9 +703,9 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             NumLit(n) => self.visit_num_lit(n),
             StringLit { raw, .. } => self.visit_string_lit(raw),
             Computed(n) => {
-                self.emitter.print().p_l_bracket();
+                self.emitter.print().p_token(TokenKind::LBracket);
                 self.visit_expr(n.expr);
-                self.emitter.print().p_r_bracket();
+                self.emitter.print().p_token(TokenKind::RBracket);
             }
             PrivateIdent(n) => self.visit_private_ident(n),
             BigIntLit(n) => {
@@ -728,7 +720,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         node: &'cx ast::ObjectBindingElem<'cx>,
     ) -> Self::Result {
         if node.dotdotdot.is_some() {
-            self.emitter.print().p_dot_dot_dot();
+            self.emitter.print().p_token(TokenKind::DotDotDot);
         }
         match node.name {
             ast::ObjectBindingName::Shorthand(ident) => {
@@ -736,14 +728,14 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             }
             ast::ObjectBindingName::Prop { prop_name, name } => {
                 self.visit_prop_name(prop_name);
-                self.emitter.print().p(":");
+                self.emitter.print().p_token(TokenKind::Colon);
                 self.emitter.print().p_whitespace();
                 self.visit_binding(name);
             }
         }
         if let Some(init) = node.init {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
+            self.emitter.print().p_token(TokenKind::Eq);
             self.emitter.print().p_whitespace();
             self.visit_expr(init);
         }
@@ -751,12 +743,12 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
 
     fn visit_array_binding(&mut self, node: &'cx ast::ArrayBinding<'cx>) -> Self::Result {
         if node.dotdotdot.is_some() {
-            self.emitter.print().p_dot_dot_dot();
+            self.emitter.print().p_token(TokenKind::DotDotDot);
         }
         self.visit_binding(node.name);
         if let Some(init) = node.init {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
+            self.emitter.print().p_token(TokenKind::Eq);
             self.emitter.print().p_whitespace();
             self.visit_expr(init);
         }
@@ -767,19 +759,19 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         match node.kind {
             Ident(n) => self.visit_ident(n),
             ObjectPat(n) => {
-                self.emitter.print().p_l_brace();
+                self.emitter.print().p_token(TokenKind::LBrace);
                 self.emit_list(
                     n.elems,
                     |this, item| this.visit_object_binding_elem(item),
                     |this, _| {
-                        this.emitter.content.p_comma();
+                        this.emitter.content.p_token(TokenKind::Comma);
                         this.emitter.content.p_whitespace();
                     },
                 );
-                self.emitter.print().p_r_brace();
+                self.emitter.print().p_token(TokenKind::RBrace);
             }
             ArrayPat(n) => {
-                self.emitter.print().p_l_bracket();
+                self.emitter.print().p_token(TokenKind::LBracket);
                 self.emit_list(
                     n.elems,
                     |this, item| match item.kind {
@@ -789,30 +781,30 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                         }
                     },
                     |this, _| {
-                        this.emitter.content.p_comma();
+                        this.emitter.content.p_token(TokenKind::Comma);
                         this.emitter.content.p_whitespace();
                     },
                 );
-                self.emitter.print().p_r_bracket();
+                self.emitter.print().p_token(TokenKind::RBracket);
             }
         }
     }
 
     fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) -> Self::Result {
         if node.dotdotdot.is_some() {
-            self.emitter.print().p_dot_dot_dot();
+            self.emitter.print().p_token(TokenKind::DotDotDot);
         }
         self.visit_binding(node.name);
         if let Some(init) = node.init {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
+            self.emitter.print().p_token(TokenKind::Eq);
             self.emitter.print().p_whitespace();
             self.visit_expr(init);
         }
     }
 
     fn visit_block_stmt(&mut self, node: &'cx ast::BlockStmt<'cx>) -> Self::Result {
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
         if has_stmts {
             self.emitter.print().indent += self.emitter.options.indent;
@@ -823,20 +815,20 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             self.emitter.print().indent -= self.emitter.options.indent;
             self.emitter.print().p_newline();
         }
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_if_stmt(&mut self, node: &'cx ast::IfStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("if");
+        self.emitter.print().p_token(TokenKind::If);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
         self.visit_expr(node.expr);
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
         self.emitter.print().p_whitespace();
         self.visit_stmt(node.then);
         if let Some(else_then) = node.else_then {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p("else");
+            self.emitter.print().p_token(TokenKind::Else);
             self.emitter.print().p_whitespace();
             self.visit_stmt(else_then);
         }
@@ -844,7 +836,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_ret_stmt(&mut self, node: &'cx ast::RetStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("return");
+        self.emitter.print().p_token(TokenKind::Return);
         self.emitter.print().p_whitespace();
         if let Some(expr) = node.expr {
             self.visit_expr(expr);
@@ -856,7 +848,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             return;
         };
         self.emit_static_modifier(node.modifiers);
-        self.emitter.print().p("get");
+        self.emitter.print().p_token(TokenKind::Get);
         self.emitter.print().p_whitespace();
         self.visit_prop_name(node.name);
         self.emit_params(&[]);
@@ -869,7 +861,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             return;
         };
         self.emit_static_modifier(node.modifiers);
-        self.emitter.print().p("set");
+        self.emitter.print().p_token(TokenKind::Set);
         self.emitter.print().p_whitespace();
         self.visit_prop_name(node.name);
         self.emit_params_without_this(node.params);
@@ -881,11 +873,11 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         let Some(body) = node.body else {
             return;
         };
-        self.emitter.print().p("constructor");
+        self.emitter.print().p_token(TokenKind::Constructor);
         self.emit_params_without_this(node.params);
         self.emitter.print().p_whitespace();
 
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         self.emitter.print().indent += self.emitter.options.indent;
 
         let has_block_stmt = body.stmts.iter().any(|s| !self.stmt_is_omitted(s))
@@ -922,11 +914,11 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             |this, param| {
                 if this.is_param_property(param) {
                     this.emitter.content.p_newline();
-                    this.emitter.content.p("this");
-                    this.emitter.content.p_dot();
+                    this.emitter.content.p_token(TokenKind::This);
+                    this.emitter.content.p_token(TokenKind::Dot);
                     this.visit_binding(param.name);
                     this.emitter.content.p_whitespace();
-                    this.emitter.content.p_eq();
+                    this.emitter.content.p_token(TokenKind::Eq);
                     this.emitter.content.p_whitespace();
                     this.visit_binding(param.name);
                 }
@@ -944,18 +936,18 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             self.emitter.print().p_newline();
         }
         self.emitter.print().indent -= self.emitter.options.indent;
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_class_static_block_decl(
         &mut self,
         node: &'cx ast::ClassStaticBlockDecl<'cx>,
     ) -> Self::Result {
-        self.emitter.print().p("static");
+        self.emitter.print().p_token(TokenKind::Static);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         self.visit_block_stmt(node.body);
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_class_prop_elem(&mut self, node: &'cx ast::ClassPropElem<'cx>) -> Self::Result {
@@ -968,20 +960,21 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         self.visit_prop_name(node.name);
         if let Some(init) = node.init {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
+            self.emitter.print().p_token(TokenKind::Eq);
             self.emitter.print().p_whitespace();
             self.visit_expr(init);
         }
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) -> Self::Result {
+        self.emit_leading_comments(node.span.lo());
         let Some(body) = node.body else {
             return;
         };
         self.emit_static_modifier(node.modifiers);
         if node.asterisk.is_some() {
-            self.emitter.print().p_asterisk();
+            self.emitter.print().p_token(TokenKind::Asterisk);
         }
         self.visit_prop_name(node.name);
         self.emit_params_without_this(node.params);
@@ -1014,12 +1007,12 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             .modifiers
             .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ASYNC))
         {
-            self.emitter.print().p("async");
+            self.emitter.print().p_token(TokenKind::Async);
             self.emitter.print().p_whitespace();
         }
-        self.emitter.print().p("function");
+        self.emitter.print().p_token(TokenKind::Function);
         if node.asterisk.is_some() {
-            self.emitter.print().p("*");
+            self.emitter.print().p_token(TokenKind::Asterisk);
         }
         self.emitter.print().p_whitespace();
         if let Some(name) = node.name {
@@ -1038,7 +1031,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             return;
         }
         self.emit_export_modifier_if_root(node.modifiers);
-        self.emitter.print().p("class");
+        self.emitter.print().p_token(TokenKind::Class);
         self.emitter.print().p_whitespace();
         if let Some(name) = node.name {
             self.visit_ident(name);
@@ -1052,7 +1045,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_class_expr(&mut self, node: &'cx ast::ClassExpr<'cx>) -> Self::Result {
-        self.emitter.print().p("class");
+        self.emitter.print().p_token(TokenKind::Class);
         self.emitter.print().p_whitespace();
         if let Some(name) = node.name {
             self.visit_ident(name);
@@ -1066,7 +1059,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_throw_stmt(&mut self, node: &'cx ast::ThrowStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("throw");
+        self.emitter.print().p_token(TokenKind::Throw);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.expr);
     }
@@ -1094,13 +1087,13 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                     this.emitter.content.p_newline();
 
                     this.emitter.content.p(&param_name);
-                    this.emitter.content.p_dot();
+                    this.emitter.content.p_token(TokenKind::Dot);
                     this.visit_ident(inner.name);
                     this.emitter.content.p_whitespace();
-                    this.emitter.content.p_eq();
+                    this.emitter.content.p_token(TokenKind::Eq);
                     this.emitter.content.p_whitespace();
                     this.visit_ident(inner.name);
-                    this.emitter.content.p_semi();
+                    this.emitter.content.p_token(TokenKind::Semi);
                     this.emitter.content.p_newline();
                 });
             }
@@ -1128,22 +1121,22 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             for member in node.members {
                 this.emitter.content.p_newline();
                 this.visit_ident(node.name);
-                this.emitter.content.p_l_bracket();
+                this.emitter.content.p_token(TokenKind::LBracket);
                 this.visit_ident(node.name);
-                this.emitter.content.p_l_bracket();
+                this.emitter.content.p_token(TokenKind::LBracket);
                 this.emit_enum_member_name(&member.name);
-                this.emitter.content.p_r_bracket();
+                this.emitter.content.p_token(TokenKind::RBracket);
                 this.emitter.content.p_whitespace();
-                this.emitter.content.p_eq();
+                this.emitter.content.p_token(TokenKind::Eq);
                 this.emitter.content.p_whitespace();
                 if let Some(init) = member.init {
                     this.visit_expr(init);
                 } else {
                     this.emitter.content.p("0");
                 }
-                this.emitter.content.p_r_bracket();
+                this.emitter.content.p_token(TokenKind::RBracket);
                 this.emitter.content.p_whitespace();
-                this.emitter.content.p_eq();
+                this.emitter.content.p_token(TokenKind::Eq);
                 this.emitter.content.p_whitespace();
                 this.emit_enum_member_name(&member.name);
             }
@@ -1155,13 +1148,13 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) -> Self::Result {
-        self.emitter.print().p("import");
+        self.emitter.print().p_token(TokenKind::Import);
         self.emitter.print().p_whitespace();
         if let Some(clause) = node.clause {
             self.visit_import_clause(clause);
         }
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("from");
+        self.emitter.print().p_token(TokenKind::From);
         self.emitter.print().p_whitespace();
         self.visit_string_lit(node.module);
     }
@@ -1177,7 +1170,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                         specs,
                         |this, spec| this.visit_import_spec(spec),
                         |this, _| {
-                            this.emitter.content.p_comma();
+                            this.emitter.content.p_token(TokenKind::Comma);
                             this.emitter.content.p_whitespace();
                         },
                     );
@@ -1188,9 +1181,9 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_ns_import(&mut self, node: &'cx ast::NsImport<'cx>) -> Self::Result {
-        self.emitter.print().p_asterisk();
+        self.emitter.print().p_token(TokenKind::Asterisk);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("as");
+        self.emitter.print().p_token(TokenKind::As);
         self.emitter.print().p_whitespace();
         self.visit_ident(node.name);
     }
@@ -1212,7 +1205,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     fn visit_import_named_spec(&mut self, node: &'cx ast::ImportNamedSpec<'cx>) -> Self::Result {
         self.visit_module_export_name(node.prop_name);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("as");
+        self.emitter.print().p_token(TokenKind::As);
         self.emitter.print().p_whitespace();
         self.visit_ident(node.name);
     }
@@ -1223,14 +1216,14 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             Var(n) => self.visit_var_stmt(n),
             Expr(n) => {
                 self.visit_expr_stmt(n);
-                self.emitter.print().p_semi();
+                self.emitter.print().p_token(TokenKind::Semi);
             }
             Fn(n) => self.visit_fn_decl(n),
             If(n) => self.visit_if_stmt(n),
             Block(n) => self.visit_block_stmt(n),
             Ret(n) => {
                 self.visit_ret_stmt(n);
-                self.emitter.print().p_semi();
+                self.emitter.print().p_token(TokenKind::Semi);
             }
             Class(n) => self.visit_class_decl(n),
             Throw(n) => self.visit_throw_stmt(n),
@@ -1242,39 +1235,39 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             Export(n) => self.visit_export_decl(n),
             ExportAssign(n) => {
                 self.visit_export_assign(n);
-                self.emitter.print().p_semi();
+                self.emitter.print().p_token(TokenKind::Semi);
             }
             For(n) => self.visit_for_stmt(n),
             ForOf(n) => self.visit_for_of_stmt(n),
             ForIn(n) => self.visit_for_in_stmt(n),
             Break(n) => {
                 self.visit_break_stmt(n);
-                self.emitter.print().p_semi();
+                self.emitter.print().p_token(TokenKind::Semi);
             }
             Continue(n) => {
                 self.visit_continue_stmt(n);
-                self.emitter.print().p_semi();
+                self.emitter.print().p_token(TokenKind::Semi);
             }
             Try(n) => self.visit_try_stmt(n),
             While(n) => self.visit_while_stmt(n),
             Do(n) => self.visit_do_while_stmt(n),
             Labeled(n) => self.visit_labeled_stmt(n),
-            Empty(_) => self.emitter.print().p_semi(),
+            Empty(_) => self.emitter.print().p_token(TokenKind::Semi),
             Switch(n) => self.visit_switch_stmt(n),
             Interface(_) | TypeAlias(_) | Debugger(_) => {}
         }
     }
 
     fn visit_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("switch");
+        self.emitter.print().p_token(TokenKind::Switch);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
         self.visit_expr(node.expr);
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         self.visit_case_block(node.case_block);
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_case_block(&mut self, node: &'cx ast::CaseBlock<'cx>) -> Self::Result {
@@ -1299,10 +1292,10 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_case_clause(&mut self, node: &'cx ast::CaseClause<'cx>) -> Self::Result {
-        self.emitter.print().p("case");
+        self.emitter.print().p_token(TokenKind::Case);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.expr);
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::Colon);
         let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
         if has_stmts {
             self.emitter.print().indent += self.emitter.options.indent;
@@ -1316,8 +1309,8 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_default_clause(&mut self, node: &'cx ast::DefaultClause<'cx>) -> Self::Result {
-        self.emitter.print().p("default");
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::Default);
+        self.emitter.print().p_token(TokenKind::Colon);
         let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
         if has_stmts {
             self.emitter.print().indent += self.emitter.options.indent;
@@ -1331,54 +1324,56 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_export_assign(&mut self, node: &'cx ast::ExportAssign<'cx>) -> Self::Result {
-        self.emitter.print().p("export default");
+        self.emitter.print().p_token(TokenKind::Export);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_token(TokenKind::Default);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.expr);
     }
 
     fn visit_labeled_stmt(&mut self, node: &'cx ast::LabeledStmt<'cx>) -> Self::Result {
         self.visit_ident(node.label);
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         self.visit_stmt(node.stmt);
     }
 
     fn visit_do_while_stmt(&mut self, node: &'cx ast::DoWhileStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("do");
+        self.emitter.print().p_token(TokenKind::Do);
         self.emitter.print().p_whitespace();
         self.visit_stmt(node.stmt);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("while");
+        self.emitter.print().p_token(TokenKind::While);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
         self.visit_expr(node.expr);
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
     }
 
     fn visit_while_stmt(&mut self, node: &'cx ast::WhileStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("while");
+        self.emitter.print().p_token(TokenKind::While);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
         self.visit_expr(node.expr);
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
         self.emitter.print().p_whitespace();
         self.visit_stmt(node.stmt);
     }
 
     fn visit_catch_clause(&mut self, node: &'cx ast::CatchClause<'cx>) -> Self::Result {
-        self.emitter.print().p("catch");
+        self.emitter.print().p_token(TokenKind::Catch);
         self.emitter.print().p_whitespace();
         if let Some(var) = node.var {
-            self.emitter.print().p("(");
+            self.emitter.print().p_token(TokenKind::LParen);
             self.visit_var_decl(var);
-            self.emitter.print().p(")");
+            self.emitter.print().p_token(TokenKind::RParen);
         }
         self.emitter.print().p_whitespace();
         self.visit_block_stmt(node.block);
     }
 
     fn visit_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("try");
+        self.emitter.print().p_token(TokenKind::Try);
         self.emitter.print().p_whitespace();
         self.visit_block_stmt(node.try_block);
         if let Some(catch) = node.catch_clause {
@@ -1386,14 +1381,14 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             self.visit_catch_clause(catch);
         }
         if let Some(finally) = node.finally_block {
-            self.emitter.print().p("finally");
+            self.emitter.print().p_token(TokenKind::Finally);
             self.emitter.print().p_whitespace();
             self.visit_block_stmt(finally);
         }
     }
 
     fn visit_continue_stmt(&mut self, node: &'cx ast::ContinueStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("continue");
+        self.emitter.print().p_token(TokenKind::Continue);
         if let Some(label) = node.label {
             self.emitter.print().p_whitespace();
             self.visit_ident(label);
@@ -1401,7 +1396,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_break_stmt(&mut self, node: &'cx ast::BreakStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("break");
+        self.emitter.print().p_token(TokenKind::Break);
         if let Some(label) = node.label {
             self.emitter.print().p_whitespace();
             self.visit_ident(label);
@@ -1409,91 +1404,91 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("for");
+        self.emitter.print().p_token(TokenKind::For);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("(");
+        self.emitter.print().p_token(TokenKind::LParen);
         self.emitter.print().p_whitespace();
         self.emit_for_init(node.init);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("in");
+        self.emitter.print().p_token(TokenKind::In);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.expr);
-        self.emitter.print().p(")");
+        self.emitter.print().p_token(TokenKind::RParen);
         self.emitter.print().p_whitespace();
         self.visit_stmt(node.body);
     }
 
     fn visit_for_stmt(&mut self, node: &'cx ast::ForStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("for");
+        self.emitter.print().p_token(TokenKind::For);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("(");
+        self.emitter.print().p_token(TokenKind::LParen);
         self.emitter.print().p_whitespace();
         if let Some(init) = node.init {
             self.emit_for_init(init);
         }
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
         self.emitter.print().p_whitespace();
         if let Some(cond) = node.cond {
             self.visit_expr(cond);
         }
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
         self.emitter.print().p_whitespace();
         if let Some(incr) = node.incr {
             self.visit_expr(incr);
         }
-        self.emitter.print().p(")");
+        self.emitter.print().p_token(TokenKind::RParen);
         self.emitter.print().p_whitespace();
         self.visit_stmt(node.body);
     }
 
     fn visit_for_of_stmt(&mut self, node: &'cx ast::ForOfStmt<'cx>) -> Self::Result {
-        self.emitter.print().p("for");
+        self.emitter.print().p_token(TokenKind::For);
         self.emitter.print().p_whitespace();
         if node.r#await.is_some() {
-            self.emitter.print().p("await");
+            self.emitter.print().p_token(TokenKind::Await);
             self.emitter.print().p_whitespace();
         }
-        self.emitter.print().p("(");
+        self.emitter.print().p_token(TokenKind::LParen);
         self.emitter.print().p_whitespace();
         self.emit_for_init(node.init);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("of");
+        self.emitter.print().p_token(TokenKind::Of);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.expr);
-        self.emitter.print().p(")");
+        self.emitter.print().p_token(TokenKind::RParen);
         self.emitter.print().p_whitespace();
         self.visit_stmt(node.body);
     }
 
     fn visit_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) -> Self::Result {
-        self.emitter.print().p("export");
+        self.emitter.print().p_token(TokenKind::Export);
         self.emitter.print().p_whitespace();
         match node.clause.kind {
             ast::ExportClauseKind::Specs(specs) => {
-                self.emitter.print().p("{");
+                self.emitter.print().p_token(TokenKind::LBrace);
                 self.emitter.print().p_whitespace();
                 self.emit_list(
                     specs.list,
                     |this, spec| this.visit_export_spec(spec),
                     |this, _| {
-                        this.emitter.content.p_comma();
+                        this.emitter.content.p_token(TokenKind::Comma);
                         this.emitter.content.p_whitespace();
                     },
                 );
                 self.emitter.print().p_whitespace();
-                self.emitter.print().p("}");
+                self.emitter.print().p_token(TokenKind::RBrace);
                 if let Some(module) = specs.module {
                     self.emitter.print().p_whitespace();
-                    self.emitter.print().p("from");
+                    self.emitter.print().p_token(TokenKind::From);
                     self.emitter.print().p_whitespace();
                     self.visit_string_lit(module);
                 }
             }
             ast::ExportClauseKind::Ns(n) => self.visit_ns_export(n),
             ast::ExportClauseKind::Glob(n) => {
-                self.emitter.print().p("*");
+                self.emitter.print().p_token(TokenKind::Asterisk);
                 self.emitter.print().p_whitespace();
-                self.emitter.print().p("from");
+                self.emitter.print().p_token(TokenKind::From);
                 self.emitter.print().p_whitespace();
                 self.visit_string_lit(n.module);
             }
@@ -1503,7 +1498,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     fn visit_export_named_spec(&mut self, node: &'cx ast::ExportNamedSpec<'cx>) -> Self::Result {
         self.visit_module_export_name(node.prop_name);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("as");
+        self.emitter.print().p_token(TokenKind::As);
         self.emitter.print().p_whitespace();
         self.visit_module_export_name(node.name);
     }
@@ -1516,13 +1511,13 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_ns_export(&mut self, node: &'cx ast::NsExport<'cx>) -> Self::Result {
-        self.emitter.print().p("*");
+        self.emitter.print().p_token(TokenKind::Asterisk);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("as");
+        self.emitter.print().p_token(TokenKind::As);
         self.emitter.print().p_whitespace();
         self.visit_module_export_name(node.name);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("from");
+        self.emitter.print().p_token(TokenKind::From);
         self.emitter.print().p_whitespace();
         self.visit_string_lit(node.module);
     }
@@ -1530,7 +1525,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     fn visit_assign_expr(&mut self, node: &'cx ast::AssignExpr<'cx>) -> Self::Result {
         self.visit_expr(node.left);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p(node.op.as_str());
+        self.emitter.print().p_assign_op(node.op);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.right);
     }
@@ -1538,24 +1533,24 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     fn visit_bin_expr(&mut self, node: &'cx ast::BinExpr<'cx>) -> Self::Result {
         self.visit_expr(node.left);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p(node.op.kind.as_str());
+        self.emitter.print().p_bin_op(node.op);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.right);
     }
 
     fn visit_paren_expr(&mut self, node: &'cx ast::ParenExpr<'cx>) -> Self::Result {
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
         self.visit_expr(node.expr);
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
     }
 
     fn visit_this_expr(&mut self, _node: &'cx ast::ThisExpr) -> Self::Result {
-        self.emitter.print().p("this");
+        self.emitter.print().p_token(TokenKind::This);
     }
 
     fn visit_big_int_lit(&mut self, node: &'cx ast::BigIntLit) -> Self::Result {
         if node.val.0 {
-            self.emitter.print().p("-");
+            self.emitter.print().p_token(TokenKind::Minus);
         }
         let content = self.atoms().get(node.val.1);
         self.emitter.print().p(content);
@@ -1568,23 +1563,24 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_array_lit(&mut self, node: &'cx ast::ArrayLit<'cx>) -> Self::Result {
-        self.emitter.print().p_l_bracket();
+        self.emitter.print().p_token(TokenKind::LBracket);
         for (idx, expr) in node.elems.iter().enumerate() {
             self.visit_expr(expr);
             if idx != node.elems.len() - 1 {
-                self.emitter.print().p_comma();
+                self.emitter.print().p_token(TokenKind::Comma);
                 self.emitter.print().p_whitespace();
             }
         }
-        self.emitter.print().p_r_bracket();
+        self.emitter.print().p_token(TokenKind::RBracket);
     }
 
     fn visit_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> Self::Result {
         if node.members.is_empty() {
-            self.emitter.print().p("{}");
+            self.emitter.print().p_token(TokenKind::LBrace);
+            self.emitter.print().p_token(TokenKind::RBrace);
             return;
         }
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         self.emitter.print().p_newline();
         self.emitter.print().indent += self.emitter.options.indent;
         let indent = self.emitter.print().indent;
@@ -1595,7 +1591,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                 this.visit_object_member(member);
             },
             |this, _| {
-                this.emitter.content.p_comma();
+                this.emitter.content.p_token(TokenKind::Comma);
                 this.emitter.content.p_newline();
             },
         );
@@ -1603,7 +1599,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         self.emitter.print().p_pieces_of_whitespace(indent);
         self.emitter.print().indent -= self.emitter.options.indent;
         self.emitter.print().p_newline();
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_object_method_member(
@@ -1611,7 +1607,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         node: &'cx ast::ObjectMethodMember<'cx>,
     ) -> Self::Result {
         if node.asterisk.is_some() {
-            self.emitter.print().p_asterisk();
+            self.emitter.print().p_token(TokenKind::Asterisk);
         }
         self.visit_prop_name(node.name);
         self.emit_params_without_this(node.params);
@@ -1624,7 +1620,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         node: &'cx ast::ObjectPropAssignment<'cx>,
     ) -> Self::Result {
         self.visit_prop_name(node.name);
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.init);
     }
@@ -1640,28 +1636,28 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         if let ast::ExprKind::NumLit(n) = node.expr.kind {
             self.visit_num_lit(n);
             if n.val.fract() == 0. {
-                self.emitter.print().p(".");
+                self.emitter.print().p_token(TokenKind::Dot);
             }
         } else {
             self.visit_expr(node.expr);
         }
-        self.emitter.print().p_dot();
+        self.emitter.print().p_token(TokenKind::Dot);
         self.visit_ident(node.name);
     }
 
     fn visit_template_expr(&mut self, node: &'cx ast::TemplateExpr<'cx>) -> Self::Result {
-        self.emitter.print().p("`");
+        self.emitter.print().p_token(TokenKind::Backtick);
         let content = self.atoms().get(node.head.text);
         let content = escape_snippet_text(content);
         self.emitter.print().p(&content);
         for span in node.spans {
-            self.emitter.print().p("${");
+            self.emitter.print().p_dollar_and_brace();
             self.visit_expr(span.expr);
-            self.emitter.print().p("}");
+            self.emitter.print().p_token(TokenKind::RBrace);
             let content = self.atoms().get(span.text);
             self.emitter.print().p(content);
         }
-        self.emitter.print().p("`");
+        self.emitter.print().p_token(TokenKind::Backtick);
     }
 
     fn visit_no_substitution_template_lit(
@@ -1682,7 +1678,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             This(n) => self.visit_this_expr(n),
             Ident(n) => self.visit_ident(n),
             BoolLit(n) => self.emitter.print().p(&n.val.to_string()),
-            NullLit(_) => self.emitter.print().p("null"),
+            NullLit(_) => self.emitter.print().p_token(TokenKind::Null),
             NumLit(n) => self.visit_num_lit(n),
             BigIntLit(n) => self.visit_big_int_lit(n),
             RegExpLit(n) => self.visit_reg_exp_lit(n),
@@ -1691,21 +1687,21 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             ArrayLit(n) => self.visit_array_lit(n),
             ObjectLit(n) => self.visit_object_lit(n),
             Void(n) => {
-                self.emitter.print().p("void");
+                self.emitter.print().p_token(TokenKind::Void);
                 self.emitter.print().p_whitespace();
                 self.visit_expr(n.expr);
             }
             Typeof(n) => {
-                self.emitter.print().p("typeof");
+                self.emitter.print().p_token(TokenKind::Typeof);
                 self.emitter.print().p_whitespace();
                 self.visit_expr(n.expr);
             }
-            Super(_) => self.emitter.print().p("super"),
+            Super(_) => self.emitter.print().p_token(TokenKind::Super),
             EleAccess(n) => {
                 self.visit_expr(n.expr);
-                self.emitter.print().p_l_bracket();
+                self.emitter.print().p_token(TokenKind::LBracket);
                 self.visit_expr(n.arg);
-                self.emitter.print().p_r_bracket();
+                self.emitter.print().p_token(TokenKind::RBracket);
             }
             PropAccess(n) => self.visit_prop_access_expr(n),
             PostfixUnary(n) => {
@@ -1732,7 +1728,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             }
             Template(n) => self.visit_template_expr(n),
             SpreadElement(n) => {
-                self.emitter.print().p("...");
+                self.emitter.print().p_token(TokenKind::DotDotDot);
                 self.visit_expr(n.expr);
             }
             ArrowFn(n) => self.visit_arrow_fn_expr(n),
@@ -1745,20 +1741,20 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             JsxSelfClosingElem(n) => self.visit_jsx_self_closing_elem(n),
             JsxFrag(n) => self.visit_jsx_frag(n),
             Delete(n) => {
-                self.emitter.print().p("delete");
+                self.emitter.print().p_token(TokenKind::Delete);
                 self.emitter.print().p_whitespace();
                 self.visit_expr(n.expr);
             }
             Await(n) => {
-                self.emitter.print().p("await");
+                self.emitter.print().p_token(TokenKind::Await);
                 self.emitter.print().p_whitespace();
                 self.visit_expr(n.expr);
             }
             Yield(n) => {
-                self.emitter.print().p("yield");
+                self.emitter.print().p_token(TokenKind::Yield);
                 self.emitter.print().p_whitespace();
                 if n.asterisk.is_some() {
-                    self.emitter.print().p_asterisk();
+                    self.emitter.print().p_token(TokenKind::Asterisk);
                     self.emitter.print().p_whitespace();
                 }
                 if let Some(expr) = n.expr {
@@ -1766,8 +1762,8 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                 }
             }
             NewMetaProperty(n) => {
-                self.emitter.print().p("new");
-                self.emitter.print().p(".");
+                self.emitter.print().p_token(TokenKind::New);
+                self.emitter.print().p_token(TokenKind::Dot);
                 self.visit_ident(n.name);
             }
             As(n) => self.visit_expr(n.expr),
@@ -1775,9 +1771,9 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             NonNull(n) => self.visit_expr(n.expr),
             TyAssertion(n) => {
                 if matches!(n.expr.kind, ast::ExprKind::ObjectLit(_)) {
-                    self.emitter.print().p_l_paren();
+                    self.emitter.print().p_token(TokenKind::LParen);
                     self.visit_expr(n.expr);
-                    self.emitter.print().p_r_paren();
+                    self.emitter.print().p_token(TokenKind::RParen);
                 } else {
                     self.visit_expr(n.expr);
                 }
@@ -1789,34 +1785,36 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
 
     fn visit_jsx_ns_name(&mut self, node: &'cx ast::JsxNsName<'cx>) -> Self::Result {
         self.visit_ident(node.ns);
-        self.emitter.print().p(":");
+        self.emitter.print().p_token(TokenKind::Colon);
         self.visit_ident(node.name);
     }
 
     fn visit_jsx_expr(&mut self, node: &'cx ast::JsxExpr<'cx>) -> Self::Result {
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         if node.dotdotdot_token.is_some() {
-            self.emitter.print().p_dot_dot_dot();
+            self.emitter.print().p_token(TokenKind::DotDotDot);
         }
         if let Some(expr) = node.expr {
             self.visit_expr(expr);
         }
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_jsx_frag(&mut self, node: &'cx ast::JsxFrag<'cx>) -> Self::Result {
-        self.emitter.print().p("<>");
+        self.emitter.print().p_token(TokenKind::Less);
+        self.emitter.print().p_token(TokenKind::Great);
         for child in node.children {
             self.visit_jsx_child(*child);
         }
-        self.emitter.print().p("</>");
+        self.emitter.print().p_token(TokenKind::LessSlash);
+        self.emitter.print().p_token(TokenKind::Great);
     }
 
     fn visit_jsx_self_closing_elem(
         &mut self,
         node: &'cx ast::JsxSelfClosingElem<'cx>,
     ) -> Self::Result {
-        self.emitter.print().p("<");
+        self.emitter.print().p_token(TokenKind::Less);
         self.visit_jsx_tag_name(node.tag_name);
         self.emitter.print().p_whitespace();
         for attr in node.attrs {
@@ -1827,40 +1825,40 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_jsx_elem(&mut self, node: &'cx ast::JsxElem<'cx>) -> Self::Result {
-        self.emitter.print().p("<");
+        self.emitter.print().p_token(TokenKind::Less);
         self.visit_jsx_tag_name(node.opening_elem.tag_name);
         self.emitter.print().p_whitespace();
         for attr in node.opening_elem.attrs {
             self.emitter.print().p_whitespace();
             self.visit_jsx_attr(attr);
         }
-        self.emitter.print().p(">");
+        self.emitter.print().p_token(TokenKind::Great);
 
         for child in node.children {
             self.visit_jsx_child(*child);
         }
 
-        self.emitter.print().p("</");
+        self.emitter.print().p_token(TokenKind::LessSlash);
         self.visit_jsx_tag_name(node.closing_elem.tag_name);
-        self.emitter.print().p(">");
+        self.emitter.print().p_token(TokenKind::Great);
     }
 
     fn visit_cond_expr(&mut self, node: &'cx ast::CondExpr<'cx>) -> Self::Result {
         self.visit_expr(node.cond);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_question();
+        self.emitter.print().p_token(TokenKind::Question);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.when_true);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.when_false);
     }
 
     fn visit_fn_expr(&mut self, node: &'cx ast::FnExpr<'cx>) -> Self::Result {
-        self.emitter.print().p("function");
+        self.emitter.print().p_token(TokenKind::Function);
         if node.asterisk.is_some() {
-            self.emitter.print().p("*");
+            self.emitter.print().p_token(TokenKind::Asterisk);
         }
         self.emitter.print().p_whitespace();
         if let Some(name) = node.name {
@@ -1877,7 +1875,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_new_expr(&mut self, node: &'cx ast::NewExpr<'cx>) -> Self::Result {
-        self.emitter.print().p("new");
+        self.emitter.print().p_token(TokenKind::New);
         self.emitter.print().p_whitespace();
         self.visit_expr(node.expr);
         match node.args {
@@ -1892,19 +1890,19 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
 
     fn visit_arrow_fn_expr(&mut self, node: &'cx ast::ArrowFnExpr<'cx>) -> Self::Result {
         if node.async_modifier.is_some() {
-            self.emitter.print().p("async");
+            self.emitter.print().p_token(TokenKind::Async);
             self.emitter.print().p_whitespace();
         }
         self.emit_params_without_this(node.params);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_arrow_right();
+        self.emitter.print().p_token(TokenKind::EqGreat);
         self.emitter.print().p_whitespace();
 
         match node.body {
             ast::ArrowFnExprBody::Expr(expr) => {
-                self.emitter.print().p("(");
+                self.emitter.print().p_token(TokenKind::LParen);
                 self.visit_expr(expr);
-                self.emitter.print().p(")");
+                self.emitter.print().p_token(TokenKind::RParen);
             }
             ast::ArrowFnExprBody::Block(block) => {
                 let mut non_omitted = block.stmts.iter().filter(|s| !self.stmt_is_omitted(s));
@@ -1913,9 +1911,9 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                     && let ast::StmtKind::Ret(ret) = stmt.kind
                     && let Some(expr) = ret.expr
                 {
-                    self.emitter.print().p("(");
+                    self.emitter.print().p_token(TokenKind::LParen);
                     self.visit_expr(expr);
-                    self.emitter.print().p(")");
+                    self.emitter.print().p_token(TokenKind::RParen);
                 } else {
                     self.visit_block_stmt(block);
                 }
@@ -1927,11 +1925,11 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         if self.resolver.is_import_equals_namespace_module(node) {
             return;
         }
-        self.emitter.print().p("var");
+        self.emitter.print().p_token(TokenKind::Var);
         self.emitter.print().p_whitespace();
         self.visit_ident(node.name);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_eq();
+        self.emitter.print().p_token(TokenKind::Eq);
         self.emitter.print().p_whitespace();
         match node.module_reference {
             ast::ModuleReferenceKind::EntityName(n) => self.visit_entity_name(n),
@@ -1943,7 +1941,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
 
     fn visit_qualified_name(&mut self, node: &'cx ast::QualifiedName<'cx>) -> Self::Result {
         self.visit_entity_name(node.left);
-        self.emitter.print().p_dot();
+        self.emitter.print().p_token(TokenKind::Dot);
         self.visit_ident(node.right);
     }
 

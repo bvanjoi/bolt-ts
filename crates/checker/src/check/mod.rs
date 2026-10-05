@@ -5894,7 +5894,7 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::ParenExpr(t) => return self.is_matching_reference(source, t.expr.id()),
             ast::Node::NonNullExpr(t) => return self.is_matching_reference(source, t.expr.id()),
             ast::Node::AssignExpr(t) => return self.is_matching_reference(source, t.left.id()),
-            ast::Node::BinExpr(t) if t.op.kind == ast::BinOpKind::Comma => {
+            ast::Node::BinExpr(t) if t.op == ast::BinOpKind::Comma => {
                 return self.is_matching_reference(source, t.right.id());
             }
             _ => (),
@@ -6015,7 +6015,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 _ => false,
             },
-            ast::Node::BinExpr(n) if n.op.kind == ast::BinOpKind::Comma => {
+            ast::Node::BinExpr(n) if n.op == ast::BinOpKind::Comma => {
                 self.is_matching_reference(n.right.id(), target)
             }
             ast::Node::ObjectBindingElem(n) => {

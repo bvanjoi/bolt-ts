@@ -185,7 +185,7 @@ impl<'cx> TyChecker<'cx> {
             }
             BinExpr(parent) => {
                 // get_contextual_type_for_binary_operand
-                match parent.op.kind {
+                match parent.op {
                     ast::BinOpKind::LogicalOr | ast::BinOpKind::Nullish => {
                         let ty = self.get_contextual_ty(parent.id, flags);
                         if id == parent.right.id() {

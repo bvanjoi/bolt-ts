@@ -6,9 +6,9 @@
     ╰────
 
   × Operator '<' cannot be applied to types 'string' and 'number'.
-    ╭─[../../tests/compiler/duplicateLocalVariable2/index.ts:32:31]
- 32 │ <
-    · ─
+    ╭─[../../tests/compiler/duplicateLocalVariable2/index.ts:32:29]
+ 32 │ i < 14
+    · ──────
     ╰────
 
   × An arithmetic operand must be of type 'any', 'number', 'bigint' or an enum

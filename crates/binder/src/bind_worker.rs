@@ -940,7 +940,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             match init {
                 ast::ExprKind::Bin(n)
                     if matches!(
-                        n.op.kind,
+                        n.op,
                         ast::BinOpKind::Nullish | ast::BinOpKind::LogicalOr
                     ) =>
                 {
@@ -1117,7 +1117,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Paren(n) => self.is_narrowable_reference(n.expr),
             NonNull(n) => self.is_narrowable_reference(n.expr),
             EleAccess(n) => self.ele_access_is_narrowable_reference(n),
-            Bin(n) if n.op.kind == ast::BinOpKind::Comma => self.is_narrowable_reference(n.right),
+            Bin(n) if n.op == ast::BinOpKind::Comma => self.is_narrowable_reference(n.right),
             Assign(n) => n.left.is_left_hand_side_expr_kind(),
             _ => false,
         }
@@ -1129,7 +1129,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ast::ExprKind::Assign(n) if n.op == ast::AssignOp::Eq => {
                 self.is_narrowable_operand(n.left)
             }
-            ast::ExprKind::Bin(n) if n.op.kind == ast::BinOpKind::Comma => {
+            ast::ExprKind::Bin(n) if n.op == ast::BinOpKind::Comma => {
                 self.is_narrowable_operand(n.right)
             }
             _ => self.contains_narrowable_reference(n),

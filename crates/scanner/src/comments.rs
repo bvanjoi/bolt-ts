@@ -1,124 +1,9 @@
-use rustc_hash::FxHashMap;
-
-const CARRIAGE_RETURN: u8 = b'\r';
-const LINE_FEED: u8 = b'\n';
-const TAB: u8 = b'\t';
-const VERTICAL_TAB: u8 = b'\x0B';
-const FORM_FEED: u8 = b'\x0C';
-const SPACE: u8 = b' ';
-const SLASH: u8 = b'/';
-const ASTERISK: u8 = b'*';
+use indexmap::IndexMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommentKind {
     SingleLine,
     MultiLine,
-}
-
-pub fn iterate_comment_ranges<const REDUCE: bool, const TRAILING: bool>(
-    text: &str,
-    mut pos: usize,
-    mut callback: impl FnMut(CommentKind, usize, usize, bool) -> bool,
-) {
-    let bytes = text.as_bytes();
-
-    let mut pending_pos = usize::MAX;
-    let mut pending_end = usize::MAX;
-    let mut pending_kind = CommentKind::SingleLine;
-    let mut collecting = TRAILING;
-    let mut has_pending_comment_range = false;
-    let mut pending_has_trailing_newline = false;
-    if pos == 0 {
-        collecting = true;
-        // TODO: shebang
-    }
-    while let Some(ch) = bytes.get(pos).copied() {
-        match ch {
-            CARRIAGE_RETURN => {
-                if bytes.get(pos + 1) == Some(&LINE_FEED) {
-                    pos += 1;
-                }
-                pos += 1;
-                if TRAILING {
-                    break;
-                }
-                if has_pending_comment_range {
-                    pending_has_trailing_newline = true;
-                }
-            }
-            LINE_FEED => {
-                pos += 1;
-                if TRAILING {
-                    break;
-                }
-                if has_pending_comment_range {
-                    pending_has_trailing_newline = true;
-                }
-            }
-            TAB | VERTICAL_TAB | FORM_FEED | SPACE => {
-                pos += 1;
-            }
-            SLASH => {
-                let Some(next_char) = bytes.get(pos + 1).copied() else {
-                    break;
-                };
-                let mut has_trailing_new_line = false;
-                let next_is_slash = next_char == SLASH;
-                if next_is_slash || next_char == ASTERISK {
-                    let kind = if next_is_slash {
-                        CommentKind::SingleLine
-                    } else {
-                        CommentKind::MultiLine
-                    };
-                    let start_pos = pos;
-                    pos += 2;
-                    if next_is_slash {
-                        while let Some(ch) = bytes.get(pos).copied() {
-                            if super::is_line_break(ch) {
-                                has_trailing_new_line = true;
-                                break;
-                            }
-                            pos += 1;
-                        }
-                    } else {
-                        while let Some(ch) = bytes.get(pos).copied() {
-                            if ch == ASTERISK && bytes.get(pos + 1) == Some(&SLASH) {
-                                pos += 2;
-                                break;
-                            }
-                            pos += 1;
-                        }
-                    }
-                    if collecting {
-                        if has_pending_comment_range {
-                            debug_assert!(pending_pos != usize::MAX);
-                            debug_assert!(pending_end != usize::MAX);
-                            let stop = callback(
-                                pending_kind,
-                                pending_pos,
-                                pending_end,
-                                pending_has_trailing_newline,
-                            );
-                            if !REDUCE && stop {
-                                break;
-                            }
-                        }
-                        pending_pos = start_pos;
-                        pending_end = pos;
-                        pending_kind = kind;
-                        pending_has_trailing_newline = has_trailing_new_line;
-                        has_pending_comment_range = true;
-                    }
-                    continue;
-                }
-                break;
-            }
-            _ => {
-                // TODO: whitespace
-                break;
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -132,44 +17,52 @@ impl Comment {
     pub fn new(start: u32, end: u32, kind: CommentKind) -> Self {
         Self { start, end, kind }
     }
+
+    pub fn start(&self) -> u32 {
+        self.start
+    }
+    pub fn end(&self) -> u32 {
+        self.end
+    }
+    pub fn kind(&self) -> CommentKind {
+        self.kind
+    }
 }
 
 #[derive(Debug, Default)]
-pub struct Comments(Vec<Comment>);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CommentId(u32);
-
-impl Comments {
-    fn push(&mut self, comment: Comment) -> CommentId {
-        let id = self.0.len() as u32;
-        self.0.push(comment);
-        CommentId(id)
-    }
-    pub fn get(&self, id: CommentId) -> Option<&Comment> {
-        debug_assert!((id.0 as usize) < self.0.len());
-        unsafe { Some(self.0.get_unchecked(id.0 as usize)) }
-    }
+pub struct CommentsAtToken {
+    leading: Vec<Comment>,
+    trailing: Vec<Comment>,
 }
-
 #[derive(Debug, Default)]
 pub struct LeadingTrailingComments {
-    leading: FxHashMap<u32, Vec<CommentId>>,
-    trailing: FxHashMap<u32, Vec<CommentId>>,
+    comments: IndexMap<u32, CommentsAtToken>,
 }
 
 impl LeadingTrailingComments {
-    pub fn add_leading_comment(&mut self, pos: u32, comment: Comment, comments: &mut Comments) {
-        let comment_id = comments.push(comment);
-        self.leading.entry(pos).or_default().push(comment_id);
+    // fn is_pos_incremental(&self, pos: u32) -> bool {
+    //     if let Some((&last_pos, _)) = self.comments.last() {
+    //         last_pos <= pos
+    //     } else {
+    //         true
+    //     }
+    // }
+
+    pub fn add_leading_comment(&mut self, pos: u32, comment: Comment) {
+        //TODO: debug_assert!(self.is_pos_incremental(pos));
+        let comments = self.comments.entry(pos).or_default();
+        // TODO: debug_assert!(!comments.leading.contains(&comment));
+        comments.leading.push(comment);
     }
 
-    pub fn get_leading_comments(&self, start: u32) -> Option<&[CommentId]> {
-        self.leading.get(&start).map(|v| v.as_slice())
+    pub fn get_leading_comments(&self, start: u32) -> Option<&[Comment]> {
+        self.comments.get(&start).map(|v| v.leading.as_slice())
     }
 
-    pub fn add_trailing_comment(&mut self, pos: u32, comment: Comment, comments: &mut Comments) {
-        let comment_id = comments.push(comment);
-        self.trailing.entry(pos).or_default().push(comment_id);
+    pub fn add_trailing_comment(&mut self, pos: u32, comment: Comment) {
+        //TODO: debug_assert!(self.is_pos_incremental(pos));
+        let comments = self.comments.entry(pos).or_default();
+        // TODO: debug_assert!(!comments.trailing.contains(&comment));
+        comments.trailing.push(comment);
     }
 }
