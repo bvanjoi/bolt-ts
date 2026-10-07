@@ -1,3 +1,9 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/discriminantNarrowingCouldBeCircular.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict
+//@compiler-options: lib=[es2022]
+//@run-fail
+// #57705, 57690
 var o = {};
 if (o) {
   for ( var key in o) {

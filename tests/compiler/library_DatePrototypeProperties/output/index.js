@@ -1,3 +1,8 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/library_DatePrototypeProperties.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@run-fail
+// Properties of the Date prototype object as per ES5 spec
+// http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.5
 Date.prototype.constructor;
 Date.prototype.toString();
 Date.prototype.toDateString();

@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/discriminantPropertyCheck.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict
 function goo1(x) {
   if (x.kind === 'A' && x.foo !== undefined) {
     x.foo.length;
@@ -7,6 +10,7 @@ function goo1(x) {
 function goo2(x) {
   if (x.foo !== undefined && x.kind === 'A') {
     x.foo.length;
+  // Error, intervening discriminant guard
   }
   
 }
@@ -43,9 +47,11 @@ function foo5(x) {
 function foo6(x) {
   if (x.foo !== undefined && x.qux) {
     x.foo.length;
+  // Error, intervening discriminant guard
   }
   
 }
+// Repro from #27493
 var Types = {};
 (function (Types) {
 
@@ -70,10 +76,12 @@ function func2(inst) {
     }
   }
 }
+// Repro from #29106
 var f = (_a, _b) => {};
 var u = {};
 u.a && u.b && f(u.a, u.b);
-u.b && u.a && f(u.a, u.b);
+u.b && u.a && f(u.a, u.b);// Repro from #29012
+
 export function foo(obj) {
   switch (obj.key) {
     case '+':
@@ -86,6 +94,7 @@ export function foo(obj) {
 }
 function onlyPlus(arg) {
   return arg;
+// Repro from #29496
 }
 var BarEnum = {};
 (function (BarEnum) {
@@ -108,7 +117,8 @@ function func3(value) {
     }
   }
   
-}
+}// Repro from #30557
+
 function WorksProperly(data) {
   if (data.Name === 'TypeA') {
     var value1 = data.Value1;
@@ -123,7 +133,8 @@ function DoesNotWork(data) {
     
   }
   
-}
+}// Repro from #36777
+
 var doTestingStuff = (mapOfTests, ids) => {
   ids.forEach((id) => {
     var test;

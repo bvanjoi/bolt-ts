@@ -1,3 +1,7 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/transformsElideNullUndefinedType.ts`, Apache-2.0 License
+//@compiler-options: strict=false
+//@compiler-options: target=es6
+//@run-fail
 var v0;
 var v1;
 function f0() {

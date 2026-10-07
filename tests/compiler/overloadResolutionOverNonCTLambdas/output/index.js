@@ -1,5 +1,9 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/overloadResolutionOverNonCTLambdas.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
 var Bugs = {};
-(function (Bugs) {
+(// replace(searchValue: RegExp, replaceValue: (substring: string, ...args: any[]) => string): string;
+function (Bugs) {
 
   class A {}
   

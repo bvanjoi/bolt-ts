@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/higherOrderMappedIndexLookupInference.ts`, Apache-2.0 License
+//@compiler-options: strict
+//@ run-fail
 function f1(a, b) {
   a = b;
   b = a;
@@ -9,7 +12,8 @@ function f2(a, b) {
 function f3(a, b) {
   a = b;
   b = a;
-}
+}// Repro from #18338
+
 
 
 var h = f;

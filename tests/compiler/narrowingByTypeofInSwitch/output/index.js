@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/narrowingByTypeofInSwitch.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict
 function assertNever(x) {
   return x;
 }
@@ -132,6 +135,7 @@ function testAny(x) {
     
   }
   assertAll(x);
+// is any
 }
 function a1(x) {
   return x;
@@ -253,9 +257,11 @@ function exhaustiveChecksGenerics(x) {
     case 'function':
       return (x)(42);
     
+    // Can't narrow generic
     case 'object':
       return (x).x;
     
+  // Can't narrow generic
   }
 }
 function multipleGeneric(xy) {
@@ -479,6 +485,7 @@ function narrowingNarrows2(x) {
     
   }
 }
+/* Template literals */
 function testUnionWithTempalte(x) {
   switch (typeof x) {
     case `number`:
@@ -551,6 +558,7 @@ function keyofNarrowingWithTemplate(k) {
     
   }
 }
+/* Both string literals and template literals */
 function multipleGenericFuseWithBoth(xy) {
   switch (typeof xy) {
     case `function`:

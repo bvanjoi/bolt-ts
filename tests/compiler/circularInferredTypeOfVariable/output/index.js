@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/circularInferredTypeOfVariable.ts`, Apache-2.0 License
+//@compiler-options: target=es6
 (async () => {
   function foo(p) {
     return [];

@@ -2,3 +2,5 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict
 //@compiler-options: exactOptionalPropertyTypes
+//@compiler-options: declaration
+// false

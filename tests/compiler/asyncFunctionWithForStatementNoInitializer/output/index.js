@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/asyncFunctionWithForStatementNoInitializer.ts`, Apache-2.0 License
 async function test1() {
   var i = 0;
   var limit = 10;

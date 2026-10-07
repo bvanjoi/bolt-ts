@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/typedArraysSubarray.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
 function int8ArraySubarray() {
   var arr = new Int8Array(10);
   arr.subarray();

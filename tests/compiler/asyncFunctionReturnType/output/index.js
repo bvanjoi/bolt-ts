@@ -1,9 +1,14 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/asyncFunctionReturnType.ts`, Apache-2.0 License
+//@compiler-options: target=ES6
 async function fAsync() {
+  // Without explicit type annotation, this is just an array.
   return [1, true];
 }
 async function fAsyncExplicit() {
+  // This is contextually typed as a tuple.
   return [1, true];
-}
+}// https://github.com/Microsoft/TypeScript/issues/13128
+
 async function fIndexedTypeForStringProp(obj) {
   return obj.stringProp;
 }

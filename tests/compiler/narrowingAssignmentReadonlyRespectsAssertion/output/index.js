@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/narrowingAssignmentReadonlyRespectsAssertion.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 function subDataFunc() {
   return [{
       val1: 'a',
@@ -22,7 +24,8 @@ function testFunc() {
   var fixture = dataFunc(subDataFunc);
   fixture.cases.forEach(({val1, val2}) => {
     if (Array.isArray(val1)) {
-      var reversedVal1 = val1.slice().reverse();
+      var reversedVal1 = val1.slice()// This should retain val1 as being an array
+      .reverse();
       console.log(reversedVal1);
     } else {
       console.log(val1);

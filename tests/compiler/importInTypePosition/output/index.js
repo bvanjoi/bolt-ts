@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/importInTypePosition.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var A = {};
 (function (A) {
 
@@ -7,10 +9,14 @@ var A = {};
       
       this.y = y}
   }
-  A.Point = Point;
+  A.Point // no code gen expected
+  = Point;
   
-  var Origin = new Point(0, 0);
-  A.Origin = Origin
+  var Origin = new Point//Error generates 'var <Alias> = <EntityName>;'
+  (// no code gen expected
+  0, 0);
+  A.Origin = //Error generates 'var <Alias> = <EntityName>;'
+  Origin
   
 })(A);
 

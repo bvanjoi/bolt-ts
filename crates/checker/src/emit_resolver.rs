@@ -33,16 +33,15 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         self.checker.p.root(module_id)
     }
 
-    pub fn leading_comment(
+    pub fn get_line_map(&self, module_id: bolt_ts_span::ModuleID) -> &[u32] {
+        &self.checker.p.get(module_id).line_map
+    }
+
+    pub fn get_leading_trailing_comments(
         &self,
         module_id: bolt_ts_span::ModuleID,
-        start: usize,
-    ) -> Option<&[bolt_ts_scanner::Comment]> {
-        self.checker
-            .p
-            .get(module_id)
-            .leading_trailing_comments
-            .get_leading_comments(start as u32)
+    ) -> &bolt_ts_scanner::LeadingTrailingComments {
+        &self.checker.p.get(module_id).leading_trailing_comments
     }
 
     pub fn module_content(&self, module: bolt_ts_span::ModuleID) -> &str {

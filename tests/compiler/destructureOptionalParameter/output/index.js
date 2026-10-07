@@ -1,7 +1,11 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/destructureOptionalParameter.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strictNullChecks
+//@compiler-options: declaration
 function f2({a, b} = {
   a: 0,
   b: 0  
 }) {
   a;
   b;
-}
+}// Repro from #8681

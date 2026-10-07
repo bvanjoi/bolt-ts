@@ -1,3 +1,7 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/inferenceOptionalPropertiesToIndexSignatures.ts`, Apache-2.0 License
+//@compiler-options: strict
+//@compiler-options: target=esnext
+//@run-fail
 
 
 
@@ -13,4 +17,9 @@ var obj = {
       param2    
   } : {})  
 };
-var query = Object.entries(obj).map(([k, v]) => (`${k}=${encodeURIComponent(v)}`)).join('&');
+var query // string | number
+= Object.entries(obj).// string | number | undefined
+map(([k, v]// string | number
+) => (`${k}=${encodeURIComponent(v// string | number
+// Repro from #43045
+)}`)).join('&');

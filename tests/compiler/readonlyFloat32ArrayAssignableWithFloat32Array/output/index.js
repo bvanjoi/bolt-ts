@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/readonlyFloat32ArrayAssignableWithFloat32Array.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict
 function update(b) {
   var c = copy(b);
   add(c, c);

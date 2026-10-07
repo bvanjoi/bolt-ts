@@ -1,3 +1,8 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/mixinIntersectionIsValidbaseType.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+/**
+ * Plain mixin where the superclass must be Initable
+ */
 var Serializable = (SuperClass) => {
   var LocalMixin = (InnerSuperClass) => (class SerializableLocal extends InnerSuperClass {});
   var ResultClass = LocalMixin(SuperClass);

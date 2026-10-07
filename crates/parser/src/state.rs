@@ -7,6 +7,7 @@ use bolt_ts_scanner::LeadingTrailingComments;
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::path::NormalizePath;
+use rustc_hash::FxHashMap;
 
 use std::sync::{Arc, Mutex};
 
@@ -49,6 +50,20 @@ pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) in_strict_mode: bool,
     pub(super) labels: FxIndexSet<Atom>,
     pub(super) target: Target,
+    /// cache these tokens to prevent scan multiple times during lookahead.
+    pub(super) tokens: FxHashMap<usize, TokenContext>,
+}
+
+#[derive(Debug)]
+pub(super) struct TokenContext {
+    pub(super) next_line_start: usize,
+    pub(super) next_token_flags: TokenFlags,
+    pub(super) next_line: usize,
+    pub(super) next_token_value: Option<TokenValue>,
+    pub(super) next_string_key_value: Option<Atom>,
+    pub(super) next_token: Token,
+    pub(super) next_full_start_pos: usize,
+    pub(super) next_pos: usize,
 }
 
 impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
@@ -103,6 +118,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             in_strict_mode: ALWAYS_STRICT,
             labels: Default::default(),
             target,
+            tokens: FxHashMap::default(),
         }
     }
 

@@ -1,8 +1,13 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/typeVariableTypeGuards.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict
+// Repro from #14091
 class A {
   constructor(props) {
     this.props = props}
   doSomething() {
-    this.props.foo && this.props.foo();
+    this.props.foo && this.props.// Repro from #14415
+    foo();
   }
 }
 class Monkey {
@@ -22,7 +27,8 @@ class BigMonkey extends Monkey {
     }
     
   }
-}
+}// Another repro
+
 function f1(obj) {
   if (obj) {
     obj.x;
@@ -59,6 +65,7 @@ function f5(obj, key) {
   }
   
 }
+// https://github.com/microsoft/TypeScript/issues/57381
 function f6(a) {
   if (typeof a !== 'string') {
     new a();

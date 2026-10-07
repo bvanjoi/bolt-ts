@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/super2.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+// Case 5
 class Base5 {
   x() {
     return 'BaseX';
@@ -19,7 +22,8 @@ class SubSub5 extends Sub5 {
     return super.y();
   }
 }
-class Base6 {
+class Base6 // Case 6
+{
   x() {
     return 'BaseX';
   }

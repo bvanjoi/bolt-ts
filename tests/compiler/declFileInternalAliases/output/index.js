@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/declFileInternalAliases.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: declaration
 var m = {};
 (function (m) {
 
@@ -5,12 +8,14 @@ var m = {};
   m.c = c;
   
 })(m);
-var m1 = {};
+var m1 // emit the type as m.c
+= {};
 (function (m1) {
 
   var x = m.c
   
-  var d = new x();
+  var d = new x(// emit the type as x
+  );
   m1.d = d
   
 })(m1);

@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/classFieldSuperAccessible.ts`, Apache-2.0 License
+//@compiler-options: target=esnext
 class A extends class Expr {} {
   static {{
     console.log(super.name);

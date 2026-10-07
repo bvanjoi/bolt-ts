@@ -1,3 +1,7 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/promiseTypeInferenceUnion.ts`, Apache-2.0 License
+//@compiler-options: strict=false
+//@compiler-options: target=esnext
+//@compiler-options: lib=[esnext]
 function f1(x) {
   return Promise.resolve(x);
 }

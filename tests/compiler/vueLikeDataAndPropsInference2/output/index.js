@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/vueLikeDataAndPropsInference2.ts`, Apache-2.0 License
+//@compiler-options: target=esnext
+//@run-fail
 test({
   props: {
       foo: ''    

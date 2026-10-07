@@ -939,10 +939,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             let is_prototype_assignment = false;
             match init {
                 ast::ExprKind::Bin(n)
-                    if matches!(
-                        n.op,
-                        ast::BinOpKind::Nullish | ast::BinOpKind::LogicalOr
-                    ) =>
+                    if matches!(n.op, ast::BinOpKind::Nullish | ast::BinOpKind::LogicalOr) =>
                 {
                     n.right
                         .kind

@@ -1,7 +1,13 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/coAndContraVariantInferences.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict
+//@compiler-options: declaration
+//@run-fail
 
 
 foo(a, fab);
-foo(b, fab);
+foo(b, fab);// Repro from #45603
+
 var actionA = {
   payload: 'any-string'  
 };

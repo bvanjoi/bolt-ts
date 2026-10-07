@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/typedArrays.ts`, Apache-2.0 License
+//@compiler-options: strict=false
+//@compiler-options: target=ES6
 function CreateTypedArrayTypes() {
   var typedArrays = [];
   typedArrays[0] = Int8Array;

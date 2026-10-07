@@ -1,3 +1,7 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/controlFlowBreakContinueWithLabel.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strictNullChecks
+//@run-fail
 function f1(x) {
   if (typeof x !== 'string') {
     switch (x.kind) {
@@ -38,6 +42,7 @@ function f4(x) {
   }
   
 }
+// Repro from #31319
 var EnumTypeNode = {};
 (function (EnumTypeNode) {
 
@@ -48,5 +53,6 @@ var n;
 if (n.type === 'Disjunction') {
   n.alternatives.slice();
 } else {
-  n.elements.slice();
+  n.elements.slice// n should be narrowed to Pattern
+  ();
 }

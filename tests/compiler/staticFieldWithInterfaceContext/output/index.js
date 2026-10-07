@@ -1,4 +1,7 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/staticFieldWithInterfaceContext.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var c = class {
+  // should typecheck the same as the last line
   static x = {
       a: 'a'    
   };

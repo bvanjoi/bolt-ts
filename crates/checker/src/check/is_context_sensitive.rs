@@ -73,8 +73,7 @@ impl TyChecker<'_> {
                     || self.is_context_sensitive(n.when_false.id())
             }
             BinExpr(n) => {
-                matches!(n.op, ast::BinOpKind::LogicalOr)
-                    || self.is_context_sensitive(n.right.id())
+                matches!(n.op, ast::BinOpKind::LogicalOr) || self.is_context_sensitive(n.right.id())
             }
             ObjectPropAssignment(n) => self.is_context_sensitive(n.init.id()),
             ParenExpr(n) => self.is_context_sensitive(n.expr.id()),

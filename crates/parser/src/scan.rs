@@ -9,6 +9,7 @@ use bolt_ts_scanner::{non_ascii_character_code, utf16_encode_as_bytes};
 use bolt_ts_span::Span;
 
 use super::const_variant::is_preserve_comment;
+use super::state::TokenContext;
 use super::{CommentDirective, utils::parse_pseudo_bigint};
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors};
 
@@ -465,10 +466,33 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
     }
 
     pub(super) fn next_token_without_checked(&mut self) {
+        if let Some(ctx) = self.tokens.get(&self.pos) {
+            self.line_start = ctx.next_line_start;
+            self.token_flags = ctx.next_token_flags;
+            self.line = ctx.next_line;
+            self.token_value = ctx.next_token_value;
+            self.token = ctx.next_token;
+            self.full_start_pos = ctx.next_full_start_pos;
+            self.pos = ctx.next_pos;
+            self.string_key_value = ctx.next_string_key_value;
+            return;
+        }
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
         let mut leading_comments = Vec::new();
+        let mut trailing_comments = Vec::new();
         let mut start;
+        let is_leading_comment = |pos: usize| pos == 0 || self.input[pos - 1].is_ascii_whitespace();
+        let mut push_comment = |start: usize, pos: usize, comment_kind: CommentKind| {
+            if is_preserve_comment(VARIANT) {
+                let comment = Comment::new(start as u32, pos as u32, comment_kind);
+                if is_leading_comment(start) {
+                    leading_comments.push(comment);
+                } else {
+                    trailing_comments.push(comment);
+                }
+            }
+        };
         loop {
             start = self.pos;
             if self.pos == self.end() {
@@ -476,7 +500,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                     TokenKind::EOF,
                     Span::new(start as u32, start as u32, self.module_id),
                 );
-                return;
+                break;
             }
             let ch = self.ch_unchecked();
             if self.pos == 0 && ch == b'#' {
@@ -511,21 +535,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 self.pos += 1;
                             }
                         }
-                        if is_preserve_comment(VARIANT) {
-                            let comment = Comment::new(
-                                start as u32,
-                                self.pos as u32,
-                                CommentKind::SingleLine,
-                            );
-                            let is_leading_comment =
-                                start == 0 || self.input[start - 1].is_ascii_whitespace();
-                            if is_leading_comment {
-                                leading_comments.push(comment);
-                            } else {
-                                self.leading_trailing_comments
-                                    .add_trailing_comment(start as u32, comment);
-                            }
-                        }
+                        push_comment(start, self.pos, CommentKind::SingleLine);
                         continue;
                     } else if self.next_ch() == Some(b'*') {
                         // `/*`
@@ -538,18 +548,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 self.pos += 1;
                             }
                         }
-                        if is_preserve_comment(VARIANT) {
-                            let comment =
-                                Comment::new(start as u32, self.pos as u32, CommentKind::MultiLine);
-                            let is_leading_comment =
-                                start == 0 || self.input[start - 1].is_ascii_whitespace();
-                            if is_leading_comment {
-                                leading_comments.push(comment);
-                            } else {
-                                self.leading_trailing_comments
-                                    .add_trailing_comment(start as u32, comment);
-                            }
-                        }
+                        push_comment(start, self.pos, CommentKind::MultiLine);
                         continue;
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
@@ -1023,14 +1022,36 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                 }
             };
             if is_preserve_comment(VARIANT) {
-                for comment in leading_comments {
-                    self.leading_trailing_comments
-                        .add_leading_comment(token.start(), comment);
+                let pos = token.start();
+                if leading_comments.is_empty() && trailing_comments.is_empty() {
+                    self.leading_trailing_comments.mark_no_comments(pos);
+                } else {
+                    for comment in leading_comments {
+                        self.leading_trailing_comments
+                            .add_leading_comment(pos, comment);
+                    }
+                    for comment in trailing_comments {
+                        self.leading_trailing_comments
+                            .add_trailing_comment(pos, comment);
+                    }
                 }
             }
             self.token = token;
             break;
         }
+        // cache
+        let token_context = TokenContext {
+            next_line_start: self.line_start,
+            next_token_flags: self.token_flags,
+            next_line: self.line,
+            next_token_value: self.token_value,
+            next_token: self.token,
+            next_full_start_pos: self.full_start_pos,
+            next_pos: self.pos,
+            next_string_key_value: self.string_key_value,
+        };
+        let prev = self.tokens.insert(self.full_start_pos, token_context);
+        debug_assert!(prev.is_none());
     }
 
     pub(super) fn record_new_line_offset(&mut self) {

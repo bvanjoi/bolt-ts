@@ -1,3 +1,7 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/defaultOfAnyInStrictNullChecks.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strictNullChecks
+//@compiler-options: useUnknownInCatchVariables=false
 function foo() {
   try {} catch (e) {
     var s = e.message;

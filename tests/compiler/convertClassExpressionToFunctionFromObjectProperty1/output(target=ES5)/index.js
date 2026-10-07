@@ -1,9 +1,14 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/convertClassExpressionToFunctionFromObjectProperty1.ts`, Apache-2.0 License
+//@[target=ES5]     compiler-options: target=es5
+//@[target=ES2015]  compiler-options: target=es2015
 var foo = {};
+// properties
 foo.x = class {
   constructor() {}
 };
 foo.y = class {
   constructor() {}
+// keywords
 };
 foo.break = class {
   constructor() {}

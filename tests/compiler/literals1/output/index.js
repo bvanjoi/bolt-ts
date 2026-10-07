@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/literals1.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var a = 42;
 var b = 64052;
 var c = 0.1715;

@@ -1,11 +1,15 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/moduleAliasInterface.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var _modes = {};
 (function (_modes) {
 
-  class Mode {}
+  class Mode {// _modes. // produces an internal error - please implement in derived class
+  }
   _modes.Mode = Mode;
   
 })(_modes);
-var editor = {};
+var editor = // If you just use p1:modes, the compiler accepts it - should be an error
+{};
 (function (editor) {
 
   var modes = _modes
@@ -13,7 +17,8 @@ var editor = {};
   var i;
   
   class Bug {
-    constructor(p1, p2) {}
+    constructor(// should be an error on p2 - it's not exported
+    p1, p2) {}
     foo(p1) {}
   }
   
@@ -25,7 +30,8 @@ var editor2 = {};
   var i;
   
   class Bug {
-    constructor(p1, p2) {}
+    constructor(p1, p2) {// no error here, since modesOuter is declared externally
+    }
   }
   
   var Foo = {};

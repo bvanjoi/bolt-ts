@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/contextualSignatureInstantiation3.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 function map(items, f) {
   return items.map(f);
 }
@@ -8,9 +10,13 @@ function singleton(x) {
   return [x];
 }
 var xs = [1, 2, 3];
+// Have compiler check that we get the correct types
 var v1;
 var v1 = xs.map(identity);
+// Error if not number[]
 var v1 = map(xs, identity);
+// Error if not number[]
 var v2;
 var v2 = xs.map(singleton);
+// Error if not number[][]
 var v2 = map(xs, singleton);

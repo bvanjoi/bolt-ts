@@ -1,4 +1,7 @@
-var x = 0;
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/letDeclarations-access.ts`, Apache-2.0 License
+//@compiler-options: target=es6
+var x = 0// No errors
+;
 x = 1;
 x += 2;
 x -= 3;

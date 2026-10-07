@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/instanceAndStaticDeclarations1.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+// from spec
 class Point {
   constructor(x, y) {
     this.x = x

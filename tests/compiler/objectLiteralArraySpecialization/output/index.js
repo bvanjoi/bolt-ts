@@ -1,3 +1,7 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/objectLiteralArraySpecialization.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
+//@run-fail
 var thing = create([{
   name: 'bob',
   id: 24  
@@ -5,4 +9,5 @@ var thing = create([{
   name: 'doug',
   id: 32  
 }]);
+// should not error
 thing.doSomething((x, y) => (x.name === 'bob'));

@@ -4,6 +4,7 @@ use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
 use bolt_ts_parser::CommentDirective;
 use bolt_ts_parser::ParseResultForGraph;
+use bolt_ts_parser::compute_line_and_char_of_pos;
 use bolt_ts_span::Span;
 use bolt_ts_utils::no_hashset_with_capacity;
 
@@ -142,23 +143,6 @@ impl<'p, 'cx> CommentDirectivesMap<'p, 'cx> {
                 })
             })
             .collect::<Vec<_>>()
-    }
-}
-
-fn compute_line_and_char_of_pos(line_starts: &[u32], position: usize) -> bolt_ts_errors::Position {
-    let line = compute_line_of_pos(line_starts, position);
-    bolt_ts_errors::Position {
-        line,
-        column: position - (line_starts[line] as usize),
-    }
-}
-
-fn compute_line_of_pos(line_starts: &[u32], position: usize) -> usize {
-    debug_assert!(line_starts.is_sorted());
-    let position = position as u32;
-    match line_starts.binary_search(&position) {
-        Ok(line) => line,
-        Err(line) => line - 1,
     }
 }
 

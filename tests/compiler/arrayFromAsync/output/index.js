@@ -1,3 +1,8 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/arrayFromAsync.ts`, Apache-2.0 License
+//@compiler-options: strict=false
+//@compiler-options: module=esnext
+//@compiler-options: target=esnext
+//@run-fail
 export {  }
 async function* asyncGen(n) {
   for ( var i = 0; i < n; i++) yield i * 2;
@@ -34,7 +39,8 @@ var badIterable = {
     throw err
   }  
 };
-var badArray = await Array.fromAsync(badIterable);
+var // This returns a promise that will reject with `err`.
+badArray = await Array.fromAsync(badIterable);
 var withIndexResult = await Array.fromAsync(['a', 'b'], (str, index) => (({
   index,
   str  

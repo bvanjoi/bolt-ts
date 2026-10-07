@@ -67,7 +67,6 @@ impl<'a, 'cx, 'p, const VARIANT: u8> Lookahead<'a, 'cx, 'p, VARIANT> {
         let old_line = self.p.line;
         let old_token_flags = self.p.token_flags;
         let old_line_start = self.p.line_start;
-        let old_line_map_len = self.p.line_map.len();
         let old_parse_diag_len = self.p.diags.len();
         let old_current_node_id = self.p.current_node_id();
         let old_labels_len = self.p.labels.len();
@@ -75,7 +74,6 @@ impl<'a, 'cx, 'p, const VARIANT: u8> Lookahead<'a, 'cx, 'p, VARIANT> {
         let r = f(self);
 
         if need_revert(&r) {
-            self.p.line_map.truncate(old_line_map_len);
             self.p.line_start = old_line_start;
             self.p.token_flags = old_token_flags;
             self.p.line = old_line;

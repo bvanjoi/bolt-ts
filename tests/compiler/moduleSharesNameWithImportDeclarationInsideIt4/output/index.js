@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/moduleSharesNameWithImportDeclarationInsideIt4.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var Z = {};
 (function (Z) {
 
@@ -10,10 +12,12 @@ var Z = {};
     M.bar = bar;
     
   })(M);
-  Z.M = M;
+  Z.M = // Should call Z.M.bar
+  M;
   
 })(Z);
-var A = {};
+var A = // Should call Z.M.bar
+{};
 (function (A) {
 
   var M = {};

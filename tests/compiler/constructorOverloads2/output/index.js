@@ -1,10 +1,12 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/constructorOverloads2.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 class FooBase {
   constructor(x) {}
-  bar1() {}
+  bar1() {/*WScript.Echo("base bar1");*/ }
 }
 class Foo extends FooBase {
   constructor(x, y) {super(x);}
-  bar1() {}
+  bar1() {/*WScript.Echo("bar1");*/ }
 }
 var f1 = new Foo('hey');
 var f2 = new Foo(0);

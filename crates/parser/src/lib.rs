@@ -239,7 +239,7 @@ fn parser_state_parse<'cx, 'p, const VARIANT: u8, const ALWAYS_STRICT: bool>(
     s.parse();
 
     s.record_new_line_offset();
-    assert_eq!(s.line_map[0], 0);
+    debug_assert_eq!(s.line_map[0], 0);
     debug_assert!(s.line_map.is_sorted(), "line_map: {:#?}", s.line_map);
     let root = s.nodes.root();
     let is_external_module_file = s.external_module_indicator.is_some();
@@ -442,5 +442,25 @@ impl<'cx, 'p, const VARIANT: u8> bolt_ts_ast_factory::ASTFactory<'cx>
     #[inline(always)]
     fn set_external_module_indicator(&mut self, node_id: NodeID) {
         self.set_external_module_indicator(node_id);
+    }
+}
+
+pub fn compute_line_and_char_of_pos(
+    line_starts: &[u32],
+    position: usize,
+) -> bolt_ts_errors::Position {
+    let line = compute_line_of_pos(line_starts, position);
+    bolt_ts_errors::Position {
+        line,
+        column: position - (line_starts[line] as usize),
+    }
+}
+
+fn compute_line_of_pos(line_starts: &[u32], position: usize) -> usize {
+    debug_assert!(line_starts.is_sorted());
+    let position = position as u32;
+    match line_starts.binary_search(&position) {
+        Ok(line) => line,
+        Err(line) => line - 1,
     }
 }
