@@ -1,0 +1,6 @@
+  × Generic type 'TypeScript.PullTypeSymbol<A, B, C>' requires 3 type
+  │ arguments.
+    ╭─[../../tests/compiler/genericRecursiveImplicitConstructorErrors1/index.ts:14:49]
+ 14 │ PullTypeSymbol
+    · ──────────────
+    ╰────

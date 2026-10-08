@@ -1,14 +1,19 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/intersectionTypeNormalization.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+// Identical ways of writing the same type
 var x;
 var x;
-var x;
+var x;// Identical ways of writing the same type
+
 var y;
 var y;
-var y;
+var y;// Identical ways of writing the same type
+
 var z;
 var z;
 var z;
-var z;
+var z;// Repro from #9919
+
 function getValueAsString(value) {
   if (value.kind === 'int') {
     return '' + value.num;
@@ -16,15 +21,19 @@ function getValueAsString(value) {
   
   return value.str;
 }
+// Repro from #12535
 var enums = {};
 (function (enums) {
 
-  var A = {};
+  var A = // ... elements omitted for the sake of clarity
+  {};
   (function (A) {
   
-    A[A['a1'] = 0] = 'a1'
+    A[A['a1'] = 0] // ... elements omitted for the sake of clarity
+    = 'a1'
     A[A['a2'] = 0] = 'a2'
-    A[A['a3'] = 0] = 'a3'
+    A[// ... elements omitted for the sake of clarity
+    A['a3'] = 0] = 'a3'
     A[A['a75'] = 0] = 'a75'
     A[A['a76'] = 0] = 'a76'
     A[A['a77'] = 0] = 'a77'

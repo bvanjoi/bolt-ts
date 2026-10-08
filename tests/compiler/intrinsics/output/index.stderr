@@ -1,0 +1,11 @@
+  × Cannot find name 'hasOwnProperty'.
+   ╭─[../../tests/compiler/intrinsics/index.ts:7:21]
+ 7 │ hasOwnProperty
+   · ──────────────
+   ╰────
+
+  × Cannot find name '__proto__'.
+    ╭─[../../tests/compiler/intrinsics/index.ts:17:1]
+ 17 │ __proto__
+    · ─────────
+    ╰────

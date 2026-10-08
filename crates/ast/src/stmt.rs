@@ -149,6 +149,37 @@ impl<'cx> Stmt<'cx> {
             _ => false,
         }
     }
+
+    pub fn modifiers(&self) -> Option<&'cx Modifiers<'cx>> {
+        match self.kind {
+            StmtKind::Fn(n) => n.modifiers,
+            StmtKind::Class(n) => n.modifiers,
+            StmtKind::Interface(n) => n.modifiers,
+            StmtKind::TypeAlias(n) => n.modifiers,
+            StmtKind::NestedModule(n) => n.modifiers,
+            StmtKind::BlockModule(n) => n.modifiers,
+            StmtKind::Enum(n) => n.modifiers,
+            StmtKind::Var(n) => n.modifiers,
+            _ => None,
+        }
+    }
+
+    pub fn is_declaration(&self) -> bool {
+        matches!(
+            self.kind,
+            StmtKind::Fn(_)
+                | StmtKind::Class(_)
+                | StmtKind::Interface(_)
+                | StmtKind::TypeAlias(_)
+                | StmtKind::Enum(_)
+                | StmtKind::NestedModule(_)
+                | StmtKind::BlockModule(_)
+                | StmtKind::Import(_)
+                | StmtKind::ImportEquals(_)
+                | StmtKind::Export(_)
+                | StmtKind::ExportAssign(_) // TODO: namespace export default
+        )
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -756,7 +787,7 @@ pub struct ClassMethodElem<'cx> {
 
 impl ClassMethodElem<'_> {
     pub fn fn_flags(&self) -> FnFlags {
-        let mut flags = FnFlags::INVALID;
+        let mut flags = FnFlags::empty();
         if self.asterisk.is_some() {
             flags |= FnFlags::GENERATOR;
         }
@@ -1063,6 +1094,14 @@ pub struct ParamDecl<'cx> {
 impl ParamDecl<'_> {
     pub fn is_rest(&self) -> bool {
         self.dotdotdot.is_some()
+    }
+
+    pub fn is_parameter_property_declaration(&self) -> bool {
+        // TODO: can we ignore the parent is class constructor?
+        self.modifiers.is_some_and(|ms| {
+            ms.flags
+                .intersects(ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+        })
     }
 }
 

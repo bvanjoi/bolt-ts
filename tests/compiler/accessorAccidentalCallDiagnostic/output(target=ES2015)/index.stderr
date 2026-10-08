@@ -1,0 +1,5 @@
+  × This expression is not callable.
+    ╭─[../../tests/compiler/accessorAccidentalCallDiagnostic/index.ts:11:14]
+ 11 │ property
+    · ────────
+    ╰────

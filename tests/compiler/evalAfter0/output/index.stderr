@@ -1,0 +1,5 @@
+  × Left side of comma operator is unused and has no side effects.
+    ╭─[../../tests/compiler/evalAfter0/index.ts:10:2]
+ 10 │ 0
+    · ─
+    ╰────

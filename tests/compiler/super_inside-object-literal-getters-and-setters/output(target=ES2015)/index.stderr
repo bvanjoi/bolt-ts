@@ -1,0 +1,6 @@
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/super_inside-object-literal-getters-and-setters/index.ts:18:20]
+ 18 │ super
+    · ─────
+    ╰────

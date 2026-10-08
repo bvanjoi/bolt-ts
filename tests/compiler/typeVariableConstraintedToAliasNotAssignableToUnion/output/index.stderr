@@ -1,0 +1,71 @@
+  × Type 'T' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:25:5]
+ 25 │ aBoolean
+    · ────────
+    ╰────
+
+  × Type 'T' is not assignable to type 'number | string'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:27:5]
+ 27 │ aStringOrNumber
+    · ───────────────
+    ╰────
+
+  × Type 'T' is not assignable to type 'string | Something'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:29:5]
+ 29 │ aStringOrSomething
+    · ──────────────────
+    ╰────
+
+  × Type 'T' is not assignable to type 'Something | SomethingElse'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:31:5]
+ 31 │ someUnion
+    · ─────────
+    ╰────
+
+  × Type 'T' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:36:5]
+ 36 │ aBoolean
+    · ────────
+    ╰────
+
+  × Type 'T' is not assignable to type 'number | string'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:38:5]
+ 38 │ aStringOrNumber
+    · ───────────────
+    ╰────
+
+  × Type 'T' is not assignable to type 'string | Something'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:40:5]
+ 40 │ aStringOrSomething
+    · ──────────────────
+    ╰────
+
+  × Type 'T' is not assignable to type 'Something | SomethingElse'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:42:5]
+ 42 │ someUnion
+    · ─────────
+    ╰────
+
+  × Type 'Table' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:47:1]
+ 47 │ aBoolean
+    · ────────
+    ╰────
+
+  × Type 'Table' is not assignable to type 'number | string'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:49:1]
+ 49 │ aStringOrNumber
+    · ───────────────
+    ╰────
+
+  × Type 'Table' is not assignable to type 'string | Something'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:51:1]
+ 51 │ aStringOrSomething
+    · ──────────────────
+    ╰────
+
+  × Type 'Table' is not assignable to type 'Something | SomethingElse'.
+    ╭─[../../tests/compiler/typeVariableConstraintedToAliasNotAssignableToUnion/index.ts:53:1]
+ 53 │ someUnion
+    · ─────────
+    ╰────

@@ -1,0 +1,71 @@
+  × No overload matches this call.
+   ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:8:12]
+ 8 │ new WeakSet([s])
+   · ────────────────
+   ╰────
+
+  × Argument of type 'symbol' is not assignable to parameter of type 'object'.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:10:8]
+ 10 │ s
+    · ─
+    ╰────
+
+  × Argument of type 'symbol' is not assignable to parameter of type 'object'.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:12:8]
+ 12 │ s
+    · ─
+    ╰────
+
+  × Argument of type 'symbol' is not assignable to parameter of type 'object'.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:14:11]
+ 14 │ s
+    · ─
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:17:12]
+ 17 │ new WeakMap([[s, false]])
+    · ─────────────────────────
+    ╰────
+
+  × Argument of type 'symbol' is not assignable to parameter of type 'object'.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:19:8]
+ 19 │ s
+    · ─
+    ╰────
+
+  × Argument of type 'symbol' is not assignable to parameter of type 'object'.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:21:8]
+ 21 │ s
+    · ─
+    ╰────
+
+  × Argument of type 'symbol' is not assignable to parameter of type 'object'.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:23:8]
+ 23 │ s
+    · ─
+    ╰────
+
+  × Argument of type 'symbol' is not assignable to parameter of type 'object'.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:25:11]
+ 25 │ s
+    · ─
+    ╰────
+
+  × Argument of type 'symbol' is not assignable to parameter of type 'object'.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:28:24]
+ 28 │ s
+    · ─
+    ╰────
+
+  × Argument of type 'symbol' is not assignable to parameter of type 'object'.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:33:12]
+ 33 │ s
+    · ─
+    ╰────
+
+  × Argument of type 'symbol' is not assignable to parameter of type 'object'.
+    ╭─[../../tests/compiler/dissallowSymbolAsWeakType/index.ts:35:14]
+ 35 │ s
+    · ─
+    ╰────

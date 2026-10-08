@@ -1,11 +1,13 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/destructuringAssignmentWithDefault.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
+//@compiler-options: strictNullChecks
 var a = {};
 var x = 0;
 ({
   x  
 } = a);
-function f1(options) {
+function f1// Repro from #26235
+(options) {
   var {color, width} = options || {};
   ({
       color,

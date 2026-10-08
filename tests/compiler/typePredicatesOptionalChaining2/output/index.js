@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/typePredicatesOptionalChaining2.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
+//@compiler-options: strict
 var getName1 = (person) => (typeof person.name === 'string' ? person.name : '');
 var isString = (value) => (typeof value === 'string');
 var getName2 = (person) => (isString(person.name) ? person.name : '');

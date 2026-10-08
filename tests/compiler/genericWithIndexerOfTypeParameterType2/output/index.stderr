@@ -1,0 +1,13 @@
+  × Property '_itemsByKey' has no initializer and is not definitely assigned
+  │ in the constructor.
+   ╭─[../../tests/compiler/genericWithIndexerOfTypeParameterType2/index.ts:7:5]
+ 7 │ _itemsByKey
+   · ───────────
+   ╰────
+
+  × Property '__isNew' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/genericWithIndexerOfTypeParameterType2/index.ts:18:5]
+ 18 │ __isNew
+    · ───────
+    ╰────

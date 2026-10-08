@@ -1,0 +1,20 @@
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess_ES5/index.ts:16:16]
+ 16 │ super.value
+    · ───────────
+    ╰────
+
+  × Property '_property' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/superPropertyAccess_ES5/index.ts:25:13]
+ 25 │ _property
+    · ─────────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess_ES5/index.ts:33:9]
+ 33 │ super.property
+    · ──────────────
+    ╰────

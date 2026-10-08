@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/collisionThisExpressionAndLocalVarInConstructor.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
+//@compiler-options: strict=false
 class class1 {
   constructor() {var x2 = {
           doStuff: (callback) => (() => {

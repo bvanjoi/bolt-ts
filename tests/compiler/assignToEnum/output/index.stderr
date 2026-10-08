@@ -1,10 +1,10 @@
-  × Cannot assign to 'A' because it is a enum.
+  × Cannot assign to 'A' because it is an enum.
    ╭─[../../tests/compiler/assignToEnum/index.ts:4:1]
  4 │ A
    · ─
    ╰────
 
-  × Cannot assign to 'A' because it is a enum.
+  × Cannot assign to 'A' because it is an enum.
    ╭─[../../tests/compiler/assignToEnum/index.ts:6:1]
  6 │ A
    · ─

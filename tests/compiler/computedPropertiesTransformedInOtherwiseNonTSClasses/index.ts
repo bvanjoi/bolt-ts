@@ -8,6 +8,6 @@ namespace NS {
 
     class NotTransformed { 
         [NS.x]: number;
-        //~^ ERROR: Property 'computed' has no initializer and is not definitely assigned in the constructor.
+        //~^ ERROR: Property '[NS.x]' has no initializer and is not definitely assigned in the constructor.
     }
 }

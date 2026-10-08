@@ -147,7 +147,7 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
-    fn create_base_property_access_expression(
+    fn create_base_property_access_expression<const IS_CHAIN: bool>(
         &mut self,
         span: Span,
         expr: &'cx ast::Expr<'cx>,
@@ -163,7 +163,7 @@ pub trait ASTFactory<'cx> {
             name,
         });
         self.insert_node(id, ast::Node::PropAccessExpr(node));
-        let flags = if question_dot.is_some() {
+        let flags = if IS_CHAIN || question_dot.is_some() {
             ast::NodeFlags::OPTIONAL_CHAIN
         } else {
             self.node_context_flags()
@@ -180,7 +180,7 @@ pub trait ASTFactory<'cx> {
         name: &'cx ast::Ident,
     ) -> &'cx ast::PropAccessExpr<'cx> {
         let expr = NoParenRule.paren_left_side_of_access(expr, false);
-        self.create_base_property_access_expression(span, expr, None, name)
+        self.create_base_property_access_expression::<false>(span, expr, None, name)
     }
 
     #[inline(always)]
@@ -192,7 +192,7 @@ pub trait ASTFactory<'cx> {
         name: &'cx ast::Ident,
     ) -> &'cx ast::PropAccessExpr<'cx> {
         let expr = NoParenRule.paren_left_side_of_access(expr, true);
-        self.create_base_property_access_expression(span, expr, question_dot, name)
+        self.create_base_property_access_expression::<true>(span, expr, question_dot, name)
     }
 
     #[inline(always)]
@@ -327,7 +327,7 @@ pub trait ASTFactory<'cx> {
         &mut self,
         span: Span,
         left: &'cx ast::Expr<'cx>,
-        op: ast::BinOp,
+        op: ast::BinOpKind,
         right: &'cx ast::Expr<'cx>,
     ) -> &'cx ast::BinExpr<'cx> {
         let id = self.next_node_id();
@@ -1437,7 +1437,6 @@ pub trait ASTFactory<'cx> {
         &mut self,
         span: Span,
         name: &'cx ast::Ident,
-        equal_token: Option<Span>,
         object_assignment_initializer: Option<&'cx ast::Expr<'cx>>,
     ) -> &'cx ast::ObjectShorthandMember<'cx> {
         let id = self.next_node_id();
@@ -1445,7 +1444,6 @@ pub trait ASTFactory<'cx> {
             id,
             span,
             name,
-            equal_token,
             object_assignment_initializer,
         });
         self.insert_node(id, ast::Node::ObjectShorthandMember(prop));

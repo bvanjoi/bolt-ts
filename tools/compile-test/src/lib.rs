@@ -1,15 +1,17 @@
 mod common;
 pub mod errors;
 mod header;
+mod header_compiler_options;
+mod parse_error_directive;
 pub mod run_tests;
 mod temp_dir;
 mod temp_files;
+mod test_props_builder;
 
-pub use common::TestConfig;
-pub use common::{CompilerOption, CompilerOptions};
-pub use header::TestProps;
+pub use header_compiler_options::CompilerOptions;
 pub use temp_dir::{TempDir, tempdir};
 pub use temp_files::build_temp_files;
+pub use test_props_builder::TestPropsKey;
 
 pub fn ensure_node_exist() {
     let output = std::process::Command::new("node")

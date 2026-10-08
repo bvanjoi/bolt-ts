@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/divergentAccessorsTypes1.ts`, Apache-2.0 License
 //@compiler-options: target=esnext
+//@compiler-options: strict
 class Test1 {
   get foo() {
     return '';
@@ -17,6 +18,7 @@ class Test1 {
   var t = new Test1();
   t.foo = 32;
   var m = t.foo;
+  // See how CFA interacts with out-of-type writes
   t.bar = 42;
   var n = t.bar;
   t.bar = false;
@@ -26,6 +28,7 @@ class Test1 {
   var t = {};
   t.foo = 32;
   var m = t.foo;
+  // See how CFA interacts with out-of-type writes
   t.bar = 42;
   var n = t.bar;
   t.bar = false;
@@ -35,6 +38,7 @@ class Test1 {
   var t = {};
   t.foo = 32;
   var m = t.foo;
+  // See how CFA interacts with out-of-type writes
   t.bar = 42;
   var n = t.bar;
   t.bar = false;

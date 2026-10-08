@@ -2,10 +2,12 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict
 //@compiler-options: declaration
+//@run-fail
 
 
 foo(a, fab);
-foo(b, fab);
+foo(b, fab);// Repro from #45603
+
 var actionA = {
   payload: 'any-string'  
 };

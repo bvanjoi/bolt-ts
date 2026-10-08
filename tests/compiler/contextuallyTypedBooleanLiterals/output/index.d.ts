@@ -13,3 +13,5 @@ interface Observable<T> {
 }
 declare function observable<T>(value: T): Observable<T>;
 declare var x: Observable<boolean>;
+type StringWithInnerEscape = 'ab"c\'c';
+type StringWithInnerEscape2 = 'ab"c\'c';

@@ -1,6 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/taggedPrimitiveNarrowing.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
 //@compiler-options: strict
+//@compiler-options: declaration
 function getHashLength(hash) {
   if (typeof hash !== 'string') {
     throw new Error('This doesn\'t look like a hash')

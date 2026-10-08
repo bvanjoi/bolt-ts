@@ -3,6 +3,7 @@
 type A = {
   get foo() { return 0 }
   //~^ ERROR: An implementation cannot be declared in type contexts.
+  //~| ERROR: Property 'foo' implicitly has type 'any', because its get accessor lacks a return type annotation.
 };
 
 type B = {
@@ -13,6 +14,7 @@ type B = {
 interface X {
   get foo() { return 0 }
   //~^ ERROR: An implementation cannot be declared in type contexts.
+  //~| ERROR: Property 'foo' implicitly has type 'any', because its get accessor lacks a return type annotation.
 }
 
 interface Y {

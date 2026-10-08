@@ -18,4 +18,6 @@ function identity<T>(arg: T: T {
   //~| ERROR: Expected ','.
   //~| ERROR: Duplicate identifier 'arg'.
   //~| ERROR: 'arg' is an unused renaming of 'return'. Did you intend to use it as a type annotation?
+  //~| ERROR: Binding element 'arg' implicitly has an 'any' type.
+  //~| ERROR: Binding element 'arg' implicitly has an 'any' type.
 } //~ ERROR: Expected ')'.

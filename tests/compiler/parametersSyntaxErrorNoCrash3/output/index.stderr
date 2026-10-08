@@ -17,19 +17,19 @@
     ╰────
 
   × Expected ':'.
-    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:18:1]
- 18 │ }
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:22:1]
+ 22 │ }
     · ─
     ╰────
 
   × Identifier expected.
-    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:18:1]
- 18 │ }
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:22:1]
+ 22 │ }
     · ─
     ╰────
 
   × Expected ')'.
-   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:22:25]
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:30:25]
    ╰────
 
   × '' is an unused renaming of 'return'. Did you intend to use it as a type
@@ -41,8 +41,8 @@
 
   × '' is an unused renaming of ' string'. Did you intend to use it as a type
   │ annotation?
-    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:18:1]
- 18 │ }
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:22:1]
+ 22 │ }
     · ─
     ╰────
 
@@ -59,6 +59,54 @@
  9 │ getHtml
    · ───────
    ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:13:13]
+ 13 │ " string"
+    · ─────────
+    ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:22:1]
+ 22 │ }
+    · ─
+    ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:13:13]
+ 13 │ " string"
+    · ─────────
+    ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:22:1]
+ 22 │ }
+    · ─
+    ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:13:13]
+ 13 │ " string"
+    · ─────────
+    ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:22:1]
+ 22 │ }
+    · ─
+    ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:13:13]
+ 13 │ " string"
+    · ─────────
+    ╰────
+
+  × Binding element '' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:22:1]
+ 22 │ }
+    · ─
+    ╰────
 
   × 'getHtml', which lacks return-type annotation, implicitly has an 'any'
   │ return type.
@@ -72,5 +120,9 @@
  15 │ │       //~| ERROR: Identifier expected.
  16 │ │       //~| ERROR: Expected ','.
  17 │ │       //~| ERROR: '' is an unused renaming of 'return'. Did you intend to use it as a type annotation?
- 18 │ ╰─▶ }
+ 18 │ │       //~| ERROR: Binding element '' implicitly has an 'any' type.
+ 19 │ │       //~| ERROR: Binding element '' implicitly has an 'any' type.
+ 20 │ │       //~| ERROR: Binding element '' implicitly has an 'any' type.
+ 21 │ │       //~| ERROR: Binding element '' implicitly has an 'any' type.
+ 22 │ ╰─▶ }
     ╰────

@@ -23,7 +23,7 @@
     ╰────
 
   × Expected ')'.
-   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:21:27]
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:23:27]
    ╰────
 
   × Duplicate identifier 'arg'.
@@ -60,6 +60,18 @@
     · ──
     ╰────
 
+  × Binding element 'arg' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:16:12]
+ 16 │ arg
+    · ───
+    ╰────
+
+  × Binding element 'arg' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:16:12]
+ 16 │ arg
+    · ───
+    ╰────
+
   × 'identity', which lacks return-type annotation, implicitly has an 'any'
   │ return type.
     ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:10:1]
@@ -74,5 +86,7 @@
  18 │ │     //~| ERROR: Expected ','.
  19 │ │     //~| ERROR: Duplicate identifier 'arg'.
  20 │ │     //~| ERROR: 'arg' is an unused renaming of 'return'. Did you intend to use it as a type annotation?
- 21 │ ╰─▶ }
+ 21 │ │     //~| ERROR: Binding element 'arg' implicitly has an 'any' type.
+ 22 │ │     //~| ERROR: Binding element 'arg' implicitly has an 'any' type.
+ 23 │ ╰─▶ }
     ╰────

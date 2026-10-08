@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/contextualTypeAppliedToVarArgs.ts`, Apache-2.0 License
 function delegate(instance, method, data) {
   return function () {};
 }

@@ -1,9 +1,12 @@
+
+
+
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/spreadObjectPermutations.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
 //@compiler-options: strict
-
-
-
+//@[exactOptionalPropertyTypes=true]  compiler-options: exactOptionalPropertyTypes
+//@[exactOptionalPropertyTypes=false] compiler-options: exactOptionalPropertyTypes=false
+//@run-fail
 var v_a = {
   ...a  
 };

@@ -1,4 +1,4 @@
-use super::state::is_jsx_like_variant;
+use super::const_variant::is_jsx_like_variant;
 use super::{PResult, ParserState, Tristate, utils::ParseSuccess};
 
 use bolt_ts_ast::{BinPrec, TokenKind, keyword};
@@ -67,7 +67,6 @@ impl<'a, 'cx, 'p, const VARIANT: u8> Lookahead<'a, 'cx, 'p, VARIANT> {
         let old_line = self.p.line;
         let old_token_flags = self.p.token_flags;
         let old_line_start = self.p.line_start;
-        let old_line_map_len = self.p.line_map.len();
         let old_parse_diag_len = self.p.diags.len();
         let old_current_node_id = self.p.current_node_id();
         let old_labels_len = self.p.labels.len();
@@ -75,7 +74,6 @@ impl<'a, 'cx, 'p, const VARIANT: u8> Lookahead<'a, 'cx, 'p, VARIANT> {
         let r = f(self);
 
         if need_revert(&r) {
-            self.p.line_map.truncate(old_line_map_len);
             self.p.line_start = old_line_start;
             self.p.token_flags = old_token_flags;
             self.p.line = old_line;
@@ -429,6 +427,16 @@ impl<'a, 'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     // TODO: split it into single function such as `is_start_of_decl_for_module_or_namespace`.
     pub(super) fn is_start_of_decl(&mut self) -> bool {
         self.lookahead(Lookahead::is_decl)
+    }
+
+    pub(super) fn is_start_of_declaration_when_current_token_is_type_or_interface_kw(
+        &mut self,
+    ) -> bool {
+        debug_assert!(matches!(
+            self.token.kind,
+            TokenKind::Type | TokenKind::Interface
+        ));
+        self.lookahead(|this| this.next_token_is_identifier_on_same_line())
     }
 
     pub(super) fn is_paren_arrow_fn_expr(&mut self) -> Tristate {

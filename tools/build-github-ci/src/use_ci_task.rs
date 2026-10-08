@@ -29,7 +29,7 @@ impl Job for CargoTestJob {
         let mut steps = vec![
             checkout_repository_step(),
             setup_rust_step(false, false),
-            setup_node_step("24"),
+            setup_node_step("26"),
         ];
         steps.extend(run_cargo_command_steps());
         steps.push(run_wasm_pack_build_and_test_step());
@@ -50,7 +50,7 @@ impl Job for JavaScriptCheckAndTestJob {
         vec![
             checkout_repository_step(),
             setup_rust_step(true, false),
-            setup_node_step("24"),
+            setup_node_step("26"),
             setup_pnpm_step(true),
             run_pnpm_build_command_step(),
             run_biome_format_and_lint_command_step(),
@@ -72,7 +72,7 @@ impl Job for CodSpeedBenchmarkJob {
         let mut steps = vec![
             checkout_repository_step(),
             setup_rust_step(false, true),
-            setup_node_step("24"),
+            setup_node_step("26"),
             setup_pnpm_step(false),
         ];
         for step in codspeed_benchmark_steps() {

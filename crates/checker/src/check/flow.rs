@@ -1547,7 +1547,7 @@ impl<'cx> TyChecker<'cx> {
             .is_expression_of_optional_chain_root(expr)
             || self.parent(expr).is_some_and(|p| match self.p.node(p) {
                 ast::Node::BinExpr(e) => {
-                    matches!(e.op.kind, ast::BinOpKind::Nullish) && e.left.id() == expr
+                    matches!(e.op, ast::BinOpKind::Nullish) && e.left.id() == expr
                 }
                 ast::Node::AssignExpr(e) => {
                     matches!(e.op, ast::AssignOp::NullishEq) && e.left.id() == expr
@@ -1735,7 +1735,7 @@ impl<'cx> TyChecker<'cx> {
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         use ast::BinOpKind::*;
-        let op = binary_expr.op.kind;
+        let op = binary_expr.op;
         match op {
             Instanceof => self.narrow_ty_by_instanceof_expr(ty, refer, binary_expr, assume_true),
             EqEqEq | NEqEq | EqEq | NEq => {
@@ -1749,7 +1749,7 @@ impl<'cx> TyChecker<'cx> {
                         declared_ty,
                         refer,
                         n,
-                        binary_expr.op.kind,
+                        binary_expr.op,
                         lit,
                         assume_true,
                     );
@@ -1761,28 +1761,28 @@ impl<'cx> TyChecker<'cx> {
                         declared_ty,
                         refer,
                         n,
-                        binary_expr.op.kind,
+                        binary_expr.op,
                         lit,
                         assume_true,
                     );
                 } else if self.is_matching_reference(refer, left.id()) {
-                    return self.narrow_ty_by_equality(ty, binary_expr.op.kind, right, assume_true);
+                    return self.narrow_ty_by_equality(ty, binary_expr.op, right, assume_true);
                 } else if self.is_matching_reference(refer, right.id()) {
-                    return self.narrow_ty_by_equality(ty, binary_expr.op.kind, left, assume_true);
+                    return self.narrow_ty_by_equality(ty, binary_expr.op, left, assume_true);
                 }
 
                 if self.config.compiler_options().strict_null_checks() {
                     if self.optional_chain_contains_reference(left.id(), refer) {
                         ty = self.narrow_ty_by_optional_chain_containment(
                             ty,
-                            binary_expr.op.kind,
+                            binary_expr.op,
                             right,
                             assume_true,
                         );
                     } else if self.optional_chain_contains_reference(right.id(), refer) {
                         ty = self.narrow_ty_by_optional_chain_containment(
                             ty,
-                            binary_expr.op.kind,
+                            binary_expr.op,
                             left,
                             assume_true,
                         );
@@ -1795,7 +1795,7 @@ impl<'cx> TyChecker<'cx> {
                     return self.narrow_ty_by_discriminant_prop(
                         ty,
                         left_access,
-                        binary_expr.op.kind,
+                        binary_expr.op,
                         right,
                         assume_true,
                     );
@@ -1807,7 +1807,7 @@ impl<'cx> TyChecker<'cx> {
                     return self.narrow_ty_by_discriminant_prop(
                         ty,
                         right_access,
-                        binary_expr.op.kind,
+                        binary_expr.op,
                         left,
                         assume_true,
                     );
@@ -2385,10 +2385,10 @@ impl<'cx> TyChecker<'cx> {
         match n.kind {
             ast::ExprKind::BoolLit(n) if !n.val => self.unreachable_never_ty,
             ast::ExprKind::Bin(n) => {
-                if n.op.kind == ast::BinOpKind::LogicalAnd {
+                if n.op == ast::BinOpKind::LogicalAnd {
                     let left_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.left);
                     self.narrow_ty_by_assertion(left_ty, declared_ty, refer, n.right)
-                } else if n.op.kind == ast::BinOpKind::LogicalOr {
+                } else if n.op == ast::BinOpKind::LogicalOr {
                     let left_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.left);
                     let right_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.right);
                     self.get_union_ty::<false>(

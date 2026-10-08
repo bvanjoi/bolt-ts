@@ -1,4 +1,4 @@
-  × Index signature in type 'number[]' only permits reading.
+  × Index signature in type 'readonly number[]' only permits reading.
     ╭─[../../tests/compiler/objectFreeze/index.ts:13:1]
  13 │ a[0]
     · ────

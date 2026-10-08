@@ -1,4 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/getAccessorWithImpliedReturnTypeAndFunctionClassMerge.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//list: List<T>,
+//iterator: ListIterator<T, void>,
 
 var MyModule = {};
 (function (MyModule) {

@@ -2,6 +2,7 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
 //@compiler-options: strictFunctionTypes=false
+//@run-fail
 
 
 

@@ -1,11 +1,13 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/es6ClassTest8.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
+//@compiler-options: strict=false
 function f1(x) {
   return x;
 }
 class C {
   constructor() {var bar = (function () {
       return bar;
+    // 'bar' should be resolvable
     });
     var b = f1(f1(bar));}
 }

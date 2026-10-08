@@ -2,6 +2,7 @@
 //@compiler-options: target=es2015
 //@compiler-options: strictNullChecks
 //@compiler-options: declaration
+//@compiler-options: emitDeclarationOnly
 import createApi from './createApi'
 var slice = createApi({
   endpoints: {

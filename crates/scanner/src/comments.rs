@@ -1,118 +1,109 @@
-const CARRIAGE_RETURN: u8 = b'\r';
-const LINE_FEED: u8 = b'\n';
-const TAB: u8 = b'\t';
-const VERTICAL_TAB: u8 = b'\x0B';
-const FORM_FEED: u8 = b'\x0C';
-const SPACE: u8 = b' ';
-const SLASH: u8 = b'/';
-const ASTERISK: u8 = b'*';
+use indexmap::IndexMap;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommentKind {
     SingleLine,
     MultiLine,
 }
 
-pub fn iterate_comment_ranges<const REDUCE: bool, const TRAILING: bool>(
-    text: &str,
-    mut pos: usize,
-    mut callback: impl FnMut(CommentKind, usize, usize, bool) -> bool,
-) {
-    let bytes = text.as_bytes();
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Comment {
+    start: u32,
+    end: u32,
+    kind: CommentKind,
+}
 
-    let mut pending_pos = usize::MAX;
-    let mut pending_end = usize::MAX;
-    let mut pending_kind = CommentKind::SingleLine;
-    let mut collecting = TRAILING;
-    let mut has_pending_comment_range = false;
-    let mut pending_has_trailing_newline = false;
-    if pos == 0 {
-        collecting = true;
-        // TODO: shebang
+impl Comment {
+    pub fn new(start: u32, end: u32, kind: CommentKind) -> Self {
+        Self { start, end, kind }
     }
-    while let Some(ch) = bytes.get(pos).copied() {
-        match ch {
-            CARRIAGE_RETURN => {
-                if bytes.get(pos + 1) == Some(&LINE_FEED) {
-                    pos += 1;
-                }
-                pos += 1;
-                if TRAILING {
-                    break;
-                }
-                if has_pending_comment_range {
-                    pending_has_trailing_newline = true;
-                }
-            }
-            LINE_FEED => {
-                pos += 1;
-                if TRAILING {
-                    break;
-                }
-                if has_pending_comment_range {
-                    pending_has_trailing_newline = true;
-                }
-            }
-            TAB | VERTICAL_TAB | FORM_FEED | SPACE => {
-                pos += 1;
-            }
-            SLASH => {
-                let Some(next_char) = bytes.get(pos + 1).copied() else {
-                    break;
+
+    pub fn start(&self) -> u32 {
+        self.start
+    }
+    pub fn end(&self) -> u32 {
+        self.end
+    }
+    pub fn kind(&self) -> CommentKind {
+        self.kind
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct CommentsAtToken {
+    leading: Vec<Comment>,
+    trailing: Vec<Comment>,
+}
+
+impl CommentsAtToken {
+    pub fn get_leading_comments(&self) -> &[Comment] {
+        &self.leading
+    }
+
+    pub fn get_trailing_comments(&self) -> &[Comment] {
+        &self.trailing
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct LeadingTrailingComments {
+    comments: IndexMap<u32, Option<CommentsAtToken>>,
+}
+
+impl LeadingTrailingComments {
+    #[track_caller]
+    fn ensure_pos_incremental(&self, pos: u32) {
+        if let Some((&last_pos, _)) = self.comments.last() {
+            debug_assert!(last_pos <= pos, "pos: {pos}, last_pos: {last_pos}");
+        }
+    }
+
+    #[track_caller]
+    pub fn mark_no_comments(&mut self, pos: u32) {
+        self.ensure_pos_incremental(pos);
+        self.comments.entry(pos).or_insert(None);
+    }
+
+    #[track_caller]
+    pub fn add_leading_comment(&mut self, pos: u32, comment: Comment) {
+        self.ensure_pos_incremental(pos);
+        match self.comments.entry(pos) {
+            indexmap::map::Entry::Occupied(occ) => {
+                let Some(occ) = occ.into_mut() else {
+                    // Trying to add leading comment at pos {pos} where no comments are allowed
+                    unreachable!();
                 };
-                let mut has_trailing_new_line = false;
-                let next_is_slash = next_char == SLASH;
-                if next_is_slash || next_char == ASTERISK {
-                    let kind = if next_is_slash {
-                        CommentKind::SingleLine
-                    } else {
-                        CommentKind::MultiLine
-                    };
-                    let start_pos = pos;
-                    pos += 2;
-                    if next_is_slash {
-                        while let Some(ch) = bytes.get(pos).copied() {
-                            if super::is_line_break(ch) {
-                                has_trailing_new_line = true;
-                                break;
-                            }
-                            pos += 1;
-                        }
-                    } else {
-                        while let Some(ch) = bytes.get(pos).copied() {
-                            if ch == ASTERISK && bytes.get(pos + 1) == Some(&SLASH) {
-                                pos += 2;
-                                break;
-                            }
-                            pos += 1;
-                        }
-                    }
-                    if collecting {
-                        if has_pending_comment_range {
-                            debug_assert!(pending_pos != usize::MAX);
-                            debug_assert!(pending_end != usize::MAX);
-                            let stop = callback(
-                                pending_kind,
-                                pending_pos,
-                                pending_end,
-                                pending_has_trailing_newline,
-                            );
-                            if !REDUCE && stop {
-                                break;
-                            }
-                        }
-                        pending_pos = start_pos;
-                        pending_end = pos;
-                        pending_kind = kind;
-                        pending_has_trailing_newline = has_trailing_new_line;
-                        has_pending_comment_range = true;
-                    }
-                    continue;
-                }
-                break;
+                debug_assert!(!occ.leading.contains(&comment));
+                occ.leading.push(comment);
             }
-            _ => {
-                // TODO: whitespace
-                break;
+            indexmap::map::Entry::Vacant(vac) => {
+                let mut comments_at_token = CommentsAtToken::default();
+                comments_at_token.leading.push(comment);
+                vac.insert(Some(comments_at_token));
+            }
+        }
+    }
+
+    pub fn get_comments_by_index(&self, index: usize) -> Option<(&u32, &Option<CommentsAtToken>)> {
+        self.comments.get_index(index)
+    }
+
+    #[track_caller]
+    pub fn add_trailing_comment(&mut self, pos: u32, comment: Comment) {
+        self.ensure_pos_incremental(pos);
+        match self.comments.entry(pos) {
+            indexmap::map::Entry::Occupied(occ) => {
+                let Some(occ) = occ.into_mut() else {
+                    // Trying to add trailing comment at pos {pos} where no comments are allowed
+                    unreachable!();
+                };
+                debug_assert!(!occ.trailing.contains(&comment));
+                occ.trailing.push(comment);
+            }
+            indexmap::map::Entry::Vacant(vac) => {
+                let mut comments_at_token = CommentsAtToken::default();
+                comments_at_token.trailing.push(comment);
+                vac.insert(Some(comments_at_token));
             }
         }
     }

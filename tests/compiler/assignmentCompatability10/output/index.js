@@ -1,4 +1,5 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/assignmentCompatability10.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var __test1__ = {};
 (function (__test1__) {
 

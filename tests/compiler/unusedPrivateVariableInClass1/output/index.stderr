@@ -1,0 +1,12 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/unusedPrivateVariableInClass1/index.ts:8:13]
+ 8 │ x
+   · ─
+   ╰────
+
+  × 'x' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedPrivateVariableInClass1/index.ts:8:13]
+ 8 │ x
+   · ─
+   ╰────

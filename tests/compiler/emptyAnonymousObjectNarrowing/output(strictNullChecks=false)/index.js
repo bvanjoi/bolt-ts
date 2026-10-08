@@ -1,6 +1,9 @@
+
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/emptyAnonymousObjectNarrowing.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
-
+//@[strictNullChecks=true]  compiler-options: strictNullChecks=true
+//@[strictNullChecks=false] compiler-options: strictNullChecks=false
+//@run-fail
 if (nonNull === 'foo') {
   nonNull;
 } else {
@@ -55,13 +58,15 @@ if (nonNull == undefined) {
   nonNull;
 }
 
-var foo = (value) => {
+var foo = (value// Repro from #50567
+) => {
   if (!value) {
     return 'foo';
   }
   
   if (value === 'xyz') {
     return value;
+  // Type '{}' is not assignable to type 'string'.
   }
   
   return '';

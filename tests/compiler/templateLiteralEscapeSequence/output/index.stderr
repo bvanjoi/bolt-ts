@@ -1,0 +1,265 @@
+  × Hexadecimal digit expected.
+   ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:7:2]
+ 7 │ \u
+   · ──
+   ╰────
+
+  × Hexadecimal digit expected.
+   ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:8:2]
+ 8 │ \u0
+   · ───
+   ╰────
+
+  × Hexadecimal digit expected.
+   ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:9:2]
+ 9 │ \u00
+   · ────
+   ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:10:2]
+ 10 │ \u000
+    · ─────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:12:2]
+ 12 │ \u{
+    · ───
+    ╰────
+
+  × An extended Unicode escape value must be between 0x0 and 0x10FFFF
+  │ inclusive.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:13:2]
+ 13 │ \u{ffffff
+    · ─────────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:14:2]
+ 14 │ \x
+    · ──
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:15:2]
+ 15 │ \x0
+    · ───
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:17:6]
+ 17 │ \u
+    · ──
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:18:6]
+ 18 │ \u0
+    · ───
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:19:6]
+ 19 │ \u00
+    · ────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:20:6]
+ 20 │ \u000
+    · ─────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:22:6]
+ 22 │ \u{
+    · ───
+    ╰────
+
+  × An extended Unicode escape value must be between 0x0 and 0x10FFFF
+  │ inclusive.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:23:6]
+ 23 │ \u{ffffff
+    · ─────────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:24:6]
+ 24 │ \x
+    · ──
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:25:6]
+ 25 │ \x0
+    · ───
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:27:2]
+ 27 │ \u
+    · ──
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:28:2]
+ 28 │ \u0
+    · ───
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:29:2]
+ 29 │ \u00
+    · ────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:30:2]
+ 30 │ \u000
+    · ─────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:32:2]
+ 32 │ \u{
+    · ───
+    ╰────
+
+  × An extended Unicode escape value must be between 0x0 and 0x10FFFF
+  │ inclusive.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:33:2]
+ 33 │ \u{ffffff
+    · ─────────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:34:2]
+ 34 │ \x
+    · ──
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:35:2]
+ 35 │ \x0
+    · ───
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:37:6]
+ 37 │ \u
+    · ──
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:38:6]
+ 38 │ \u0
+    · ───
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:39:6]
+ 39 │ \u00
+    · ────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:40:6]
+ 40 │ \u000
+    · ─────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:42:6]
+ 42 │ \u{
+    · ───
+    ╰────
+
+  × An extended Unicode escape value must be between 0x0 and 0x10FFFF
+  │ inclusive.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:43:6]
+ 43 │ \u{ffffff
+    · ─────────
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:44:6]
+ 44 │ \x
+    · ──
+    ╰────
+
+  × Hexadecimal digit expected.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:45:6]
+ 45 │ \x0
+    · ───
+    ╰────
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:89:8]
+ 89 │ 00
+    · ──
+    ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:90:8]
+ 90 │ 05
+    · ──
+    ╰────
+  help: Use the syntax '0o5'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:91:8]
+ 91 │ 000
+    · ───
+    ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:92:8]
+ 92 │ 005
+    · ───
+    ╰────
+  help: Use the syntax '0o05'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:93:8]
+ 93 │ 055
+    · ───
+    ╰────
+  help: Use the syntax '0o55'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:94:7]
+ 94 │ 00
+    · ──
+    ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:95:7]
+ 95 │ 05
+    · ──
+    ╰────
+  help: Use the syntax '0o5'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:96:7]
+ 96 │ 000
+    · ───
+    ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:97:7]
+ 97 │ 005
+    · ───
+    ╰────
+  help: Use the syntax '0o05'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/templateLiteralEscapeSequence/index.ts:98:7]
+ 98 │ 055
+    · ───
+    ╰────
+  help: Use the syntax '0o55'.

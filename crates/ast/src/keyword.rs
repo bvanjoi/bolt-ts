@@ -199,17 +199,18 @@ prefilled_atom_map!(
             IDENT_RECORD:                           ["Record", 140],
             IDENT_NAN:                              ["NaN", 141],
             IDENT_TARGET:                           ["target", 142],
-            IDENT_HAS_OWN_PROPERTY:                 ["hasOwnProperty", 143]
+            IDENT_HAS_OWN_PROPERTY:                 ["hasOwnProperty", 143],
+            IDENT_DEFINE_PROPERTY:                   ["defineProperty", 144]
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 144]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 145]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 145]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 146]
         },
         NUMBER: {
-            NUMBER_ZERO:                            ["0", 146],
-            NUMBER_NEGATIVE_INFINITY:               ["-Infinity", 147]
+            NUMBER_ZERO:                            ["0", 147],
+            NUMBER_NEGATIVE_INFINITY:               ["-Infinity", 148]
         },
     }
 );

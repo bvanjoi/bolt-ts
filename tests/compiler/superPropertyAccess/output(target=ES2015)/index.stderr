@@ -1,0 +1,40 @@
+  × Class field 'm2' defined by the parent class is not accessible in the
+  │ child class via super.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:26:9]
+ 26 │ super.m2
+    · ────────
+    ╰────
+
+  × Class field 'm2' defined by the parent class is not accessible in the
+  │ child class via super.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:26:9]
+ 26 │ super.m2
+    · ────────
+    ╰────
+
+  × Class field 'm2' defined by the parent class is not accessible in the
+  │ child class via super.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:26:9]
+ 26 │ super.m2
+    · ────────
+    ╰────
+
+  × Property 'p1' is private and only accessible within class 'MyBase'.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:34:9]
+ 34 │ super.p1
+    · ────────
+    ╰────
+
+  × Class field 'd1' defined by the parent class is not accessible in the
+  │ child class via super.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:37:18]
+ 37 │ super.d1
+    · ────────
+    ╰────
+
+  × Class field 'd2' defined by the parent class is not accessible in the
+  │ child class via super.
+    ╭─[../../tests/compiler/superPropertyAccess/index.ts:41:18]
+ 41 │ super.d2
+    · ────────
+    ╰────

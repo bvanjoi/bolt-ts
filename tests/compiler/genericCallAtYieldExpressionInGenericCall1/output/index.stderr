@@ -12,22 +12,22 @@
     · ─────────────
     ╰────
 
-  × Argument of type '<T>(value: T) => Generator<number, void, never>' is not
+  × Argument of type '<T>(value: T) => Generator<number, void, any>' is not
   │ assignable to parameter of type '(value: unknown) => Generator<never,
   │ unknown, unknown>'.
     ╭─[../../tests/compiler/genericCallAtYieldExpressionInGenericCall1/index.ts:67:8]
  67 │ ╭─▶ function* <T>(value: T) {
- 68 │ │     //~^ ERROR: Argument of type '<T>(value: T) => Generator<number, void, never>' is not assignable to parameter of type '(value: unknown) => Generator<never, unknown, unknown>'.
+ 68 │ │     //~^ ERROR: Argument of type '<T>(value: T) => Generator<number, void, any>' is not assignable to parameter of type '(value: unknown) => Generator<never, unknown, unknown>'.
  69 │ │     yield* inner3(value);
  70 │ ╰─▶ }
     ╰────
 
-  × Argument of type '<T>(value: T) => Generator<number, void, never>' is not
+  × Argument of type '<T>(value: T) => Generator<number, void, any>' is not
   │ assignable to parameter of type '(value: unknown) => Generator<never,
   │ unknown, unknown>'.
     ╭─[../../tests/compiler/genericCallAtYieldExpressionInGenericCall1/index.ts:73:8]
  73 │ ╭─▶ function* <T>(value: T) {
- 74 │ │     //~^ ERROR: Argument of type '<T>(value: T) => Generator<number, void, never>' is not assignable to parameter of type '(value: unknown) => Generator<never, unknown, unknown>'.
+ 74 │ │     //~^ ERROR: Argument of type '<T>(value: T) => Generator<number, void, any>' is not assignable to parameter of type '(value: unknown) => Generator<never, unknown, unknown>'.
  75 │ │     const x = inner3(value);
  76 │ │     yield* x;
  77 │ ╰─▶ }

@@ -2,6 +2,7 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
 //@compiler-options: strictNullChecks
+//@compiler-options: noUncheckedIndexedAccess
 var Meat = {};
 (function (Meat) {
 
@@ -10,7 +11,8 @@ var Meat = {};
 })(Meat);
 var sausage = Meat.Sausage;
 var valueSausage = Meat[sausage];
-var bacon = Meat.Bacon;
+var bacon //Avoiding a false positive
+= Meat.Bacon;
 var valueBacon = Meat[bacon];
 var union = Meat.Bacon;
 var valueUnion = Meat[union];

@@ -3,6 +3,7 @@
 //@compiler-options: strict
 //@compiler-options: exactOptionalPropertyTypes
 //@compiler-options: declaration
+//@run-fail
 
 
 var y1 = test(x1);

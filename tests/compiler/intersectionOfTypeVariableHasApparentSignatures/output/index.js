@@ -2,6 +2,7 @@
 //@compiler-options: target=es2015
 //@compiler-options: strictNullChecks
 //@compiler-options: noImplicitAny
+//@run-fail
 f({
   props: {
       children: (({x}) => {})    

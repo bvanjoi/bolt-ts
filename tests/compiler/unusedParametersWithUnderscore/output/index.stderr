@@ -1,0 +1,41 @@
+  × 'a' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedParametersWithUnderscore/index.ts:8:12]
+ 8 │ a
+   · ─
+   ╰────
+
+  × 'c' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedParametersWithUnderscore/index.ts:8:19]
+ 8 │ c
+   · ─
+   ╰────
+
+  × 'd' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedParametersWithUnderscore/index.ts:8:27]
+ 8 │ d
+   · ─
+   ╰────
+
+  × 'e___' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedParametersWithUnderscore/index.ts:8:29]
+ 8 │ e___
+   · ────
+   ╰────
+
+  × All destructured elements are unused.
+    ╭─[../../tests/compiler/unusedParametersWithUnderscore/index.ts:16:13]
+ 16 │ {_a, __b}
+    · ─────────
+    ╰────
+
+  × 'arg' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedParametersWithUnderscore/index.ts:23:16]
+ 23 │ arg
+    · ───
+    ╰────
+
+  × 'arg' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedParametersWithUnderscore/index.ts:30:13]
+ 30 │ arg
+    · ───
+    ╰────

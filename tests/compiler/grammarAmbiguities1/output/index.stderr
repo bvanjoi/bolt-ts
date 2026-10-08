@@ -24,39 +24,39 @@
 
   × Operator '<' cannot be applied to types '<T, U>(x: any) => any' and
   │ 'typeof A'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:22:3]
- 22 │ <
-    · ─
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:22:1]
+ 22 │ g < A
+    · ─────
     ╰────
 
   × Operator '>' cannot be applied to types 'typeof B' and 'number'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:24:3]
- 24 │ >
-    · ─
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:24:1]
+ 24 │ B > 7
+    · ─────
     ╰────
 
   × Operator '<' cannot be applied to types '<T, U>(x: any) => any' and
   │ 'typeof A'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:12:5]
- 12 │ <
-    · ─
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:12:3]
+ 12 │ g < A
+    · ─────
     ╰────
 
   × Operator '>' cannot be applied to types 'typeof B' and 'number'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:12:12]
- 12 │ >
-    · ─
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:12:10]
+ 12 │ B > 7
+    · ─────
     ╰────
 
   × Operator '<' cannot be applied to types '<T, U>(x: any) => any' and
   │ 'typeof A'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:16:5]
- 16 │ <
-    · ─
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:16:3]
+ 16 │ g < A
+    · ─────
     ╰────
 
   × Operator '>' cannot be applied to types 'typeof B' and 'number'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:16:12]
- 16 │ >
-    · ─
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:16:10]
+ 16 │ B > +(7)
+    · ────────
     ╰────

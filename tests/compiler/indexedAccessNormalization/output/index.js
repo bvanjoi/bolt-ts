@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/indexedAccessNormalization.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
+//@compiler-options: strict
 function f1(mymap, k) {
   var elemofM = mymap[k];
   g(elemofM);

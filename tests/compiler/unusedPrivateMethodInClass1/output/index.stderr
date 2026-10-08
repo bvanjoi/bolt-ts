@@ -1,0 +1,11 @@
+  × 'y' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateMethodInClass1/index.ts:10:13]
+ 10 │ y
+    · ─
+    ╰────
+
+  × 'function1' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedPrivateMethodInClass1/index.ts:8:13]
+ 8 │ function1
+   · ─────────
+   ╰────

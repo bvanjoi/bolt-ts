@@ -1,4 +1,5 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/collectionPatternNoError.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 class Message {
   clone() {
     return this;
@@ -14,7 +15,9 @@ class DataProvider {
     messageList.methodOnMessageList();
   }
 }
-function f(message, messageList) {
+function // The same bug as the above but using indexed accesses
+// (won't surface directly unless unsound indexed access assignments are forbidden)
+f(message, messageList) {
   fetchMsg(messageList).methodOnMessageList();
 }
 function f0(n) {

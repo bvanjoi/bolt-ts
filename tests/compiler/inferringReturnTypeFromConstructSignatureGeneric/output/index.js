@@ -1,4 +1,5 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/inferringReturnTypeFromConstructSignatureGeneric.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 class GenericObject {
   give(value) {
     return value;
@@ -24,5 +25,6 @@ g2.give(1);
 var g3 = g(GenericNumberOrString);
 g3.give(1);
 g3.give('1');
+// repro from #35636
 class C {}
 var g4 = g(C);

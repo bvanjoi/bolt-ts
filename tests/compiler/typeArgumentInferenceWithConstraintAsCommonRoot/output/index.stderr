@@ -1,0 +1,5 @@
+  × Property 'y' is missing.
+    ╭─[../../tests/compiler/typeArgumentInferenceWithConstraintAsCommonRoot/index.ts:12:6]
+ 12 │ e
+    · ─
+    ╰────

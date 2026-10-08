@@ -1,0 +1,6 @@
+  × Property 'message' implicitly has type 'any', because its get accessor
+  │ lacks a return type annotation.
+    ╭─[../../tests/compiler/noImplicitAnyMissingSetAccessor/index.ts:10:25]
+ 10 │ message
+    · ───────
+    ╰────

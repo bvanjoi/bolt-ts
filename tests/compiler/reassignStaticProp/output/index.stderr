@@ -4,7 +4,7 @@
    · ───
    ╰────
 
-  × Subsequent variable declarations must have the same type. Variable 'bar'
+  × Subsequent property declarations must have the same type. Property 'bar'
   │ must be of type 'number', but here has type 'string'.
    ╭─[../../tests/compiler/reassignStaticProp/index.ts:7:12]
  7 │ bar

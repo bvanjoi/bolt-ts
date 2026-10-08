@@ -1,0 +1,23 @@
+  × 'T' is declared but its value is never read.
+   ╭─[../../tests/compiler/noUnusedLocals_typeParameterMergedWithParameter/index.ts:7:21]
+ 7 │ T
+   · ─
+   ╰────
+
+  × 'T' is declared but its value is never read.
+   ╭─[../../tests/compiler/noUnusedLocals_typeParameterMergedWithParameter/index.ts:7:18]
+ 7 │ T
+   · ─
+   ╰────
+
+  × 'T' is declared but its value is never read.
+    ╭─[../../tests/compiler/noUnusedLocals_typeParameterMergedWithParameter/index.ts:11:19]
+ 11 │ T
+    · ─
+    ╰────
+
+  × 'T' is declared but its value is never read.
+    ╭─[../../tests/compiler/noUnusedLocals_typeParameterMergedWithParameter/index.ts:16:26]
+ 16 │ T
+    · ─
+    ╰────

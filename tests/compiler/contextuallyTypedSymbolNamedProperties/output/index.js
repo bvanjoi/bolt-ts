@@ -2,6 +2,7 @@
 //@compiler-options: strict
 //@compiler-options: target=esnext
 //@compiler-options: declaration
+//@run-fail
 var A = Symbol('A');
 var B = Symbol('B');
 

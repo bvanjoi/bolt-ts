@@ -1,0 +1,23 @@
+  × Cannot find name 'H'.
+   ╭─[../../tests/compiler/recursiveResolveTypeMembers/index.ts:6:58]
+ 6 │ H
+   · ─
+   ╰────
+
+  × Cannot find name 'R'.
+   ╭─[../../tests/compiler/recursiveResolveTypeMembers/index.ts:6:79]
+ 6 │ R
+   · ─
+   ╰────
+
+  × Return type annotation circularly references itself.
+   ╭─[../../tests/compiler/recursiveResolveTypeMembers/index.ts:6:49]
+ 6 │ [Promise<H>, ...PromisedTuple<R>]
+   · ─────────────────────────────────
+   ╰────
+
+  × Return type annotation circularly references itself.
+   ╭─[../../tests/compiler/recursiveResolveTypeMembers/index.ts:6:49]
+ 6 │ [Promise<H>, ...PromisedTuple<R>]
+   · ─────────────────────────────────
+   ╰────

@@ -1,9 +1,11 @@
 use super::SignatureFlags;
+use super::const_variant::is_js_like_variant;
+use super::const_variant::is_jsx_like_variant;
+use super::const_variant::is_ts_like_variant;
+use super::jsx;
 use super::lookahead::Lookahead;
 use super::parse_fn_like::ParseFnExpr;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::is_jsx_like_variant;
-use super::state::is_ts_like_variant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
@@ -38,10 +40,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
 
         while let Some(t) = self.parse_optional(TokenKind::Comma) {
             debug_assert_eq!(t.kind, TokenKind::Comma);
-            let op = ast::BinOp {
-                kind: t.kind.into(),
-                span: t.span,
-            };
+            let op = t.kind.into();
             let right = self.parse_assign_expr_or_higher::<false>()?;
             let span = self.new_span(start);
             let kind = self.create_binary_expression(span, expr, op, right);
@@ -111,9 +110,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 if ms
                     .flags
                     .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
-                    && !flags.contains(
-                        CheckParameterFlags::MISSING_BODY.union(CheckParameterFlags::CONSTRUCTOR),
-                    )
+                    && (!is_container || is_missing_body)
                 {
                     let error = Box::new(
                         errors::AParameterPropertyIsOnlyAllowedInAConstructorImplementation {
@@ -137,6 +134,13 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 }
             }
 
+            if is_js_like_variant(VARIANT)
+                && let Some(ty) = param.ty
+            {
+                let error =
+                    errors::TypeAnnotationsCanOnlyBeUsedInTypeScriptFiles { span: ty.span() };
+                self.push_error(Box::new(error));
+            }
             if !is_missing_body
                 && matches!(
                     param.name.kind,
@@ -231,13 +235,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             };
             let block = self.parse_fn_block(flags);
             Ok(ast::ArrowFnExprBody::Block(block))
-        } else if !matches!(
-            self.token.kind,
-            TokenKind::Semi | TokenKind::Function | TokenKind::Class
-        ) && self.is_start_of_stmt()
-            && !self.is_start_of_expr_stmt()
-        {
-            todo!()
         } else {
             let saved_yield_context = self.in_yield_context();
             // TODO: top_level
@@ -303,9 +300,12 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     fn parse_yield_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         debug_assert!(self.token.kind == TokenKind::Yield);
         if !self.in_yield_context() {
-            let error = errors::AYieldExpressionIsOnlyAllowedInAGeneratorBody {
-                span: self.token.span,
-            };
+            let span = self.token.span;
+            let error = errors::AYieldExpressionIsOnlyAllowedInAGeneratorBody { span };
+            self.push_error(Box::new(error));
+        } else if self.parsing_context.contains(ParsingContext::PARAMETERS) {
+            let span = self.token.span;
+            let error = errors::YieldExpressionsCannotBeUsedInAParameterInitializer { span };
             self.push_error(Box::new(error));
         }
         let start = self.token.start();
@@ -427,10 +427,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     ast::ExprKind::As(expr)
                 }
             } else {
-                let op = ast::BinOp {
-                    kind: t.kind.into(),
-                    span: t.span,
-                };
+                let op = t.kind.into();
                 let right = self.parse_binary_expr(next_prec)?;
                 let expr = self.create_binary_expression(self.new_span(start), left, op, right);
                 ast::ExprKind::Bin(expr)
@@ -471,8 +468,20 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             Typeof => self.parse_typeof_expr(),
             Void => self.parse_void_expr(),
             Less => {
-                // TODO: is jsx
-                self.parse_ty_assertion()
+                if is_jsx_like_variant(VARIANT) {
+                    let expr =
+                        self.parse_jsx_ele_or_self_closing_ele_or_frag(true, None, None, true)?;
+                    let expr = match expr {
+                        jsx::JsxEleOrSelfClosingEleOrFrag::Ele(n) => ast::ExprKind::JsxElem(n),
+                        jsx::JsxEleOrSelfClosingEleOrFrag::SelfClosingEle(n) => {
+                            ast::ExprKind::JsxSelfClosingElem(n)
+                        }
+                        jsx::JsxEleOrSelfClosingEleOrFrag::Frag(n) => ast::ExprKind::JsxFrag(n),
+                    };
+                    Ok(self.alloc(ast::Expr { kind: expr }))
+                } else {
+                    self.parse_ty_assertion()
+                }
             }
             Delete => self.parse_delete_expr(),
             Await => {
@@ -485,6 +494,12 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     // parse_await_expression
                     debug_assert!(self.token.kind == TokenKind::Await);
                     let start = self.token.start();
+                    if self.parsing_context.contains(ParsingContext::PARAMETERS) {
+                        let span = self.token.span;
+                        let error =
+                            errors::AwaitExpressionsCannotBeUsedInAParameterInitializer { span };
+                        self.push_error(Box::new(error));
+                    }
                     self.next_token(); // consume `await`
                     let expr = self.parse_simple_unary_expr()?;
                     let expr = self.create_await_expression(self.new_span(start), expr);
@@ -649,7 +664,15 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         ) {
             Ok(expr)
         } else {
-            self.expect(TokenKind::Dot);
+            self.expect_with::<false>(
+                TokenKind::Dot,
+                Some(|this: &mut Self| {
+                    let error = errors::SuperMustBeFollowedByAnArgumentListOrMemberAccess {
+                        span: this.token.span,
+                    };
+                    Box::new(error) as _
+                }),
+            );
             let name = self.parse_right_side_of_dot::<true>();
             let expr = self.create_property_access_expression(self.new_span(start), expr, name);
             let expr = self.alloc(ast::Expr {
@@ -784,18 +807,24 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         start: u32,
         name: &'cx ast::PropName<'cx>,
         asterisk_token: Option<Token>,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ObjectMember<'cx>> {
-        let is_generator = if asterisk_token.is_some() {
+        let flags = if asterisk_token.is_some() {
             SignatureFlags::YIELD
         } else {
             SignatureFlags::empty()
         };
+        let flags = if modifiers.is_some_and(|m| m.flags.contains(ast::ModifierFlags::ASYNC)) {
+            flags | SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
+        } else {
+            flags
+        };
         let ty_params = self.parse_ty_params();
-        // TODO: is_async
-        let params = self.parse_parameters(is_generator);
-        self.check_parameters(params, CheckParameterFlags::empty());
+        let params = self.parse_parameters(flags);
         let ty = self.parse_return_ty::<true, false>()?;
-        let body = self.parse_fn_block(is_generator);
+        let body = self.parse_fn_block(flags);
+        self.check_parameters(params, CheckParameterFlags::empty());
+        self.check_use_strict_simple_parameters(params, body);
         let span = self.new_span(start);
         let node = self.create_object_method_member(
             span,
@@ -866,7 +895,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             || matches!(self.token.kind, TokenKind::LParen | TokenKind::Less)
         {
             check_invalid_modifiers_for_method_like(self);
-            return self.parse_object_method_decl(start, name, asterisk_token);
+            return self.parse_object_method_decl(start, name, asterisk_token, modifiers);
         } else if let Some(name) = name.kind.as_ident()
             && self.token.kind != TokenKind::Colon
         {
@@ -879,7 +908,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             let member = self.create_object_shorthand_property_assignment(
                 self.new_span(start),
                 name,
-                equal_token.map(|t| t.span),
                 object_assignment_initializer,
             );
             let member = self.alloc(ast::ObjectMember {
@@ -1276,6 +1304,15 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let name = self.parse_right_side_of_dot::<true>();
         let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
         let span = self.new_span(start as u32);
+
+        if let ast::ExprKind::ExprWithTyArgs(n) = expr.kind
+            && n.ty_args.is_some_and(|ty_args| !ty_args.list.is_empty())
+        {
+            let error =
+                errors::AnInstantiationExpressionCannotBeFollowedByAPropertyAccess { span: n.span };
+            self.push_error(Box::new(error));
+        }
+
         if is_optional_chain {
             self.create_property_access_chain(span, expr, question_dot, name)
         } else {

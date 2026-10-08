@@ -21,8 +21,8 @@ interface E {
 }
 
 interface F extends E {
+    //~^ ERROR: 'number' index signatures are incompatible.
     [a: string]: number; // Number is not a subtype of string.  Should error.
-    //~^ ERROR: 'string' index signatures are incompatible.
 }
 
 interface G {
@@ -30,6 +30,6 @@ interface G {
 }
 
 interface H extends G {
+    //~^ ERROR: 'number' index signatures are incompatible.
     [a: number]: number; // Should error for the same reason
-    //~^ ERROR: 'string' index signatures are incompatible.
 }

@@ -1,6 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/getterSetterSubtypeAssignment.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
 //@compiler-options: strictNullChecks
+//@compiler-options: noImplicitThis
 class NumberOrUndefined {
   _x;
   get x() {

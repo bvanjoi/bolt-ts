@@ -2,4 +2,5 @@
 //@compiler-options: module=commonjs
 //@compiler-options: target=es2015
 //@compiler-options: declaration
+//@run-fail
 var [, , [, [], , []]] = undefined;

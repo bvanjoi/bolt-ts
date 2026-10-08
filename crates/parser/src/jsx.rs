@@ -2,9 +2,9 @@ use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
+use super::const_variant::is_jsx_like_variant;
 use super::errors;
 use super::parsing_ctx::ParsingContext;
-use super::state::is_jsx_like_variant;
 use super::{PResult, ParserState};
 
 #[derive(Debug)]
@@ -225,8 +225,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
 
     fn parse_jsx_attrs(&mut self) -> bolt_ts_ast::JsxAttrs<'cx> {
         debug_assert!(is_jsx_like_variant(VARIANT));
-
-        (self.parse_list(ParsingContext::JSX_ATTRIBUTES, Self::parse_jsx_attr)) as _
+        self.parse_list(ParsingContext::JSX_ATTRIBUTES, Self::parse_jsx_attr)
     }
 
     fn parse_jsx_ele_name(&mut self) -> JsxTagName<'cx> {

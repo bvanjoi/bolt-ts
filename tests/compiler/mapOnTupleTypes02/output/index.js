@@ -2,6 +2,7 @@
 //@compiler-options: target=es2015
 //@compiler-options: declaration
 //@compiler-options: strictNullChecks
+//@compiler-options: noImplicitAny
 export function increment(point) {
   return point.map((d) => (d + 1));
 }

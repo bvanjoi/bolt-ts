@@ -1,0 +1,11 @@
+  × Cannot assign to 'Foo' because it is a namespace.
+    ╭─[../../tests/compiler/expandoFunctionNestedAssigmentsDeclared/index.ts:80:1]
+ 80 │ Foo
+    · ───
+    ╰────
+
+  × Cannot assign to 'Foo' because it is a namespace.
+    ╭─[../../tests/compiler/expandoFunctionNestedAssigmentsDeclared/index.ts:80:1]
+ 80 │ Foo
+    · ───
+    ╰────

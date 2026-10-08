@@ -1,0 +1,29 @@
+  × 'y' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateMethodInClass3/index.ts:10:13]
+ 10 │ y
+    · ─
+    ╰────
+
+  × 'y' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateMethodInClass3/index.ts:16:13]
+ 16 │ y
+    · ─
+    ╰────
+
+  × 'y' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateMethodInClass3/index.ts:21:13]
+ 21 │ y
+    · ─
+    ╰────
+
+  × 'function1' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedPrivateMethodInClass3/index.ts:8:13]
+ 8 │ function1
+   · ─────────
+   ╰────
+
+  × 'function2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedPrivateMethodInClass3/index.ts:14:13]
+ 14 │ function2
+    · ─────────
+    ╰────

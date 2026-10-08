@@ -33,6 +33,17 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         self.checker.p.root(module_id)
     }
 
+    pub fn get_line_map(&self, module_id: bolt_ts_span::ModuleID) -> &[u32] {
+        &self.checker.p.get(module_id).line_map
+    }
+
+    pub fn get_leading_trailing_comments(
+        &self,
+        module_id: bolt_ts_span::ModuleID,
+    ) -> &bolt_ts_scanner::LeadingTrailingComments {
+        &self.checker.p.get(module_id).leading_trailing_comments
+    }
+
     pub fn module_content(&self, module: bolt_ts_span::ModuleID) -> &str {
         self.checker.module_arena.get_content(module)
     }
@@ -63,6 +74,22 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
                     .contains(bolt_ts_binder::SymbolFlags::NAMESPACE_MODULE)
             }
             ast::ModuleReferenceKind::ExternalModuleReference(_) => false,
+        }
+    }
+
+    pub fn is_implementation_of_overload_for_function_declaration(
+        &mut self,
+        f: &'cx ast::FnDecl<'cx>,
+    ) -> bool {
+        if f.body.is_none() {
+            return false;
+        }
+        let symbol = self.checker.final_res(f.id);
+        let sigs = self.checker.get_sigs_of_symbol(symbol);
+        if sigs.len() == 1 {
+            sigs[0].node_id != Some(f.id)
+        } else {
+            sigs.len() > 1
         }
     }
 
@@ -125,5 +152,8 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
     }
     pub fn print_type(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
         self.checker.print_ty(ty, None).to_string()
+    }
+    pub fn is_optional_parameter(&mut self, n: &'cx ast::ParamDecl<'cx>) -> bool {
+        self.checker.is_optional_parameter(n)
     }
 }

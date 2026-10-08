@@ -1,25 +1,25 @@
 type StringContains<S extends string, L extends string> = ({
-[K in S]: "true"
+[K in S]: 'true'
 } & {
-  [key:string]: "false";
+  [key:string]: 'false';
 })[L];
 type ObjectHasKey<O, L extends string> = StringContains<Extract<keyof O, string>, L>;
-type A<T> = ObjectHasKey<T, "0">;
-type B = ObjectHasKey<[string, number], "1">;
-type C = ObjectHasKey<[string, number], "2">;
+type A<T> = ObjectHasKey<T, '0'>;
+type B = ObjectHasKey<[string, number], '1'>;
+type C = ObjectHasKey<[string, number], '2'>;
 type D = A<[string]>;
 type E<T> = {
-  true: "true";
-}[ObjectHasKey<T, "1">];
+  true: 'true';
+}[ObjectHasKey<T, '1'>];
 type Juxtapose<T> = ({
-  true: "otherwise";
+  true: 'otherwise';
 } & {
-  [k:string]: "true";
-})[ObjectHasKey<T, "1">];
+  [k:string]: 'true';
+})[ObjectHasKey<T, '1'>];
 type DeepError<T> = {
-  true: "true";
+  true: 'true';
 }[Juxtapose<T>];
 type DeepOK<T> = {
-  true: "true";
-  otherwise: "false";
+  true: 'true';
+  otherwise: 'false';
 }[Juxtapose<T>];

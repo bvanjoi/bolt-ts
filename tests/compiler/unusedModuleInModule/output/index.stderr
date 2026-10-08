@@ -1,0 +1,5 @@
+  × 'B' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedModuleInModule/index.ts:8:15]
+ 8 │ B
+   · ─
+   ╰────

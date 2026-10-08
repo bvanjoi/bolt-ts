@@ -1,0 +1,23 @@
+  × 'await' expressions cannot be used in a parameter initializer.
+   ╭─[../../tests/compiler/expressionsForbiddenInParameterInitializers/index.ts:8:35]
+ 8 │ await
+   · ─────
+   ╰────
+
+  × 'yield' expressions cannot be used in a parameter initializer.
+    ╭─[../../tests/compiler/expressionsForbiddenInParameterInitializers/index.ts:13:31]
+ 13 │ yield
+    · ─────
+    ╰────
+
+  × 'yield' expressions cannot be used in a parameter initializer.
+    ╭─[../../tests/compiler/expressionsForbiddenInParameterInitializers/index.ts:17:36]
+ 17 │ yield
+    · ─────
+    ╰────
+
+  × Cannot invoke an object which is possibly 'undefined'.
+   ╭─[../../tests/compiler/expressionsForbiddenInParameterInitializers/index.ts:8:41]
+ 8 │ import
+   · ──────
+   ╰────

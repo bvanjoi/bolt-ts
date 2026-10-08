@@ -1,0 +1,95 @@
+  × A destructuring declaration must have an initializer.
+   ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:6:5]
+ 6 │ [a]
+   · ───
+   ╰────
+
+  × A destructuring declaration must have an initializer.
+   ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:6:10]
+ 6 │ {b}
+   · ───
+   ╰────
+
+  × A destructuring declaration must have an initializer.
+    ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:14:5]
+ 14 │ [a1 = undefined]
+    · ────────────────
+    ╰────
+
+  × A destructuring declaration must have an initializer.
+    ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:14:23]
+ 14 │ {b1 = null}
+    · ───────────
+    ╰────
+
+  × A destructuring declaration must have an initializer.
+    ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:18:5]
+ 18 │ [a2]
+    · ────
+    ╰────
+
+  × A destructuring declaration must have an initializer.
+    ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:18:18]
+ 18 │ {b2}
+    · ────
+    ╰────
+
+  × A destructuring declaration must have an initializer.
+    ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:22:5]
+ 22 │ {b3}
+    · ────
+    ╰────
+
+  × Declarations must be initialized.
+    ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:31:7]
+ 31 │ [a6]
+    · ────
+    ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:6:6]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:6:6]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:6:11]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:6:11]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Member 'b3' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:22:13]
+ 22 │ b3
+    · ──
+    ╰────
+
+  × Member 'b3' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:22:25]
+ 22 │ b3
+    · ──
+    ╰────
+
+  × Binding element 'a6' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:31:8]
+ 31 │ a6
+    · ──
+    ╰────
+
+  × Binding element 'a6' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyDestructuringVarDeclaration/index.ts:31:8]
+ 31 │ a6
+    · ──
+    ╰────

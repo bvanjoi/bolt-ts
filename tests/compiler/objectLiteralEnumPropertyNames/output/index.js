@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/objectLiteralEnumPropertyNames.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
+// Fixes #16887
 var Strs = {};
 (function (Strs) {
 

@@ -1,0 +1,12 @@
+  × Parameter 'newXValue' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyGetAndSetAccessorWithAnyReturnType/index.ts:19:28]
+ 19 │ newXValue
+    · ─────────
+    ╰────
+
+  × Property 'haveOnlySet' implicitly has type 'any', because its set accessor
+  │ lacks a parameter type annotation.
+    ╭─[../../tests/compiler/implicitAnyGetAndSetAccessorWithAnyReturnType/index.ts:19:16]
+ 19 │ haveOnlySet
+    · ───────────
+    ╰────

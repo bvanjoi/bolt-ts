@@ -1,6 +1,7 @@
 use std::ops::Not;
 
 use super::create_ty::IntersectionFlags;
+use super::get_effective_node::SyntheticExpression;
 use super::get_iteration_tys::IterationTypeKind;
 use super::infer::InferenceInfosArenaId;
 use super::infer::{InferenceFlags, InferencePriority};
@@ -23,6 +24,34 @@ pub(super) enum WideningKind {
     FunctionReturn,
     GeneratorNext,
     GeneratorYield,
+}
+
+#[derive(Debug)]
+pub(super) enum AccessNode<'cx> {
+    EleAccessExpr(&'cx ast::EleAccessExpr<'cx>),
+    IndexedAccessTy(&'cx ast::IndexedAccessTy<'cx>),
+    PropNameKind(ast::PropNameKind<'cx>),
+    ArrayBinding(&'cx ast::ArrayBinding<'cx>),
+    SyntheticExpr(SyntheticExpression<'cx>),
+}
+
+impl<'cx> AccessNode<'cx> {
+    fn index_node_span(&self) -> bolt_ts_span::Span {
+        match self {
+            AccessNode::EleAccessExpr(n) => n.arg.span(),
+            AccessNode::IndexedAccessTy(n) => n.index_ty.span(),
+            AccessNode::PropNameKind(n) => n.span(),
+            AccessNode::ArrayBinding(n) => n.span,
+            AccessNode::SyntheticExpr(n) => n.span(),
+        }
+    }
+
+    fn index_node_is_bigint_literal(&self) -> bool {
+        match self {
+            AccessNode::EleAccessExpr(n) => matches!(n.arg.kind, ast::ExprKind::BigIntLit(_)),
+            _ => false,
+        }
+    }
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -223,10 +252,8 @@ impl<'cx> TyChecker<'cx> {
                 self.check_object_prop_assignment(n, None)
             }
             // TODO: jsx
-        } else if node.is_object_shorthand_member() {
-            todo!()
         } else if let Some(n) = node.as_object_method_member() {
-            if let Some(ty) = node.ty_anno() {
+            if let Some(ty) = n.ty {
                 self.get_ty_from_type_node(ty)
             } else {
                 self.check_object_method_member(n, CheckMode::empty())
@@ -282,6 +309,13 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
         };
+        // TODO: expando
+        // if let Some(value_declaration) = self.binder.symbol(symbol).value_decl {
+        //     self.getsymbolofex
+        // } else {
+        //     None;
+        // };
+
         let mut ty =
             self.create_anonymous_ty(Some(symbol), ObjectFlags::empty(), None, None, None, None);
 
@@ -314,32 +348,79 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
             return self.error_ty;
         }
-        let s = self.binder.symbol(symbol);
-        let getter = s.get_declaration_of_kind(|id| self.p.node(id).is_getter_decl());
-        let setter = s.get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
-        let ty = if let Some(getter_ty) = getter
-            .and_then(|getter| {
-                let getter = self.p.node(getter).expect_getter_decl();
-                getter.ty
-            })
-            .map(|getter_ty| self.get_ty_from_type_node(getter_ty))
-        {
-            Some(getter_ty)
-        } else {
-            setter
-                .and_then(|setter| {
-                    let setter = self.p.node(setter).expect_setter_decl();
-                    setter.params[0].ty
-                })
-                .map(|setter_ty| self.get_ty_from_type_node(setter_ty))
-        };
+        let s = self.symbol(symbol);
+        let mut getter = None;
+        let mut setter = None;
+        let mut accessor = None;
+        if let Some(decls) = &s.decls {
+            for decl in decls {
+                let n = self.p.node(*decl);
+                match n {
+                    ast::Node::GetterDecl(_) => {
+                        getter = Some(*decl);
+                    }
+                    ast::Node::SetterDecl(_) => {
+                        setter = Some(*decl);
+                    }
+                    ast::Node::ClassPropElem(n)
+                        if n.modifiers
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ACCESSOR)) =>
+                    {
+                        accessor = Some(*decl);
+                    }
+                    _ => {}
+                }
+            }
+        }
 
-        let mut ty = if let Some(ty) = ty {
+        let mut ty = if let Some(getter) = getter
+            && let Some(ty) = self.get_annotated_accessor_ty(getter)
+        {
             ty
+        } else if let Some(setter) = setter
+            && let Some(ty) = self.get_annotated_accessor_ty(setter)
+        {
+            ty
+            // TODO: accessor
+        } else if let Some(getter) = getter
+            && self.p.node(getter).expect_getter_decl().body.is_some()
+        {
+            self.get_return_type_from_body(getter, None)
         } else {
-            // TODO: throw error
+            if let Some(setter) = setter
+                && !self.is_private_within_ambient(setter)
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let name = self.p.node(setter).name().unwrap();
+                let error = errors::PropertyXImplicitlyHasTypeAnyBecauseItsSetAccessorLacksAParameterTypeAnnotation {
+                    span: name.span(),
+                    property: name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            } else if let Some(getter) = getter
+                && !self.is_private_within_ambient(getter)
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let name = self.p.node(getter).name().unwrap();
+                let error = errors::PropertyXImplicitlyHasTypeAnyBecauseItsGetAccessorLacksAReturnTypeAnnotation {
+                    span: name.span(),
+                    property: name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            } else if let Some(accessor) = accessor
+                && !self.is_private_within_ambient(accessor)
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let name = self.p.node(accessor).name().unwrap();
+                let error = errors::PropertyXImplicitlyHasTypeAnyBecauseItsGetAccessorLacksAReturnTypeAnnotation {
+                    span: name.span(),
+                    property: name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
             self.any_ty
         };
+
         if self.pop_ty_resolution().has_cycle() {
             if let Some(getter) = getter
                 && self.p.get_annotated_accessor_ty_node(getter).is_some()
@@ -381,7 +462,10 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_type_of_symbol_with_deferred_type(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+    pub(super) fn get_type_of_symbol_with_deferred_type(
+        &mut self,
+        symbol: SymbolID,
+    ) -> &'cx Ty<'cx> {
         let links = self.get_symbol_links(symbol);
         if let Some(ty) = links.get_ty() {
             return ty;
@@ -445,7 +529,7 @@ impl<'cx> TyChecker<'cx> {
             self.append_ty_mapping(mapped_ty.mapper, source, key_ty)
         };
         let prop_ty = self.instantiate_ty_worker(template_ty, mapper);
-        let ty = if self.config.compiler_options().strict_null_checks()
+        let mut prop_ty = if self.config.compiler_options().strict_null_checks()
             && self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))
         {
@@ -456,11 +540,16 @@ impl<'cx> TyChecker<'cx> {
             prop_ty
         };
         if self.pop_ty_resolution().has_cycle() {
-            // TODO: error report
-            return self.error_ty;
+            let error = errors::TypeOfPropertyXCircularlyReferencesItselfInMappedTypeY {
+                span: self.p.node(self.current_node.unwrap()).span(),
+                property: self.symbol(symbol).name.to_string(&self.atoms),
+                ty: self.print_ty(ty, None).to_string(),
+            };
+            self.push_error(Box::new(error));
+            prop_ty = self.error_ty;
         }
-        self.get_mut_symbol_links(symbol).set_ty(ty);
-        ty
+        self.get_mut_symbol_links(symbol).set_ty(prop_ty);
+        prop_ty
     }
 
     fn get_type_of_reverse_mapped_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -693,7 +782,7 @@ impl<'cx> TyChecker<'cx> {
             return self.get_implied_constraint(ty, check_ty, extends_ty);
         }
         let ty_of_check_ty = self.get_ty_from_type_node(check_ty);
-        if self.get_actual_ty_variable(ty_of_check_ty) == ty {
+        if self.get_actual_ty_variable(ty_of_check_ty) == self.get_actual_ty_variable(ty) {
             Some(self.get_ty_from_type_node(extends_ty))
         } else {
             None
@@ -738,7 +827,7 @@ impl<'cx> TyChecker<'cx> {
                 if self.get_ty_param_from_mapped_ty(mapped_ty) == self.get_actual_ty_variable(ty)
                     && let Some(type_parameter) = self.get_homomorphic_ty_var(mapped_ty)
                     && let Some(constraint) = self.get_constraint_of_ty_param(type_parameter)
-                    && self.every_type(constraint, |this, c| this.is_array_or_tuple(c))
+                    && self.every_type(constraint, |this, c| this.is_array_or_tuple_ty(c))
                 {
                     let tys = &[self.number_ty, self.numeric_string_ty()];
                     let t = self.get_union_ty::<false>(
@@ -1103,7 +1192,7 @@ impl<'cx> TyChecker<'cx> {
         origin_object_ty: &'cx Ty<'cx>,
         object_ty: &'cx Ty<'cx>,
         index_ty: &'cx Ty<'cx>,
-        access_node: Option<ast::NodeID>,
+        access_node: Option<&AccessNode<'cx>>,
         access_flags: AccessFlags,
     ) -> Option<&'cx Ty<'cx>> {
         let error_if_writing_to_readonly_index =
@@ -1119,7 +1208,10 @@ impl<'cx> TyChecker<'cx> {
                     this.push_error(Box::new(error));
                 }
             };
-        let access_expr = access_node.filter(|n| self.p.node(*n).is_ele_access_expr());
+        let access_expr = access_node.as_ref().and_then(|n| match n {
+            AccessNode::EleAccessExpr(expr) => Some(expr),
+            _ => None,
+        });
         let prop_name = self.get_prop_name_from_index(index_ty);
         if let Some(prop_name) = prop_name {
             if access_flags.contains(AccessFlags::Contextual) {
@@ -1130,36 +1222,52 @@ impl<'cx> TyChecker<'cx> {
             }
             if let Some(prop) = self.get_prop_of_ty::<false, false>(object_ty, prop_name) {
                 if access_flags.contains(AccessFlags::REPORT_DEPRECATED)
-                    && let Some(_access_nodee) = access_node
-                    && let Some(_declss) = self.symbol(prop).decls.as_ref()
+                    && let Some(_access_node) = &access_node
+                    && let Some(_decls) = self.symbol(prop).decls.as_ref()
                 {
                     // TODO: deprecated
                 }
+
                 if let Some(access_expr) = access_expr {
+                    let is_self_type_access = match access_expr.expr.kind {
+                        ast::ExprKind::This(_) => true,
+                        _ if let Some(parent_symbol) = object_ty.symbol()
+                            && access_expr.expr.is_entity_name_expr()
+                            && let Some(first_identifier) =
+                                access_expr.expr.get_first_identifier() =>
+                        {
+                            parent_symbol == self.get_resolved_symbol(first_identifier)
+                        }
+                        _ => false,
+                    };
+                    self.mark_property_as_referenced(
+                        prop,
+                        Some(access_expr.id),
+                        is_self_type_access,
+                    );
                     if let assignment_target_kind = self
-                        .node_query(access_expr.module())
-                        .get_assignment_target_kind(access_expr)
+                        .node_query(access_expr.id.module())
+                        .get_assignment_target_kind(access_expr.id)
                         && self.is_assignment_to_readonly_entity(
-                            access_expr,
+                            access_expr.id,
                             prop,
                             assignment_target_kind,
                         )
                     {
                         let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {
-                            span: self.p.node(access_expr).span(),
+                            span: access_expr.span,
                             prop: self.symbol(prop).name.to_string(&self.atoms),
                         };
                         self.push_error(Box::new(error));
                         return None;
                     }
                     if access_flags.contains(AccessFlags::CACHE_SYMBOL) {
-                        let access_node = access_node.unwrap();
-                        match self.get_node_links(access_node).get_resolved_symbol() {
+                        match self.get_node_links(access_expr.id).get_resolved_symbol() {
                             Some(old) => {
                                 debug_assert!(old == prop);
                             }
                             None => {
-                                self.get_mut_node_links(access_node)
+                                self.get_mut_node_links(access_expr.id)
                                     .set_resolved_symbol(prop);
                             }
                         }
@@ -1175,11 +1283,11 @@ impl<'cx> TyChecker<'cx> {
                 return Some(
                     if let Some(access_expr) = access_expr
                         && self
-                            .node_query(access_expr.module())
-                            .get_assignment_target_kind(access_expr)
+                            .node_query(access_expr.id.module())
+                            .get_assignment_target_kind(access_expr.id)
                             != AssignmentKind::Definite
                     {
-                        self.get_flow_ty_of_reference(access_expr, prop_ty, None, None, None)
+                        self.get_flow_ty_of_reference(access_expr.id, prop_ty, None, None, None)
                     } else {
                         prop_ty
                     },
@@ -1190,20 +1298,21 @@ impl<'cx> TyChecker<'cx> {
                 && let SymbolName::EleNum(num) = prop_name
             {
                 let index = num.val();
-                if let Some(access_node) = access_node
+                if let Some(access_node) = &access_node
                     && self.every_type(object_ty, |_, t| {
                         let tuple = t.as_tuple().unwrap();
                         !tuple.combined_flags.intersects(ElementFlags::VARIABLE)
                             && !access_flags.contains(AccessFlags::ALLOWING_MISSING)
                     })
                 {
-                    let index_node = self.get_index_node_for_access_expression(access_node);
+                    let index_node_span = access_node.index_node_span();
                     if object_ty.is_tuple() {
                         if index < 0. {
                             todo!()
                         }
+
                         let error = errors::TupleTypeXOfLengthYHasNoElementAtIndexZ {
-                            span: self.p.node(index_node).span(),
+                            span: index_node_span,
                             x: self.print_ty(object_ty, None).to_string(),
                             y: TyChecker::get_ty_reference_arity(object_ty),
                             z: index as usize,
@@ -1249,13 +1358,13 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(access_expr) = access_expr {
                         if access_flags.contains(AccessFlags::WRITING) {
                             let error = errors::TypeIsGenericAndCanOnlyBeIndexedForReading {
-                                span: self.p.node(access_expr).span(),
+                                span: access_expr.span,
                                 ty: self.print_ty(origin_object_ty, None).to_string(),
                             };
                             self.push_error(Box::new(error));
                         } else {
                             let error = errors::TypeXCannotBeUsedToIndexTypeY {
-                                span: self.p.node(access_expr).span(),
+                                span: access_expr.span,
                                 ty: self.print_ty(origin_object_ty, None).to_string(),
                                 index_ty: self.print_ty(index_ty, None).to_string(),
                             };
@@ -1264,16 +1373,16 @@ impl<'cx> TyChecker<'cx> {
                     }
                     return None;
                 }
-                if let Some(access_node) = access_node
+                if let Some(access_node) = &access_node
                     && index_info.key_ty == self.string_ty
                     && !self.is_type_assignable_to_kind::<false>(
                         index_ty,
                         TypeFlags::STRING.union(TypeFlags::NUMBER),
                     )
                 {
-                    let index_node = self.get_index_node_for_access_expression(access_node);
+                    let index_node_span = access_node.index_node_span();
                     let error = errors::TypeCannotBeUsedAsAnIndexType {
-                        span: self.p.node(index_node).span(),
+                        span: index_node_span,
                         ty: self.print_ty(index_ty, None).to_string(),
                     };
                     self.push_error(Box::new(error));
@@ -1291,7 +1400,7 @@ impl<'cx> TyChecker<'cx> {
                     });
                 }
                 if let Some(access_expr) = access_expr {
-                    error_if_writing_to_readonly_index(self, index_info, access_expr);
+                    error_if_writing_to_readonly_index(self, index_info, access_expr.id);
                 }
                 return Some(
                     if access_flags.contains(AccessFlags::INCLUDE_UNDEFINED)
@@ -1338,7 +1447,7 @@ impl<'cx> TyChecker<'cx> {
                             .intersects(TypeFlags::STRING_LITERAL.union(TypeFlags::NUMBER_LITERAL))
                     {
                         let error = Box::new(errors::PropertyXDoesNotExistOnTypeY {
-                            span: self.p.node(access_expr).span(),
+                            span: access_expr.span,
                             prop: self.print_ty(index_ty, None).to_string(),
                             ty: self.print_ty(object_ty, None).to_string(),
                             related: vec![],
@@ -1381,7 +1490,7 @@ impl<'cx> TyChecker<'cx> {
                         })
                 {
                     let error = Box::new(errors::PropertyXDoesNotExistOnTypeY {
-                        span: self.p.node(access_expr).span(),
+                        span: access_expr.span,
                         prop: self.print_ty(index_ty, None).to_string(),
                         ty: self.print_ty(object_ty, None).to_string(),
                         related: vec![],
@@ -1393,14 +1502,14 @@ impl<'cx> TyChecker<'cx> {
                     if self.get_index_ty_of_ty(object_ty, self.number_ty).is_some() {
                         let error = Box::new(
                             errors::ElementImplicitlyHasAnAnyTypeBecauseIndexExpressionIsNotOfTypeNumber {
-                                span: self.p.node(access_expr).span(),
+                                span: access_expr.span,
                             },
                         );
                         self.push_error(error);
                     } else {
                         let error = Box::new(
                             errors::ElementImplicitlyHasAnAnyTypeBecauseExpressionOfTypeXCanTBeUsedToIndexTypeY {
-                                span: self.p.node(access_expr).span(),
+                                span: access_expr.span,
                                 x: self.print_ty(index_ty, None).to_string(),
                                 y: self.print_ty(object_ty, None).to_string(),
                             },
@@ -1416,13 +1525,12 @@ impl<'cx> TyChecker<'cx> {
         if access_flags.contains(AccessFlags::ALLOWING_MISSING) && object_ty.is_object_literal() {
             return Some(self.undefined_ty);
         }
-        // TODO: js
+        // TODO: is js literal type
 
-        if let Some(access_node) = access_node {
-            let index_node = self.get_index_node_for_access_expression(access_node);
-            let index_node = self.p.node(index_node);
-            let span = index_node.span();
-            let error: bolt_ts_errors::BoxedDiag = if !index_node.is_big_int_lit()
+        if let Some(access_node) = &access_node {
+            let index_node_span = access_node.index_node_span();
+            let span = index_node_span;
+            let error: bolt_ts_errors::BoxedDiag = if !access_node.index_node_is_bigint_literal()
                 && index_ty
                     .flags
                     .intersects(TypeFlags::STRING_LITERAL.union(TypeFlags::NUMBER_LITERAL))
@@ -1451,16 +1559,11 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(error);
         }
 
-        None
-    }
-
-    fn get_index_node_for_access_expression(&self, id: ast::NodeID) -> ast::NodeID {
-        use bolt_ts_ast::Node::*;
-        match self.p.node(id) {
-            EleAccessExpr(node) => node.arg.id(),
-            IndexedAccessTy(node) => node.index_ty.id(),
-            _ => id,
+        if self.is_type_any(index_ty) {
+            return Some(index_ty);
         }
+
+        None
     }
 
     pub(super) fn get_indexed_access_ty(
@@ -1468,7 +1571,7 @@ impl<'cx> TyChecker<'cx> {
         object_ty: &'cx Ty<'cx>,
         index_ty: &'cx Ty<'cx>,
         access_flags: Option<AccessFlags>,
-        access_node: Option<ast::NodeID>,
+        access_node: Option<&AccessNode<'cx>>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx Ty<'cx> {
@@ -1493,7 +1596,7 @@ impl<'cx> TyChecker<'cx> {
         mut object_ty: &'cx Ty<'cx>,
         mut index_ty: &'cx Ty<'cx>,
         access_flags: Option<AccessFlags>,
-        access_node: Option<ast::NodeID>,
+        access_node: Option<&AccessNode<'cx>>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> Option<&'cx Ty<'cx>> {
@@ -1533,7 +1636,7 @@ impl<'cx> TyChecker<'cx> {
 
         let is_generic_index = if self.is_generic_index_ty(index_ty) {
             true
-        } else if access_node.is_some_and(|n| !self.p.node(n).is_indexed_access_ty()) {
+        } else if access_node.is_some_and(|n| !matches!(n, AccessNode::IndexedAccessTy(_))) {
             object_ty.kind.is_generic_tuple_type() && {
                 let count = self.get_total_fixed_elem_count(object_ty);
                 !index_ty_less_than(self, index_ty, count as f64)
@@ -1637,7 +1740,7 @@ impl<'cx> TyChecker<'cx> {
             object_ty,
             index_ty,
             None,
-            Some(node.id),
+            Some(&AccessNode::IndexedAccessTy(node)),
             potential_alias,
             alias_ty_arguments,
         );
@@ -1968,12 +2071,16 @@ impl<'cx> TyChecker<'cx> {
             let check_ty_deferred = self.is_deferred_ty(check_ty, check_tuples);
             let mut combined_mapper = None;
             if let Some(infer_ty_params) = root.infer_ty_params {
-                let context =
-                    self.create_inference_context(infer_ty_params, None, InferenceFlags::empty());
+                let context = self.create_inference_context(
+                    infer_ty_params,
+                    None,
+                    InferenceFlags::empty(),
+                    None,
+                );
                 if let Some(mapper) = mapper {
                     let non_fixing_mapper = self.inference(context).non_fixing_mapper;
                     let m = self.combine_ty_mappers_worker(non_fixing_mapper, mapper);
-                    self.inferences[context.as_usize()].non_fixing_mapper = m;
+                    self.inferences.set_non_fixing_mapper(context, m);
                 }
                 if !check_ty_deferred {
                     const PRIORITY: InferencePriority =
@@ -2463,7 +2570,7 @@ impl<'cx> TyChecker<'cx> {
                     error_reported |= self.report_widening_errors_in_ty(ty);
                 }
             }
-        } else if self.is_array_or_tuple(ty) {
+        } else if self.is_array_or_tuple_ty(ty) {
             for t in self.get_ty_arguments(ty) {
                 if error_reported {
                     break;
@@ -2616,7 +2723,43 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.push_error(Box::new(error));
                 } else {
-                    // todo!()
+                    // TODO:
+                }
+            }
+            ast::Node::ArrayBinding(n) => {
+                if !no_implicit_any {
+                    return;
+                }
+                let span = n.name.span;
+                let error = errors::BindingElementXImplicitlyHasAnYType {
+                    span,
+                    element: pprint_binding(n.name, &self.atoms),
+                    ty: self.print_ty(ty, None).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
+            ast::Node::ObjectBindingElem(n) => {
+                if !no_implicit_any {
+                    return;
+                }
+                let ty = self.print_ty(ty, None).to_string();
+                match n.name {
+                    ast::ObjectBindingName::Shorthand(ident) => {
+                        let error = errors::BindingElementXImplicitlyHasAnYType {
+                            span: ident.span,
+                            element: self.atoms.get(ident.name).to_string(),
+                            ty,
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                    ast::ObjectBindingName::Prop { name, .. } => {
+                        let error = errors::BindingElementXImplicitlyHasAnYType {
+                            span: name.span,
+                            element: pprint_binding(name, &self.atoms),
+                            ty,
+                        };
+                        self.push_error(Box::new(error));
+                    }
                 }
             }
             _ => {
@@ -2629,7 +2772,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.push_error(Box::new(error));
                 } else {
-                    // todo!()
+                    // TODO:
                 }
             }
         }

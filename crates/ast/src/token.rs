@@ -344,6 +344,7 @@ impl TokenKind {
             AsteriskEq => "*=",
             SlashEq => "/=",
             PercentEq => "%=",
+            AsteriskAsteriskEq => "**=",
             LessLess => "<<",
             LessEq => "<=",
             LessLessEq => "<<=",
@@ -380,6 +381,8 @@ impl TokenKind {
             LBrace => "{",
             RBrace => "}",
             LessSlash => "</",
+            Backtick => "`",
+            Dollar => "$",
             Null => "null",
             False => "false",
             True => "true",
@@ -439,6 +442,15 @@ impl TokenKind {
             Type => "type",
             Unique => "unique",
             Asserts => "asserts",
+            Delete => "delete",
+            While => "while",
+            Do => "do",
+            Switch => "switch",
+            Case => "case",
+            Void => "void",
+            Undefined => "undefined",
+            Override => "override",
+            Accessor => "accessor",
             _ => unreachable!("{:#?}", self),
         }
     }
@@ -554,6 +566,7 @@ impl From<TokenKind> for super::AssignOp {
             TokenKind::GreatGreatGreatEq => UShrEq,
             TokenKind::CaretEq => BitXorEq,
             TokenKind::QuestionQuestionEq => NullishEq,
+            TokenKind::AsteriskAsteriskEq => AsteriskAsteriskEq,
             _ => unreachable!(),
         }
     }
@@ -692,6 +705,7 @@ impl TokenKind {
                 | GreatGreatEq
                 | GreatGreatGreatEq
                 | QuestionQuestionEq
+                | AsteriskAsteriskEq
         )
     }
 
@@ -776,6 +790,8 @@ bitflags::bitflags! {
         const CONTAINS_SEPARATOR            = 1 << 9;
         const UNICODE_ESCAPE                = 1 << 10;
         const CONTAINS_INVALID_ESCAPE       = 1 << 11;
+        /// `0xa0`
+        const HEX_ESCAPE                    = 1 << 12;
         const CONTAINS_LEADING_ZERO         = 1 << 13;
         /// `0_1`
         const CONTAINS_INVALID_SEPARATOR    = 1 << 14;

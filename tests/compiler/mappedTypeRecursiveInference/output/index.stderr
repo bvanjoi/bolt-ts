@@ -1,0 +1,6 @@
+  × Argument of type 'XMLHttpRequest' is not assignable to parameter of type
+  │ 'Deep<Deep<T>>'.
+    ╭─[../../tests/compiler/mappedTypeRecursiveInference/index.ts:24:18]
+ 24 │ xhr
+    · ───
+    ╰────

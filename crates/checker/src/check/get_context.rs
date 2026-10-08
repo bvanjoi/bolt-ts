@@ -1,7 +1,7 @@
 use bolt_ts_ast as ast;
 
-use super::InferenceContextId;
 use super::TyChecker;
+use super::infer::InferenceId;
 use super::ty;
 
 #[derive(Debug, Clone, Copy)]
@@ -12,9 +12,9 @@ pub(super) struct TyContextual<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct InferenceContextual {
+pub(super) struct InferenceContextual<'cx> {
     node: ast::NodeID,
-    pub(super) inference: Option<InferenceContextId>,
+    pub(super) inference: Option<InferenceId<'cx>>,
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -43,13 +43,16 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn push_inference_context(
         &mut self,
         node: ast::NodeID,
-        inference: Option<InferenceContextId>,
+        inference: Option<InferenceId<'cx>>,
     ) {
         self.inference_contextual
             .push(InferenceContextual { node, inference });
     }
 
-    pub(super) fn get_inference_context(&self, node: ast::NodeID) -> Option<InferenceContextual> {
+    pub(super) fn get_inference_context(
+        &self,
+        node: ast::NodeID,
+    ) -> Option<InferenceContextual<'cx>> {
         self.inference_contextual
             .iter()
             .rev()

@@ -58,7 +58,7 @@ impl<'cx> TyChecker<'cx> {
             .node_query(parent.module())
             .walk_up_paren_expressions(parent);
         if let ast::Node::BinExpr(p) = self.p.node(parent)
-            && p.op.kind == ast::BinOpKind::Instanceof
+            && p.op == ast::BinOpKind::Instanceof
             && self
                 .node_query(node.id().module())
                 .is_descendant_of(node.id(), p.right.id())

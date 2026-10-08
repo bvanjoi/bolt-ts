@@ -1,6 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/controlFlowForCatchAndFinally.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
 //@compiler-options: strict
+//@compiler-options: lib=[es6]
 async function test() {
   var browser = undefined;
   var page = undefined;
@@ -12,10 +13,12 @@ async function test() {
   }finally {
     if (page) {
       await page.close();
+    // ok
     }
     
     if (browser) {
       await browser.close();
+    // ok
     }
     
   }
@@ -36,6 +39,7 @@ class Foo {
         this.abortController.abort();
       }
       
+    // ok
     }
   }
 }

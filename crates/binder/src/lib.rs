@@ -7,7 +7,7 @@ mod bind_ret_or_throw;
 mod bind_worker;
 mod container_flags;
 mod create;
-pub use bolt_ts_binder_errors as errors;
+
 mod flow;
 mod flow_in_node;
 mod merge;
@@ -18,6 +18,7 @@ mod symbol;
 
 use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomIntern;
+use bolt_ts_binder_errors as errors;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_parser::ParseResultForGraph;
 use bolt_ts_parser::ParsedMap;
@@ -164,29 +165,6 @@ pub enum AccessKind {
     Write,
     ReadWrite,
 }
-
-// impl<'cx> NodeQuery<'cx> for BinderNodeQuery<'cx, '_> {
-//     fn node(&self, id: bolt_ts_ast::NodeID) -> bolt_ts_ast::Node<'cx> {
-//         self.parse_result.node(id)
-//     }
-
-//     fn parent(&self, id: bolt_ts_ast::NodeID) -> Option<bolt_ts_ast::NodeID> {
-//         self.parent_map.parent_unfinished(id)
-//     }
-
-//     fn node_flags(&self, id: bolt_ts_ast::NodeID) -> bolt_ts_ast::NodeFlags {
-//         self.parse_result.node_flags(id)
-//     }
-
-//     fn is_external_or_commonjs_module(&self) -> bool {
-//         self.parse_result.external_module_indicator.is_some()
-//             || self.parse_result.commonjs_module_indicator.is_some()
-//     }
-
-//     fn is_external_module(&self) -> bool {
-//         self.parse_result.external_module_indicator.is_some()
-//     }
-// }
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn new(

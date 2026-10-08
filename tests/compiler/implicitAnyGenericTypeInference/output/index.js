@@ -1,6 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/implicitAnyGenericTypeInference.ts`, Apache-2.0 License
 //@compiler-options: noImplicitAny
 //@compiler-options: target=esnext
+//@run-fail
 var c;
 c = {
   compareTo: (x, y) => (y)  
@@ -20,5 +21,6 @@ f5(function* () {
 f6(function* () {
   return null;
 });
-Promise.resolve().catch((e) => (null));
+Promise// https://github.com/microsoft/TypeScript/issues/44913
+.resolve().catch((e) => (null));
 Promise.resolve().then((v) => (null));

@@ -1,6 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/indexedAccessTypeConstraints.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
 //@compiler-options: strict
+// Repro from #14557
 class Parent {
   constructor(data) {}
   getData() {
@@ -17,6 +18,7 @@ export class Bar extends Parent {
     return this.getData().get('content');
   }
 }
+// Repro from #14557
 function foo(x, y) {
   x = y;
 }

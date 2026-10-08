@@ -18,7 +18,7 @@
    ╰────
 
   × Operator '>' cannot be applied to types 'boolean' and 'void'.
-    ╭─[../../tests/compiler/newExpressionWithCast/index.ts:13:21]
- 13 │ >
-    · ─
+    ╭─[../../tests/compiler/newExpressionWithCast/index.ts:13:13]
+ 13 │ new <any>Test2()
+    · ────────────────
     ╰────

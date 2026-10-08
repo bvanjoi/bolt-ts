@@ -1,0 +1,111 @@
+  × Property 'b' is protected and only accessible within class 'B' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:36:3]
+ 36 │ arg.b
+    · ─────
+    ╰────
+
+  × Property 'a' is protected and only accessible through an instance of class
+  │ 'C'. This is an instance of class 'B'.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:48:3]
+ 48 │ arg.a
+    · ─────
+    ╰────
+
+  × Property 'b' is protected and only accessible within class 'B' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:50:3]
+ 50 │ arg.b
+    · ─────
+    ╰────
+
+  × Property 'a' is protected and only accessible within class 'A' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:55:3]
+ 55 │ arg.a
+    · ─────
+    ╰────
+
+  × Property 'b' is protected and only accessible within class 'B' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:57:3]
+ 57 │ arg.b
+    · ─────
+    ╰────
+
+  × Property 'a' is protected and only accessible within class 'A' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:62:3]
+ 62 │ arg.a
+    · ─────
+    ╰────
+
+  × Property 'b' is protected and only accessible within class 'B' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:64:3]
+ 64 │ arg.b
+    · ─────
+    ╰────
+
+  × Property 'a' is protected and only accessible within class 'A' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:68:3]
+ 68 │ arg.a
+    · ─────
+    ╰────
+
+  × Property 'b' is protected and only accessible within class 'B' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:70:3]
+ 70 │ arg.b
+    · ─────
+    ╰────
+
+  × Property 'd1' is protected and only accessible within class 'D1' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:79:5]
+ 79 │ arg.d1
+    · ──────
+    ╰────
+
+  × Property 'd1' is protected and only accessible within class 'D1' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:84:5]
+ 84 │ arg.d1
+    · ──────
+    ╰────
+
+  × Property 'd' is protected and only accessible within class 'D2' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:93:5]
+ 93 │ arg.d
+    · ─────
+    ╰────
+
+  × Property 'd2' is protected and only accessible within class 'D2' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:95:5]
+ 95 │ arg.d2
+    · ──────
+    ╰────
+
+  × Property 'd' is protected and only accessible within class 'D2' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:99:5]
+ 99 │ arg.d
+    · ─────
+    ╰────
+
+  × Property 'd2' is protected and only accessible within class 'D2' and its
+  │ subclasses.
+     ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:101:5]
+ 101 │ arg.d2
+     · ──────
+     ╰────
+
+  × Property 'secret' is protected and only accessible within class 'Message'
+  │ and its subclasses.
+    ╭─[../../tests/compiler/protectedMembersThisParameter/index.ts:14:7]
+ 14 │ m.secret
+    · ────────
+    ╰────

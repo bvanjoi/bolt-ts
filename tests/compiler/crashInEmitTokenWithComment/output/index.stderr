@@ -10,7 +10,7 @@
     · ─────────
     ╰────
 
-  × Argument of type '({ [computed]: c }: { }) => undefined' is not assignable
+  × Argument of type '({ [foo.bar]: c }: { }) => undefined' is not assignable
   │ to parameter of type 'string'.
     ╭─[../../tests/compiler/crashInEmitTokenWithComment/index.ts:10:4]
  10 │ ({[foo.bar]: c}) => undefined

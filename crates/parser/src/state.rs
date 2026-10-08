@@ -2,16 +2,19 @@ use bolt_ts_ast::{self as ast, NodeFlags, NodeID, is_strict_mode_reserved_atom, 
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_atom::{Atom, AtomIntern};
+use bolt_ts_config::Target;
+use bolt_ts_scanner::LeadingTrailingComments;
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::path::NormalizePath;
+use rustc_hash::FxHashMap;
 
 use std::sync::{Arc, Mutex};
 
 use super::PResult;
+use super::const_variant::is_dts_variant;
 use super::parsing_ctx::ParseContext;
 use super::parsing_ctx::ParsingContext;
-use super::utils::is_declaration_filename;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
 use super::{PragmaMap, errors};
 
@@ -36,64 +39,49 @@ pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) pragmas: PragmaMap,
     pub(super) has_export_decl: bool,
     pub(super) comment_directives: Vec<CommentDirective>,
+    pub(super) leading_trailing_comments: LeadingTrailingComments,
     pub(super) line: usize,
     pub(super) line_start: usize, // offset
     pub(super) line_map: Vec<u32>,
-    pub(super) is_declaration: bool,
     pub(super) filepath: Atom,
-    pub(super) _in_ambient_module: bool,
     pub(super) has_no_default_lib: bool,
     pub(super) parsing_context: ParsingContext,
     pub(super) parse_context: ParseContext,
     pub(super) in_strict_mode: bool,
     pub(super) labels: FxIndexSet<Atom>,
+    pub(super) target: Target,
+    /// cache these tokens to prevent scan multiple times during lookahead.
+    pub(super) tokens: FxHashMap<usize, TokenContext>,
 }
 
-pub const JS_VARIANT: u8 = 0;
-pub const TS_VARIANT: u8 = 1;
-pub const JSX_VARIANT: u8 = 2;
-pub const TSX_VARIANT: u8 = 3;
-pub const DTS_VARIANT: u8 = 4;
-
-const fn is_valid_variant(variant: u8) -> bool {
-    matches!(
-        variant,
-        JS_VARIANT | TS_VARIANT | JSX_VARIANT | TSX_VARIANT | DTS_VARIANT
-    )
-}
-
-pub const fn is_jsx_like_variant(variant: u8) -> bool {
-    debug_assert!(is_valid_variant(variant));
-    matches!(variant, JSX_VARIANT | TSX_VARIANT)
-}
-
-pub const fn is_js_variant(variant: u8) -> bool {
-    debug_assert!(is_valid_variant(variant));
-    matches!(variant, JS_VARIANT)
-}
-
-pub const fn is_ts_like_variant(variant: u8) -> bool {
-    debug_assert!(is_valid_variant(variant));
-    matches!(variant, TS_VARIANT | TSX_VARIANT | DTS_VARIANT)
+#[derive(Debug)]
+pub(super) struct TokenContext {
+    pub(super) next_line_start: usize,
+    pub(super) next_token_flags: TokenFlags,
+    pub(super) next_line: usize,
+    pub(super) next_token_value: Option<TokenValue>,
+    pub(super) next_string_key_value: Option<Atom>,
+    pub(super) next_token: Token,
+    pub(super) next_full_start_pos: usize,
+    pub(super) next_pos: usize,
 }
 
 impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
-    pub(super) fn new(
+    pub(super) fn new<const ALWAYS_STRICT: bool>(
         atoms: Arc<Mutex<AtomIntern>>,
         arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
         nodes: Nodes<'cx>,
         input: &'p [u8],
         module_id: ModuleID,
         file_path: &std::path::Path,
-        always_strict: bool,
+        target: Target,
     ) -> Self {
         debug_assert!(file_path.is_normalized());
         let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
         let p = file_path.to_string_lossy();
         let atom = atoms.lock().unwrap().atom(p.as_ref());
-        let is_declaration = is_declaration_filename(p.as_bytes());
         let mut node_context_flags = ast::NodeFlags::empty();
-        if is_declaration {
+        if is_dts_variant(VARIANT) {
             node_context_flags |= ast::NodeFlags::AMBIENT;
         }
         Self {
@@ -116,20 +104,21 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             has_export_decl: false,
 
             comment_directives: Vec::with_capacity(16),
+            leading_trailing_comments: LeadingTrailingComments::default(),
 
             line_start: 0,
             line_map: Vec::with_capacity(input.len() / 12),
             line: 0,
             filepath: atom,
-            is_declaration,
-            _in_ambient_module: false,
             lib_reference_directives: Vec::with_capacity(8),
             pragmas: PragmaMap::default(),
             has_no_default_lib: false,
             parsing_context: ParsingContext::default(),
             parse_context: ParseContext::TOP_LEVEL,
-            in_strict_mode: always_strict,
+            in_strict_mode: ALWAYS_STRICT,
             labels: Default::default(),
+            target,
+            tokens: FxHashMap::default(),
         }
     }
 
@@ -398,7 +387,32 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             Ok(stmt)
         });
 
-        (self.create_program(self.new_span(start as u32), stmts)) as _
+        // check_grammar_sourcefile
+        if is_dts_variant(VARIANT) {
+            // check_grammar_top_level_elements_for_required_declare_modifier
+            for stmt in stmts {
+                use ast::StmtKind::*;
+                match stmt.kind {
+                    Interface(_) | TypeAlias(_) | Import(_) | ImportEquals(_) | Export(_)
+                    | ExportAssign(_) => {}
+                    _ => {
+                        if stmt.modifiers().is_some_and(|ms| {
+                            ms.flags.intersects(ast::ModifierFlags::AMBIENT.union(
+                                ast::ModifierFlags::EXPORT.union(ast::ModifierFlags::DEFAULT),
+                            ))
+                        }) {
+                            // nothing
+                        } else if stmt.is_declaration() || matches!(stmt.kind, Var(_)) {
+                            let error =
+                                errors::TopLevelDeclarationsInDTsFilesMustStartWithEitherADeclareOrExportModifier { span: stmt.span() };
+                            self.push_error(Box::new(error));
+                        }
+                    }
+                }
+            }
+        }
+
+        self.create_program(self.new_span(start as u32), stmts)
     }
 
     pub(super) fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {
@@ -414,12 +428,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     }
 
     pub(super) fn in_await_context(&self) -> bool {
-        let res = self.parse_context.contains(ParseContext::AWAIT);
-        debug_assert_eq!(
-            res,
-            self.node_context_flags.contains(NodeFlags::AWAIT_CONTEXT)
-        );
-        res
+        self.node_context_flags.contains(NodeFlags::AWAIT_CONTEXT)
     }
 
     pub(super) fn in_yield_context(&self) -> bool {
@@ -443,10 +452,8 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
 
     pub(super) fn set_await_context(&mut self, val: bool) {
         if val {
-            self.parse_context.insert(ParseContext::AWAIT);
             self.node_context_flags.insert(NodeFlags::AWAIT_CONTEXT);
         } else {
-            self.parse_context.remove(ParseContext::AWAIT);
             self.node_context_flags.remove(NodeFlags::AWAIT_CONTEXT);
         }
     }

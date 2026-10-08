@@ -1,0 +1,5 @@
+  × 'X' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedParametersInLambda1/index.ts:10:17]
+ 10 │ X
+    · ─
+    ╰────

@@ -1,8 +1,11 @@
+
 // From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/castExpressionParentheses.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
-
-(({
+//@run-fail
+(// parentheses should be omitted
+// literals
+({
   a: 0  
 }));
 ([1, 3]);
@@ -17,6 +20,7 @@
 (false);
 (true);
 (null);
+// names and dotted names
 (this);
 (this.x);
 ((a).x);
@@ -30,7 +34,8 @@
 (120000000000000000000000000000000000).foo;
 (255).foo;
 
-((1));
+(// should keep the parentheses in emit
+(1));
 (new A()).foo;
 (typeof A).x;
 (-A).x;
@@ -38,5 +43,7 @@ new (A())();
 (() => {})();
 (function foo() {})();
 (-A).x;
+// nested cast, should keep one pair of parenthese
 ((-A)).x;
+// nested parenthesized expression, should keep one pair of parenthese
 ((A));

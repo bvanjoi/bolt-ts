@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/collisionCodeGenModuleWithAccessorChildren.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
+//@compiler-options: strict=false
 var M = {};
 (function (M) {
 
@@ -20,7 +21,8 @@ var M = {};
   class d {
     y;
     set Z(p) {
-      var M = 10;
+      var // Shouldnt be _M
+      M = 10;
       this.y = x;
     }
   }
@@ -36,7 +38,8 @@ var M = {};
     }
   }
   
-})(M);
+})(M// Shouldnt be _M
+);
 
 (function (M) {
 

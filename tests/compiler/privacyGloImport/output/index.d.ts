@@ -38,7 +38,7 @@ declare namespace glo_M1_public {
   var v1: typeof c1;
   var v2: c1;
 }
-declare namespace "glo_M2_public" {
+declare namespace 'glo_M2_public' {
   function f1(): any;
   class c1 {}
   var v1: {
@@ -46,7 +46,7 @@ declare namespace "glo_M2_public" {
   };
   var v2: c1;
 }
-declare namespace "use_glo_M1_public" {
+declare namespace 'use_glo_M1_public' {
   import use_glo_M1_public = glo_M1_public;
   var use_glo_M1_public_v1_public: {
     new (): use_glo_M1_public.c1;
@@ -58,7 +58,7 @@ declare namespace "use_glo_M1_public" {
   };
   var use_glo_M1_public_v2_private: typeof use_glo_M1_public;
   var use_glo_M1_public_v3_private: () => use_glo_M1_public.c1;
-  import use_glo_M2_public = "glo_M2_public";
+  import use_glo_M2_public = 'glo_M2_public';
   var use_glo_M2_public_v1_public: {
     new (): use_glo_M2_public.c1;
   };
@@ -76,7 +76,7 @@ declare namespace "use_glo_M1_public" {
     }
   }
 }
-declare namespace "anotherParseError" {
+declare namespace 'anotherParseError' {
   namespace m2 {
     
   }

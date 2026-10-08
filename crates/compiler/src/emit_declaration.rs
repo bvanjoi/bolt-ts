@@ -1,4 +1,4 @@
-use bolt_ts_ast::{self as ast};
+use bolt_ts_ast::{self as ast, TokenKind};
 use bolt_ts_ast_visitor::{Visitor, visit_module_name};
 use bolt_ts_checker::{check::TyChecker, emit_resolver::EmitResolver};
 use bolt_ts_optimize::Emitter;
@@ -69,13 +69,13 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
     fn emit_list<T>(
         &mut self,
         list: &[T],
-        emit_item: impl Fn(&mut Self, &T),
-        emit_sep: impl Fn(&mut Self, &T),
+        emit_item: impl Fn(&mut Self, &T, usize),
+        emit_sep: impl Fn(&mut Self, &T, usize),
     ) {
         for (idx, item) in list.iter().enumerate() {
-            emit_item(self, item);
+            emit_item(self, item, idx);
             if idx != list.len() - 1 {
-                emit_sep(self, item);
+                emit_sep(self, item, idx);
             }
         }
     }
@@ -92,62 +92,61 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
     fn emit_type_parameters(&mut self, n: Option<ast::TyParams<'cx>>) {
         if let Some(n) = n {
             debug_assert!(!n.is_empty());
-            self.emitter.print().p_less();
+            self.emitter.print().p_token(TokenKind::Less);
             self.emit_list(
                 n,
-                |this, item| {
+                |this, item, _| {
                     this.visit_ident(item.name);
                     if let Some(constraint) = item.constraint {
                         this.emitter.print().p_whitespace();
-                        this.emitter.print().p("extends");
+                        this.emitter.print().p_token(TokenKind::Extends);
                         this.emitter.print().p_whitespace();
                         this.visit_ty(constraint);
                     }
                     if let Some(default) = item.default {
                         this.emitter.print().p_whitespace();
-                        this.emitter.print().p_eq();
+                        this.emitter.print().p_token(TokenKind::Eq);
                         this.emitter.print().p_whitespace();
                         this.visit_ty(default);
                     }
                 },
-                |this, _| {
-                    this.emitter.print().p_comma();
+                |this, _, _| {
+                    this.emitter.print().p_token(TokenKind::Comma);
                     this.emitter.print().p_whitespace();
                 },
             );
-            self.emitter.print().p_great();
+            self.emitter.print().p_token(TokenKind::Great);
         }
     }
 
     fn emit_type_arguments(&mut self, n: Option<&'cx ast::Tys<'cx>>) {
         if let Some(n) = n {
             debug_assert!(!n.list.is_empty());
-            self.emitter.print().p_less();
+            self.emitter.print().p_token(TokenKind::Less);
             self.emit_list(
                 n.list,
-                |this, item| {
+                |this, item, _| {
                     this.visit_ty(item);
                 },
-                |this, _| {
-                    this.emitter.print().p_comma();
+                |this, _, _| {
+                    this.emitter.print().p_token(TokenKind::Comma);
                     this.emitter.print().p_whitespace();
                 },
             );
-            self.emitter.print().p_great();
+            self.emitter.print().p_token(TokenKind::Great);
         }
     }
 
     fn emit_string_literal(&mut self, atom: bolt_ts_atom::Atom) {
-        self.emitter.print().p_double_quote();
-        self.emitter.emit_atom(self.resolver.atoms(), atom);
-        self.emitter.print().p_double_quote();
+        let atom = self.resolver.atoms().get(atom);
+        self.emitter.print().p_string_literal(atom);
     }
 
     fn emit_default_modifier(&mut self, ms: Option<&'cx ast::Modifiers<'cx>>) {
         if let Some(ms) = ms
             && ms.flags.contains(ast::ModifierFlags::DEFAULT)
         {
-            self.emitter.print().p("default");
+            self.emitter.print().p_token(TokenKind::Default);
             self.emitter.print().p_whitespace();
         }
     }
@@ -158,14 +157,14 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
                 .flags
                 .contains(EmitDeclarationFlags::STRIP_EXPORT_MODIFIER)
         {
-            self.emitter.print().p("export");
+            self.emitter.print().p_token(TokenKind::Export);
             self.emitter.print().p_whitespace();
         }
     }
 
     fn emit_declare_if_needed(&mut self) {
         if self.flags.contains(EmitDeclarationFlags::NEED_DECLARE) {
-            self.emitter.print().p("declare");
+            self.emitter.print().p_token(TokenKind::Declare);
             self.emitter.print().p_whitespace();
         }
     }
@@ -176,7 +175,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
         binding: ast::NodeID,
     ) {
         self.emitter.emit_atom(self.resolver.atoms(), node.name);
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         let ty = self.resolver.ensure_type_for_identifier_in_binding(binding);
         let ty_str = self.resolver.print_type(ty);
@@ -191,7 +190,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
 
         for (idx, element) in elements.enumerate() {
             if idx != 0 {
-                self.emitter.print().p_comma();
+                self.emitter.print().p_token(TokenKind::Comma);
                 self.emitter.print().p_whitespace();
             }
             if let ast::ArrayBindingElemKind::Binding(item) = &element.kind {
@@ -203,7 +202,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
     fn emit_variable_declaration_by_object_pat(&mut self, node: &'cx ast::ObjectPat<'cx>) {
         self.emit_list(
             node.elems,
-            |this, item| match item.name {
+            |this, item, _| match item.name {
                 ast::ObjectBindingName::Shorthand(ident) => {
                     this.emit_identifier_name_in_variable_declaration(ident, item.id);
                 }
@@ -211,8 +210,8 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
                     this.emit_variable_by_binding(name, item.id);
                 }
             },
-            |this, _| {
-                this.emitter.print().p_comma();
+            |this, _, _| {
+                this.emitter.print().p_token(TokenKind::Comma);
                 this.emitter.print().p_whitespace();
             },
         );
@@ -230,6 +229,19 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
                 self.emit_variable_declaration_by_object_pat(node);
             }
         }
+    }
+
+    fn emit_parameters(&mut self, params: ast::ParamsDecl<'cx>) {
+        self.emit_list(
+            params,
+            |this, item, _| {
+                this.visit_param_decl(item);
+            },
+            |this, _, _| {
+                this.emitter.print().p_token(TokenKind::Comma);
+                this.emitter.print().p_whitespace();
+            },
+        );
     }
 
     fn has_name_visible_for_binding(&self, node: &'cx ast::Binding<'cx>) -> bool {
@@ -278,7 +290,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_block_module_decl(&mut self, node: &'cx ast::BlockModuleDecl<'cx>) -> Self::Result {
         self.emit_declare_if_needed();
-        self.emitter.print().p("namespace");
+        self.emitter.print().p_token(TokenKind::Namespace);
         self.emitter.print().p_whitespace();
         visit_module_name(self, node.name);
         if let Some(block) = node.block {
@@ -288,7 +300,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_module_block(&mut self, node: &'cx ast::ModuleBlock<'cx>) -> Self::Result {
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         let saved_flags = self.flags;
         // TODO: condition for `STRIP_EXPORT_MODIFIER`
         self.flags
@@ -298,18 +310,18 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_newline();
         self.emit_list(
             node.stmts,
-            |this, stmt| this.visit_stmt(stmt),
-            |this, _| this.emitter.print().p_newline(),
+            |this, stmt, _| this.visit_stmt(stmt),
+            |this, _, _| this.emitter.print().p_newline(),
         );
         self.emitter.decrement_indent();
         self.emitter.print().p_newline();
         self.flags = saved_flags;
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_nested_module_decl(&mut self, n: &'cx ast::NestedModuleDecl<'cx>) -> Self::Result {
         self.emit_declare_if_needed();
-        self.emitter.print().p("namespace");
+        self.emitter.print().p_token(TokenKind::Namespace);
         self.emitter.print().p_whitespace();
         self.visit_ident(n.name);
         match n.block {
@@ -324,20 +336,20 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.visit_ident(node.name);
         if let Some(constraint) = node.constraint {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p("extends");
+            self.emitter.print().p_token(TokenKind::Extends);
             self.emitter.print().p_whitespace();
             self.visit_ty(constraint);
         }
     }
 
     fn visit_object_lit_ty(&mut self, node: &'cx ast::ObjectLitTy<'cx>) -> Self::Result {
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         if !node.members.is_empty() {
             self.emitter.increment_indent();
             self.emitter.print().p_newline();
             self.emit_list(
                 node.members,
-                |this, elem| {
+                |this, elem, _| {
                     use ast::ObjectTyMemberKind::*;
                     match elem.kind {
                         IndexSig(n) => this.visit_index_sig_decl(n),
@@ -349,56 +361,37 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                         Getter(n) => this.visit_getter_decl(n),
                     }
                 },
-                |this, _| {
+                |this, _, _| {
                     this.emitter.print().p_newline();
                 },
             );
             self.emitter.decrement_indent();
             self.emitter.print().p_newline();
         }
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_ctor_sig_decl(&mut self, node: &'cx ast::CtorSigDecl<'cx>) -> Self::Result {
-        self.emitter.print().p("new");
+        self.emitter.print().p_token(TokenKind::New);
         self.emitter.print().p_whitespace();
         self.emit_type_parameters(node.ty_params);
-        self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
-        self.emitter.print().p_r_paren();
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::LParen);
+        self.emit_parameters(node.params);
+        self.emitter.print().p_token(TokenKind::RParen);
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         self.emit_ret_ty(node.ty);
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_call_sig_decl(&mut self, node: &'cx ast::CallSigDecl<'cx>) -> Self::Result {
-        self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
-        self.emitter.print().p_r_paren();
-
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::LParen);
+        self.emit_parameters(node.params);
+        self.emitter.print().p_token(TokenKind::RParen);
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         self.emit_ret_ty(node.ty);
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_call_expr(&mut self, _: &'cx ast::CallExpr<'cx>) -> Self::Result {}
@@ -407,24 +400,15 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         if let Some(ms) = node.modifiers
             && ms.flags.contains(ast::ModifierFlags::STATIC)
         {
-            self.emitter.print().p("static");
+            self.emitter.print().p_token(TokenKind::Static);
             self.emitter.print().p_whitespace();
         }
         self.visit_prop_name(node.name);
         self.emit_type_parameters(node.ty_params);
-        self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
-        self.emitter.print().p_r_paren();
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::LParen);
+        self.emit_parameters(node.params);
+        self.emitter.print().p_token(TokenKind::RParen);
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         if let Some(ty) = node.ty {
             self.visit_ty(ty);
@@ -433,63 +417,40 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             let ty_str = self.resolver.print_type(ty);
             self.emitter.print().p(&ty_str);
         }
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_ctor_ty(&mut self, node: &'cx ast::CtorTy<'cx>) -> Self::Result {
-        self.emitter.print().p("new");
+        self.emitter.print().p_token(TokenKind::New);
         self.emitter.print().p_whitespace();
         self.emit_type_parameters(node.ty_params);
-        self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
-        self.emitter.print().p_r_paren();
-        self.emitter.print().p_arrow_right();
+        self.emitter.print().p_token(TokenKind::LParen);
+        self.emit_parameters(node.params);
+        self.emitter.print().p_token(TokenKind::RParen);
+        self.emitter.print().p_token(TokenKind::EqGreat);
         self.emitter.print().p_whitespace();
         self.visit_ty(node.ty);
-        self.emitter.print().p_semi();
-    }
-
-    fn visit_arrow_fn_expr(&mut self, node: &'cx ast::ArrowFnExpr<'cx>) -> Self::Result {
-        self.emit_type_parameters(node.ty_params);
-        bolt_ts_ast_visitor::visit_arrow_fn_expr(self, node)
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_class_ctor(&mut self, node: &'cx ast::ClassCtor<'cx>) -> Self::Result {
-        self.emitter.print().p("constructor");
-        self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::Constructor);
+        self.emitter.print().p_token(TokenKind::LParen);
+        self.emit_parameters(node.params);
+        self.emitter.print().p_token(TokenKind::RParen);
         if let Some(ty) = node.ret {
-            self.emitter.print().p_colon();
+            self.emitter.print().p_token(TokenKind::Colon);
             self.emitter.print().p_whitespace();
             self.visit_ty(ty);
         }
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_class_decl(&mut self, node: &'cx ast::ClassDecl<'cx>) -> Self::Result {
         self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
         self.emit_default_modifier(node.modifiers);
         self.emit_declare_if_needed();
-        self.emitter.print().p("class");
+        self.emitter.print().p_token(TokenKind::Class);
         self.emitter.print().p_whitespace();
         if let Some(name) = node.name.map(|name| name.name) {
             self.emitter.emit_atom(self.resolver.atoms(), name);
@@ -498,7 +459,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emit_type_parameters(node.ty_params);
         if let Some(extends) = node.extends {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p("extends");
+            self.emitter.print().p_token(TokenKind::Extends);
             self.emitter.print().p_whitespace();
             self.visit_expr(extends.expr_with_ty_args.expr);
             self.emit_type_arguments(extends.expr_with_ty_args.ty_args);
@@ -506,221 +467,191 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
         if let Some(implements) = node.implements {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p("implements");
+            self.emitter.print().p_token(TokenKind::Implements);
             self.emitter.print().p_whitespace();
             self.emit_list(
                 implements.list,
-                |this, item| {
+                |this, item, _| {
                     this.visit_refer_ty(item);
                 },
-                |this, _| {
-                    this.emitter.print().p_comma();
+                |this, _, _| {
+                    this.emitter.print().p_token(TokenKind::Comma);
                     this.emitter.print().p_whitespace();
                 },
             );
 
             self.emitter.print().p_whitespace();
         }
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         if !node.elems.list.is_empty() {
             self.emitter.increment_indent();
             self.emitter.print().p_newline();
             self.emit_list(
                 node.elems.list,
-                |this, elem| {
-                    use ast::ClassElemKind::*;
-                    match elem.kind {
-                        Ctor(n) => this.visit_class_ctor(n),
-                        Prop(n) => this.visit_class_prop_elem(n),
-                        Method(n) => this.visit_class_method_elem(n),
-                        IndexSig(n) => this.visit_index_sig_decl(n),
-                        Getter(_n) => todo!(),
-                        Setter(n) => this.visit_setter_decl(n),
-                        StaticBlockDecl(_n) => todo!(),
-                        Semi(_) => {}
-                    }
+                |this, elem, _| {
+                    bolt_ts_ast_visitor::visit_class_elem(this, elem);
                 },
-                |this, _| {
+                |this, _, _| {
                     this.emitter.print().p_newline();
                 },
             );
             self.emitter.decrement_indent();
             self.emitter.print().p_newline();
         }
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_class_prop_elem(&mut self, node: &'cx ast::ClassPropElem<'cx>) -> Self::Result {
         if let Some(ms) = node.modifiers
             && ms.flags.contains(ast::ModifierFlags::STATIC)
         {
-            self.emitter.print().p("static");
+            self.emitter.print().p_token(TokenKind::Static);
             self.emitter.print().p_whitespace();
         }
         self.visit_prop_name(node.name);
         if node.question.is_some() {
-            self.emitter.print().p_question();
+            self.emitter.print().p_token(TokenKind::Question);
         }
         if let Some(ty) = node.ty {
-            self.emitter.print().p_colon();
+            self.emitter.print().p_token(TokenKind::Colon);
             self.emitter.print().p_whitespace();
             self.visit_ty(ty);
         }
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_setter_decl(&mut self, node: &'cx ast::SetterDecl<'cx>) -> Self::Result {
-        self.emitter.print().p("set");
+        self.emitter.print().p_token(TokenKind::Set);
         self.emitter.print().p_whitespace();
         self.visit_prop_name(node.name);
-        self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
+        self.emit_parameters(node.params);
+        self.emitter.print().p_token(TokenKind::RParen);
     }
 
     fn visit_index_sig_decl(&mut self, node: &'cx ast::IndexSigDecl<'cx>) -> Self::Result {
-        self.emitter.print().p("[");
+        self.emitter.print().p_token(TokenKind::LBracket);
         self.visit_binding(node.key);
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::Colon);
         self.visit_ty(node.key_ty);
-        self.emitter.print().p("]");
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::RBracket);
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         self.visit_ty(node.ty);
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) -> Self::Result {
         self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
-        self.emitter.print().p("interface");
+        self.emitter.print().p_token(TokenKind::Interface);
         self.emitter.print().p_whitespace();
         self.emitter
             .emit_atom(self.resolver.atoms(), node.name.name);
         self.emit_type_parameters(node.ty_params);
         if let Some(extends) = node.extends {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p("extends");
+            self.emitter.print().p_token(TokenKind::Extends);
             self.emitter.print().p_whitespace();
             for item in extends.list {
                 self.visit_refer_ty(item);
             }
         }
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         if !node.members.is_empty() {
             self.emitter.increment_indent();
             self.emitter.print().p_newline();
             self.emit_list(
                 node.members,
-                |this, elem| {
-                    use ast::ObjectTyMemberKind::*;
-                    match elem.kind {
-                        IndexSig(_n) => todo!(),
-                        Prop(n) => this.visit_prop_signature(n),
-                        Method(n) => this.visit_method_signature(n),
-                        CallSig(n) => this.visit_call_sig_decl(n),
-                        CtorSig(n) => this.visit_ctor_sig_decl(n),
-                        Setter(_n) => todo!(),
-                        Getter(_n) => todo!(),
-                    }
+                |this, elem, _| {
+                    bolt_ts_ast_visitor::visit_object_ty_member(this, elem);
                 },
-                |this, _| {
+                |this, _, _| {
                     this.emitter.print().p_newline();
                 },
             );
             self.emitter.decrement_indent();
             self.emitter.print().p_newline();
         }
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_fn_ty(&mut self, node: &'cx ast::FnTy<'cx>) -> Self::Result {
-        self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
-        self.emitter.print().p_r_paren();
+        self.emit_type_parameters(node.ty_params);
+        self.emitter.print().p_token(TokenKind::LParen);
+        self.emit_parameters(node.params);
+        self.emitter.print().p_token(TokenKind::RParen);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_arrow_right();
+        self.emitter.print().p_token(TokenKind::EqGreat);
         self.emitter.print().p_whitespace();
         self.visit_ty(node.ty);
     }
 
     fn visit_type_alias_decl(&mut self, node: &'cx ast::TypeAliasDecl<'cx>) -> Self::Result {
-        self.emitter.print().p("type");
+        self.emitter.print().p_token(TokenKind::Type);
         self.emitter.print().p_whitespace();
         self.emitter
             .emit_atom(self.resolver.atoms(), node.name.name);
         self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_eq();
+        self.emitter.print().p_token(TokenKind::Eq);
         self.emitter.print().p_whitespace();
         self.visit_ty(node.ty);
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_tuple_ty(&mut self, node: &'cx ast::TupleTy<'cx>) -> Self::Result {
-        self.emitter.print().p_l_bracket();
+        self.emitter.print().p_token(TokenKind::LBracket);
         self.emit_list(
             node.tys,
-            |this, item| {
+            |this, item, _| {
                 this.visit_ty(item);
             },
-            |this, _| {
-                this.emitter.print().p_comma();
+            |this, _, _| {
+                this.emitter.print().p_token(TokenKind::Comma);
                 this.emitter.print().p_whitespace();
             },
         );
-        self.emitter.print().p_r_bracket();
+        self.emitter.print().p_token(TokenKind::RBracket);
     }
 
     fn visit_lit_ty(&mut self, node: &'cx ast::LitTy) -> Self::Result {
         use ast::LitTyKind::*;
         match &node.kind {
-            Void => self.emitter.print().p("void"),
-            Null => self.emitter.print().p("null"),
-            True => self.emitter.print().p("true"),
-            False => self.emitter.print().p("false"),
-            Undefined => self.emitter.print().p("undefined"),
+            Void => self.emitter.print().p_token(TokenKind::Void),
+            Null => self.emitter.print().p_token(TokenKind::Null),
+            True => self.emitter.print().p_token(TokenKind::True),
+            False => self.emitter.print().p_token(TokenKind::False),
+            Undefined => self.emitter.print().p_token(TokenKind::Undefined),
             Num(num) => self.emitter.print().p(&num.to_string()),
             String(atom) => self.emit_string_literal(*atom),
-            BigInt { neg: _, val: _ } => todo!(),
+            BigInt { neg, val } => {
+                if *neg {
+                    self.emitter.print().p_token(TokenKind::Minus);
+                }
+                self.emitter.emit_atom(self.resolver.atoms(), *val);
+                self.emitter.print().p("n")
+            }
         }
     }
 
-    fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) -> Self::Result {
-        if node.dotdotdot.is_some() {
-            self.emitter.print().p_dot_dot_dot();
+    fn visit_param_decl(&mut self, n: &'cx ast::ParamDecl<'cx>) -> Self::Result {
+        if n.dotdotdot.is_some() {
+            self.emitter.print().p_token(TokenKind::DotDotDot);
         }
-        self.visit_binding(node.name);
-        if node.question.is_some() {
-            self.emitter.print().p_question();
+        self.visit_binding(n.name);
+        if self.resolver.is_optional_parameter(n) {
+            self.emitter.print().p_token(TokenKind::Question);
         }
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
 
-        if let Some(ty) = node.ty {
+        if let Some(ty) = n.ty {
             self.visit_ty(ty);
         } else {
             let ty = self
                 .resolver
-                .ensure_type_for_parameter_declaration::<true>(node);
+                .ensure_type_for_parameter_declaration::<true>(n);
             let ty = self.resolver.print_type(ty);
             self.emitter.print().p(&ty);
         }
@@ -728,27 +659,27 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_array_binding(&mut self, node: &'cx ast::ArrayBinding<'cx>) -> Self::Result {
         if node.dotdotdot.is_some() {
-            self.emitter.print().p_dot_dot_dot();
+            self.emitter.print().p_token(TokenKind::DotDotDot);
         }
         self.visit_binding(node.name);
     }
 
     fn visit_array_pat(&mut self, node: &'cx ast::ArrayPat<'cx>) -> Self::Result {
-        self.emitter.print().p_l_bracket();
+        self.emitter.print().p_token(TokenKind::LBracket);
         self.emit_list(
             node.elems,
-            |this, item| match item.kind {
+            |this, item, _| match item.kind {
                 ast::ArrayBindingElemKind::Omit(_) => {}
                 ast::ArrayBindingElemKind::Binding(item) => {
                     this.visit_array_binding(item);
                 }
             },
-            |this, _| {
-                this.emitter.print().p_comma();
+            |this, _, _| {
+                this.emitter.print().p_token(TokenKind::Comma);
                 this.emitter.print().p_whitespace();
             },
         );
-        self.emitter.print().p_r_bracket();
+        self.emitter.print().p_token(TokenKind::RBracket);
     }
 
     fn visit_object_binding_elem(
@@ -756,13 +687,13 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         node: &'cx ast::ObjectBindingElem<'cx>,
     ) -> Self::Result {
         if node.dotdotdot.is_some() {
-            self.emitter.print().p_dot_dot_dot();
+            self.emitter.print().p_token(TokenKind::DotDotDot);
         }
         match node.name {
             ast::ObjectBindingName::Shorthand(ident) => self.visit_ident(ident),
             ast::ObjectBindingName::Prop { prop_name, name } => {
                 self.visit_prop_name(prop_name);
-                self.emitter.print().p_colon();
+                self.emitter.print().p_token(TokenKind::Colon);
                 self.emitter.print().p_whitespace();
                 self.visit_binding(name);
             }
@@ -770,41 +701,32 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_object_pat(&mut self, n: &'cx ast::ObjectPat<'cx>) -> Self::Result {
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         self.emit_list(
             n.elems,
-            |this, item| this.visit_object_binding_elem(item),
-            |this, _| {
-                this.emitter.print().p_comma();
+            |this, item, _| this.visit_object_binding_elem(item),
+            |this, _, _| {
+                this.emitter.print().p_token(TokenKind::Comma);
                 this.emitter.print().p_whitespace();
             },
         );
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_method_signature(&mut self, node: &'cx ast::MethodSignature<'cx>) -> Self::Result {
         self.visit_prop_name(node.name);
         if node.question.is_some() {
-            self.emitter.print().p_question();
+            self.emitter.print().p_token(TokenKind::Question);
         }
         self.emit_type_parameters(node.ty_params);
-        self.emitter.print().p_l_paren();
-        self.emit_list(
-            node.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
+        self.emit_parameters(node.params);
+        self.emitter.print().p_token(TokenKind::RParen);
 
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         self.emit_ret_ty(node.ty);
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     // TODO: merge this and `JsEmitter::visit_prop_name`
@@ -827,9 +749,9 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_computed_prop_name(&mut self, node: &'cx ast::ComputedPropName<'cx>) -> Self::Result {
-        self.emitter.print().p_l_bracket();
+        self.emitter.print().p_token(TokenKind::LBracket);
         self.visit_expr(node.expr);
-        self.emitter.print().p_r_bracket();
+        self.emitter.print().p_token(TokenKind::RBracket);
     }
 
     fn visit_string_lit(&mut self, node: &'cx ast::StringLit) -> Self::Result {
@@ -839,25 +761,25 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     fn visit_prop_signature(&mut self, node: &'cx ast::PropSignature<'cx>) -> Self::Result {
         self.visit_prop_name(node.name);
         if node.question.is_some() {
-            self.emitter.print().p_question();
+            self.emitter.print().p_token(TokenKind::Question);
         }
         if let Some(ty) = node.ty {
-            self.emitter.print().p_colon();
+            self.emitter.print().p_token(TokenKind::Colon);
             self.emitter.print().p_whitespace();
             self.visit_ty(ty);
         }
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_union_ty(&mut self, n: &'cx ast::UnionTy<'cx>) -> Self::Result {
         self.emit_list(
             n.tys,
-            |this, item| {
+            |this, item, _| {
                 this.visit_ty(item);
             },
-            |this, _| {
+            |this, _, _| {
                 this.emitter.print().p_whitespace();
-                this.emitter.print().p_pipe();
+                this.emitter.print().p_token(TokenKind::Pipe);
                 this.emitter.print().p_whitespace();
             },
         );
@@ -865,8 +787,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_array_ty(&mut self, node: &'cx ast::ArrayTy<'cx>) -> Self::Result {
         self.visit_ty(node.ele);
-        self.emitter.print().p_l_bracket();
-        self.emitter.print().p_r_bracket();
+        self.emitter.print().p_token(TokenKind::LBracket);
+        self.emitter.print().p_token(TokenKind::RBracket);
     }
 
     fn visit_refer_ty(&mut self, n: &'cx ast::ReferTy<'cx>) -> Self::Result {
@@ -880,7 +802,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             Ident(n) => self.visit_ident(n),
             Qualified(q) => {
                 self.visit_entity_name(q.left);
-                self.emitter.print().p_dot();
+                self.emitter.print().p_token(TokenKind::Dot);
                 self.visit_ident(q.right);
             }
         }
@@ -891,28 +813,26 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_fn_decl(&mut self, n: &'cx ast::FnDecl<'cx>) -> Self::Result {
+        // TODO: top level
+        if self
+            .resolver
+            .is_implementation_of_overload_for_function_declaration(n)
+        {
+            return Self::Result::default();
+        }
         self.emit_export_modifier_if_needed(contain_export_modifier(n.modifiers));
         self.emit_default_modifier(n.modifiers);
         self.emit_declare_if_needed();
-        self.emitter.print().p("function");
+        self.emitter.print().p_token(TokenKind::Function);
         self.emitter.print().p_whitespace();
         if let Some(name) = n.name.map(|name| name.name) {
             self.emitter.emit_atom(self.resolver.atoms(), name);
         }
         self.emit_type_parameters(n.ty_params);
-        self.emitter.print().p_l_paren();
-        self.emit_list(
-            n.params,
-            |this, item| {
-                this.visit_param_decl(item);
-            },
-            |this, _| {
-                this.emitter.print().p_comma();
-                this.emitter.print().p_whitespace();
-            },
-        );
-        self.emitter.print().p_r_paren();
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::LParen);
+        self.emit_parameters(n.params);
+        self.emitter.print().p_token(TokenKind::RParen);
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         if let Some(ty) = n.ty {
             self.visit_ty(ty);
@@ -921,25 +841,25 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             let ty_str = self.resolver.print_type(ty);
             self.emitter.print().p(&ty_str);
         }
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) -> Self::Result {
         self.emit_declare_if_needed();
-        self.emitter.print().p("enum");
+        self.emitter.print().p_token(TokenKind::Enum);
         self.emitter.print().p_whitespace();
         self.emitter
             .emit_atom(self.resolver.atoms(), node.name.name);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         self.emitter.increment_indent();
         self.emitter.print().p_newline();
         self.emit_list(
             node.members,
-            |this, item| {
+            |this, item, _| {
                 this.visit_enum_member(item);
                 this.emitter.print().p_whitespace();
-                this.emitter.print().p_eq();
+                this.emitter.print().p_token(TokenKind::Eq);
                 this.emitter.print().p_whitespace();
                 let enum_member_value = this.resolver.get_enum_member_value(item);
                 match enum_member_value {
@@ -954,14 +874,14 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                     }
                 };
             },
-            |this, _| {
-                this.emitter.print().p_comma();
+            |this, _, _| {
+                this.emitter.print().p_token(TokenKind::Comma);
                 this.emitter.print().p_newline();
             },
         );
         self.emitter.decrement_indent();
         self.emitter.print().p_newline();
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_var_stmt(&mut self, node: &'cx ast::VarStmt<'cx>) -> Self::Result {
@@ -979,32 +899,32 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
         let node_flags = self.resolver.node_flags(node.id);
         if node_flags.contains(ast::NodeFlags::CONST) {
-            self.emitter.print().p("const");
+            self.emitter.print().p_token(TokenKind::Const);
         } else if node_flags.contains(ast::NodeFlags::LET) {
-            self.emitter.print().p("let");
+            self.emitter.print().p_token(TokenKind::Let);
         } else {
-            self.emitter.print().p("var");
+            self.emitter.print().p_token(TokenKind::Var);
         }
         self.emitter.print().p_whitespace();
 
         self.emit_list(
             node.list,
-            |this, item| {
+            |this, item, _| {
                 this.visit_var_decl(item);
             },
-            |this, _| {
-                this.emitter.print().p_comma();
+            |this, _, _| {
+                this.emitter.print().p_token(TokenKind::Comma);
                 this.emitter.print().p_whitespace();
             },
         );
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_var_decl(&mut self, node: &'cx ast::VarDecl<'cx>) -> Self::Result {
         match node.name.kind {
             ast::BindingKind::Ident(name) => {
                 self.emitter.emit_atom(self.resolver.atoms(), name.name);
-                self.emitter.print().p_colon();
+                self.emitter.print().p_token(TokenKind::Colon);
                 self.emitter.print().p_whitespace();
                 if let Some(ty) = node.ty {
                     self.visit_ty(ty);
@@ -1020,7 +940,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_typeof_ty(&mut self, node: &'cx ast::TypeofTy<'cx>) -> Self::Result {
-        self.emitter.print().p("typeof");
+        self.emitter.print().p_token(TokenKind::Typeof);
         self.emitter.print().p_whitespace();
         self.visit_entity_name(node.name);
         self.emit_type_arguments(node.ty_args);
@@ -1028,86 +948,90 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_export_assign(&mut self, node: &'cx ast::ExportAssign<'cx>) -> Self::Result {
         if node.is_export_equals {
-            self.emitter.print().p("export =");
+            self.emitter.print().p_token(TokenKind::Export);
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p_token(TokenKind::Eq);
         } else {
-            self.emitter.print().p("export default");
+            self.emitter.print().p_token(TokenKind::Export);
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p_token(TokenKind::Default);
         }
         self.emitter.print().p_whitespace();
         self.visit_expr(node.expr);
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_assign_expr(&mut self, _: &'cx ast::AssignExpr<'cx>) -> Self::Result {}
 
     fn visit_mapped_ty(&mut self, node: &'cx ast::MappedTy<'cx>) -> Self::Result {
-        self.emitter.print().p_l_brace();
+        self.emitter.print().p_token(TokenKind::LBrace);
         self.emitter.print().p_newline();
-        self.emitter.print().p_l_bracket();
+        self.emitter.print().p_token(TokenKind::LBracket);
         self.visit_ident(node.ty_param.name);
         if let Some(constraint) = node.ty_param.constraint {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p("in");
+            self.emitter.print().p_token(TokenKind::In);
             self.emitter.print().p_whitespace();
             self.visit_ty(constraint);
         }
         if let Some(name_ty) = node.name_ty {
             self.visit_ty(name_ty);
         }
-        self.emitter.print().p_r_bracket();
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::RBracket);
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         if let Some(ty) = node.ty {
             self.visit_ty(ty);
         }
         self.emitter.print().p_newline();
-        self.emitter.print().p_r_brace();
+        self.emitter.print().p_token(TokenKind::RBrace);
     }
 
     fn visit_indexed_access_ty(&mut self, node: &'cx ast::IndexedAccessTy<'cx>) -> Self::Result {
         self.visit_ty(node.ty);
-        self.emitter.print().p_l_bracket();
+        self.emitter.print().p_token(TokenKind::LBracket);
         self.visit_ty(node.index_ty);
-        self.emitter.print().p_r_bracket();
+        self.emitter.print().p_token(TokenKind::RBracket);
     }
 
     fn visit_ty_op_ty(&mut self, node: &'cx ast::TypeOp<'cx>) -> Self::Result {
         match node.op {
-            ast::TyOpKind::Keyof => self.emitter.print().p("keyof"),
-            ast::TyOpKind::Readonly => self.emitter.print().p("readonly"),
-            ast::TyOpKind::Unique => self.emitter.print().p("unique"),
+            ast::TyOpKind::Keyof => self.emitter.print().p_token(TokenKind::Keyof),
+            ast::TyOpKind::Readonly => self.emitter.print().p_token(TokenKind::Readonly),
+            ast::TyOpKind::Unique => self.emitter.print().p_token(TokenKind::Unique),
         }
         self.emitter.print().p_whitespace();
         self.visit_ty(node.ty);
     }
 
     fn visit_paren_ty(&mut self, node: &'cx ast::ParenTy<'cx>) -> Self::Result {
-        self.emitter.print().p_l_paren();
+        self.emitter.print().p_token(TokenKind::LParen);
         self.visit_ty(node.ty);
-        self.emitter.print().p_r_paren();
+        self.emitter.print().p_token(TokenKind::RParen);
     }
 
     fn visit_intersection_ty(&mut self, node: &'cx ast::IntersectionTy<'cx>) -> Self::Result {
         self.emit_list(
             node.tys,
-            |this, item| {
+            |this, item, _| {
                 this.visit_ty(item);
             },
-            |this, _| {
+            |this, _, _| {
                 this.emitter.print().p_whitespace();
-                this.emitter.print().p_ampersand();
+                this.emitter.print().p_token(TokenKind::Amp);
                 this.emitter.print().p_whitespace();
             },
         );
     }
 
     fn visit_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) -> Self::Result {
-        self.emitter.print().p("import");
+        self.emitter.print().p_token(TokenKind::Import);
         self.emitter.print().p_whitespace();
         if let Some(clause) = node.clause {
             self.visit_import_clause(clause);
             self.emitter.print().p_whitespace();
         }
-        self.emitter.print().p("from");
+        self.emitter.print().p_token(TokenKind::From);
         self.emitter.print().p_whitespace();
         self.emit_string_literal(node.module.val);
     }
@@ -1120,23 +1044,23 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             match kind {
                 ast::ImportClauseKind::Ns(n) => self.visit_ns_import(n),
                 ast::ImportClauseKind::Specs(list) => {
-                    self.emitter.print().p_l_brace();
+                    self.emitter.print().p_token(TokenKind::LBrace);
                     self.emitter.print().p_whitespace();
                     self.emit_list(
                         list,
-                        |this, item| match item.kind {
+                        |this, item, _| match item.kind {
                             ast::ImportSpecKind::Named(n) => this.visit_import_named_spec(n),
                             ast::ImportSpecKind::Shorthand(n) => {
                                 this.visit_import_shorthand_spec(n)
                             }
                         },
-                        |this, _| {
-                            this.emitter.print().p_comma();
+                        |this, _, _| {
+                            this.emitter.print().p_token(TokenKind::Comma);
                             this.emitter.print().p_whitespace();
                         },
                     );
                     self.emitter.print().p_whitespace();
-                    self.emitter.print().p_r_brace();
+                    self.emitter.print().p_token(TokenKind::RBrace);
                 }
             }
         }
@@ -1146,7 +1070,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter
             .emit_atom(self.resolver.atoms(), node.name.name);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("as");
+        self.emitter.print().p_token(TokenKind::As);
         self.emitter.print().p_whitespace();
         match node.prop_name.kind {
             ast::ModuleExportNameKind::Ident(n) => {
@@ -1168,14 +1092,14 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) -> Self::Result {
         if node.export_modifier.is_some() {
-            self.emitter.print().p("export");
+            self.emitter.print().p_token(TokenKind::Export);
             self.emitter.print().p_whitespace();
         }
-        self.emitter.print().p("import");
+        self.emitter.print().p_token(TokenKind::Import);
         self.emitter.print().p_whitespace();
         self.visit_ident(node.name);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_eq();
+        self.emitter.print().p_token(TokenKind::Eq);
         self.emitter.print().p_whitespace();
         match node.module_reference {
             ast::ModuleReferenceKind::EntityName(n) => {
@@ -1185,38 +1109,38 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                 self.visit_string_lit(n.module_spec());
             }
         }
-        self.emitter.print().p_semi();
+        self.emitter.print().p_token(TokenKind::Semi);
     }
 
     fn visit_cond_ty(&mut self, node: &'cx ast::CondTy<'cx>) -> Self::Result {
         self.visit_ty(node.check_ty);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("extends");
+        self.emitter.print().p_token(TokenKind::Extends);
         self.emitter.print().p_whitespace();
         self.visit_ty(node.extends_ty);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_question();
+        self.emitter.print().p_token(TokenKind::Question);
         self.emitter.print().p_whitespace();
         self.visit_ty(node.true_ty);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p_colon();
+        self.emitter.print().p_token(TokenKind::Colon);
         self.emitter.print().p_whitespace();
         self.visit_ty(node.false_ty);
     }
 
     fn visit_infer_ty(&mut self, node: &'cx ast::InferTy<'cx>) -> Self::Result {
-        self.emitter.print().p("infer");
+        self.emitter.print().p_token(TokenKind::Infer);
         self.emitter.print().p_whitespace();
         self.visit_ident(node.ty_param.name);
         if let Some(constraint) = node.ty_param.constraint {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p("extends");
+            self.emitter.print().p_token(TokenKind::Extends);
             self.emitter.print().p_whitespace();
             self.visit_ty(constraint);
         }
         if let Some(default) = node.ty_param.default {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
+            self.emitter.print().p_token(TokenKind::Eq);
             self.emitter.print().p_whitespace();
             self.visit_ty(default);
         }
@@ -1233,17 +1157,17 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.visit_ty(node.ty);
         self.emitter.emit_atom(self.resolver.atoms(), node.text);
         if node.is_tail {
-            self.emitter.print().p_r_brace();
-            self.emitter.print().p_backtick();
+            self.emitter.print().p_token(TokenKind::RBrace);
+            self.emitter.print().p_token(TokenKind::Backtick);
         } else {
-            self.emitter.print().p_r_brace();
-            self.emitter.print().p_dollar();
-            self.emitter.print().p_l_brace();
+            self.emitter.print().p_token(TokenKind::RBrace);
+            self.emitter.print().p_token(TokenKind::Dollar);
+            self.emitter.print().p_token(TokenKind::LBrace);
         }
     }
 
     fn visit_rest_ty(&mut self, node: &'cx ast::RestTy<'cx>) -> Self::Result {
-        self.emitter.print().p_dot_dot_dot();
+        self.emitter.print().p_token(TokenKind::DotDotDot);
         self.visit_ty(node.ty);
     }
 
@@ -1253,16 +1177,16 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 }
 
 fn visit_template_head_ty(v: &mut DeclarationEmitter, node: &ast::TemplateHead) {
-    v.emitter.print().p_backtick();
+    v.emitter.print().p_token(TokenKind::Backtick);
     v.emitter.emit_atom(v.resolver.atoms(), node.text);
-    v.emitter.print().p("${");
+    v.emitter.print().p_dollar_and_brace();
 }
 
 fn visit_nested_module_declaration_inner<'cx>(
     v: &mut DeclarationEmitter<'cx, '_>,
     node: &'cx ast::NestedModuleDecl<'cx>,
 ) {
-    v.emitter.print().p_dot();
+    v.emitter.print().p_token(TokenKind::Dot);
     v.visit_ident(node.name);
     match node.block {
         ast::NestedModuleBlock::Nested(decl) => visit_nested_module_declaration_inner(v, decl),

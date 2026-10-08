@@ -1,0 +1,41 @@
+  × 'public' modifier cannot appear on a module or namespace element.
+    ╭─[../../tests/compiler/importDeclWithClassModifiers/index.ts:10:8]
+ 10 │ public
+    · ──────
+    ╰────
+
+  × 'private' modifier cannot appear on a module or namespace element.
+    ╭─[../../tests/compiler/importDeclWithClassModifiers/index.ts:13:8]
+ 13 │ private
+    · ───────
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/importDeclWithClassModifiers/index.ts:16:1]
+ 16 │ export
+    · ──────
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/importDeclWithClassModifiers/index.ts:16:8]
+ 16 │ static
+    · ──────
+    ╰────
+
+  × Namespace 'x' has no exported member 'c'.
+    ╭─[../../tests/compiler/importDeclWithClassModifiers/index.ts:10:28]
+ 10 │ c
+    · ─
+    ╰────
+
+  × Namespace 'x' has no exported member 'c'.
+    ╭─[../../tests/compiler/importDeclWithClassModifiers/index.ts:13:29]
+ 13 │ c
+    · ─
+    ╰────
+
+  × Namespace 'x' has no exported member 'c'.
+    ╭─[../../tests/compiler/importDeclWithClassModifiers/index.ts:16:28]
+ 16 │ c
+    · ─
+    ╰────

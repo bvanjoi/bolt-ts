@@ -1,0 +1,18 @@
+  × Property 'prop2' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/divergentAccessorsTypes5/index.ts:13:3]
+ 13 │ prop2
+    · ─────
+    ╰────
+
+  × Type 'number' is not assignable to type '"hello"'.
+    ╭─[../../tests/compiler/divergentAccessorsTypes5/index.ts:37:1]
+ 37 │ i.prop1
+    · ───────
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/divergentAccessorsTypes5/index.ts:43:1]
+ 43 │ i.prop2
+    · ───────
+    ╰────

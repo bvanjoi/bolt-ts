@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/conditionalTypesSimplifyWhenTrivial.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
+//@run-fail
 var fn1 = (params) => (params);
 function fn2(x) {
   var y = x;
@@ -10,6 +11,7 @@ function fn4(x) {
   var y = x;
   x = y;
 }
+// Should be `numebr | string` and not `any`
 
 var fn5 = (params) => (params);
 function fn6(x) {

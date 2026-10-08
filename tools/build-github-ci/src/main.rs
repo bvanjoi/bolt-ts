@@ -36,5 +36,8 @@ fn assert_github_yaml_latest() {
     let actual = std::fs::read_to_string(&path).unwrap();
     let ci_task = use_ci_task::CITask;
     let expect = serde_yaml::to_string(&task_to_yaml_value(&ci_task)).unwrap();
-    assert_eq!(actual, expect);
+    assert_eq!(
+        actual, expect,
+        "The generated ci.yml is not up to date. Please run `cargo run -p build-github-ci` to update it."
+    );
 }

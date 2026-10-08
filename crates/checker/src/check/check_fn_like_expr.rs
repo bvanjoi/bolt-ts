@@ -174,82 +174,74 @@ pub enum LanguageFeatures {
 // });
 
 impl<'cx> TyChecker<'cx> {
-    fn contextually_check_fn_expr_or_object_literal_method(
+    pub(super) fn contextually_check_fn_expr_or_object_literal_method_worker(
         &mut self,
         id: ast::NodeID,
         check_mode: Option<CheckMode>,
+        contextual_sig: Option<&'cx ty::Sig<'cx>>,
     ) {
-        let flags = |this: &mut Self| this.get_node_links(id).flags();
-
-        if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
-            let contextual_sig = self.get_contextual_sig(id);
-
-            if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
-                self.get_mut_node_links(id)
-                    .config_flags(|flags| flags | NodeCheckFlags::CONTEXT_CHECKED);
-                let symbol = self.get_symbol_of_declaration(id);
-                let ty = self.get_type_of_symbol(symbol);
-                let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
-                let Some(sig) = sigs.first() else { return };
-                if self.is_context_sensitive(id) {
-                    if let Some(contextual_sig) = contextual_sig {
-                        let inference = self.get_inference_context(id);
-                        let mut instantiated_contextual_sig = None;
-                        if let Some(check_mode) = check_mode
-                            && check_mode.contains(CheckMode::INFERENTIAL)
-                        {
-                            let inference = inference.unwrap().inference.unwrap();
-                            self.infer_from_annotated_params_and_return(
-                                sig,
-                                contextual_sig,
-                                inference,
-                            );
-                            let rest_ty = contextual_sig.get_effective_rest_ty(self);
-                            if let Some(rest_ty) = rest_ty
-                                && rest_ty.flags.contains(TypeFlags::TYPE_PARAMETER)
-                            {
-                                let mapper = self.inference(inference).non_fixing_mapper;
-                                instantiated_contextual_sig =
-                                    Some(self.instantiate_sig::<false>(contextual_sig, mapper));
-                            }
-                        }
-                        let instantiated_contextual_sig =
-                            if let Some(sig) = instantiated_contextual_sig {
-                                sig
-                            } else if let Some(inference) = inference
-                                && let Some(i) = inference.inference
-                            {
-                                let mapper = self.inference(i).mapper;
-                                self.instantiate_sig::<false>(contextual_sig, mapper)
-                            } else {
-                                contextual_sig
-                            };
-                        self.assign_contextual_param_tys(sig, instantiated_contextual_sig);
-                    } else {
-                        self.assign_non_contextual_param_tys(sig);
-                    }
-                } else if let Some(contextual_sig) = contextual_sig
-                    && let n = self.p.node(id)
-                    && n.ty_params().is_none()
-                    && contextual_sig.params.len() > n.params().map_or(0, |params| params.len())
-                    && let Some(check_mode) = check_mode
+        debug_assert!(
+            !self
+                .get_node_links(id)
+                .flags()
+                .contains(NodeCheckFlags::CONTEXT_CHECKED)
+        );
+        self.get_mut_node_links(id)
+            .config_flags(|flags| flags | NodeCheckFlags::CONTEXT_CHECKED);
+        let symbol = self.get_symbol_of_declaration(id);
+        let ty = self.get_type_of_symbol(symbol);
+        let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
+        let Some(sig) = sigs.first() else { return };
+        if self.is_context_sensitive(id) {
+            if let Some(contextual_sig) = contextual_sig {
+                let inference = self.get_inference_context(id);
+                let mut instantiated_contextual_sig = None;
+                if let Some(check_mode) = check_mode
                     && check_mode.contains(CheckMode::INFERENTIAL)
                 {
-                    let inference_context = self.get_inference_context(id);
-                    let inference = inference_context.unwrap().inference.unwrap();
+                    let inference = inference.unwrap().inference.unwrap();
                     self.infer_from_annotated_params_and_return(sig, contextual_sig, inference);
-                }
-                if contextual_sig.is_some()
-                    && self.get_ret_ty_from_anno(id).is_none()
-                    && self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()
-                {
-                    let ret_ty = self.get_return_type_from_body(id, check_mode);
-                    if self.get_sig_links(sig.id).get_resolved_ret_ty().is_none() {
-                        self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ret_ty);
+                    let rest_ty = contextual_sig.get_effective_rest_ty(self);
+                    if let Some(rest_ty) = rest_ty
+                        && rest_ty.flags.contains(TypeFlags::TYPE_PARAMETER)
+                    {
+                        let mapper = self.inference(inference).non_fixing_mapper;
+                        instantiated_contextual_sig =
+                            Some(self.instantiate_sig::<false>(contextual_sig, mapper));
                     }
                 }
-
-                self.check_sig_decl(id);
+                let instantiated_contextual_sig = if let Some(sig) = instantiated_contextual_sig {
+                    sig
+                } else if let Some(inference) = inference
+                    && let Some(i) = inference.inference
+                {
+                    let mapper = self.inference(i).mapper;
+                    self.instantiate_sig::<false>(contextual_sig, mapper)
+                } else {
+                    contextual_sig
+                };
+                self.assign_contextual_param_tys(sig, instantiated_contextual_sig);
+            } else {
+                self.assign_non_contextual_param_tys(sig);
+            }
+        } else if let Some(contextual_sig) = contextual_sig
+            && let n = self.p.node(id)
+            && n.ty_params().is_none()
+            && contextual_sig.params.len() > n.params().map_or(0, |params| params.len())
+            && let Some(check_mode) = check_mode
+            && check_mode.contains(CheckMode::INFERENTIAL)
+        {
+            let inference_context = self.get_inference_context(id);
+            let inference = inference_context.unwrap().inference.unwrap();
+            self.infer_from_annotated_params_and_return(sig, contextual_sig, inference);
+        }
+        if contextual_sig.is_some()
+            && self.get_ret_ty_from_anno(id).is_none()
+            && self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()
+        {
+            let ret_ty = self.get_return_type_from_body(id, check_mode);
+            if self.get_sig_links(sig.id).get_resolved_ret_ty().is_none() {
+                self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ret_ty);
             }
         }
     }
@@ -301,7 +293,7 @@ impl<'cx> TyChecker<'cx> {
             if fn_flags.intersection(ast::FnFlags::INVALID.union(ast::FnFlags::GENERATOR))
                 == ast::FnFlags::GENERATOR
             {
-                let _ret_tyy = self.get_ty_from_type_node(ret_ty_node);
+                let _ret_ty = self.get_ty_from_type_node(ret_ty_node);
                 // TODO:
             } else if fn_flags.intersection(ast::FnFlags::ASYNC_GENERATOR) == ast::FnFlags::ASYNC {
                 self.check_async_fn_ret_ty(id, ret_ty_node, ret_ty_error_location);
@@ -352,77 +344,61 @@ impl<'cx> TyChecker<'cx> {
         awaited_ty.unwrap_or(self.error_ty)
     }
 
-    pub(super) fn check_fn_like_expr_or_object_literal_method(
+    pub(super) fn try_check_context_free_fn_expr_or_object_literal_method(
         &mut self,
         node: ast::NodeID,
         check_mode: Option<CheckMode>,
-    ) -> &'cx ty::Ty<'cx> {
-        self.check_node_deferred(node);
-
-        if let Some(mode) = check_mode
-            && mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE)
-            && self.is_context_sensitive(node)
-        {
-            return if self.get_effective_ret_type_node(node).is_none()
-                && !self.has_context_sensitive_params(node)
-                && let Some(contextual_sig) = self.get_contextual_sig(node)
-                && let ret_ty_of_sig = self.get_return_type_of_signature(contextual_sig)
-                && self.could_contain_ty_var(ret_ty_of_sig)
-            {
-                if let Some(context_free_ty) = self.get_node_links(node).get_context_free_ty() {
-                    return context_free_ty;
-                };
-                let ret_ty = self.get_return_type_from_body(node, check_mode);
-                let ret_only_sig = self.new_sig(ty::Sig {
-                    id: ty::SigID::dummy(),
-                    params: self.empty_array(),
-                    ret: None,
-                    flags: ty::SigFlags::IS_NON_INFERRABLE,
-                    target: None,
-                    mapper: None,
-                    class_decl: None,
-                    min_args_count: 0,
-                    node_id: None,
-                    composite_sigs: None,
-                    composite_kind: None,
-                });
-                let prev = self.sig_links.insert(
-                    ret_only_sig.id,
-                    super::SigLinks::default().with_resolved_ret_ty(ret_ty),
-                );
-                debug_assert!(prev.is_none());
-                let symbol = self.get_symbol_of_declaration(node);
-                let call_sigs = self.alloc([ret_only_sig]);
-                let ret_only_ty = self.create_anonymous_ty_with_resolved(
-                    Some(symbol),
-                    ty::ObjectFlags::NON_INFERRABLE_TYPE,
-                    self.alloc(Default::default()),
-                    call_sigs,
-                    self.empty_array(),
-                    self.empty_array(),
-                    None,
-                    None,
-                );
-                self.get_mut_node_links(node)
-                    .set_context_free_ty(ret_only_ty);
-                ret_only_ty
-            } else {
-                self.any_fn_ty()
-            };
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let mode = check_mode?;
+        if !mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE) || !self.is_context_sensitive(node) {
+            return None;
         }
-
-        self.contextually_check_fn_expr_or_object_literal_method(node, check_mode);
-
-        let symbol = self.get_symbol_of_declaration(node);
-        self.get_type_of_symbol(symbol)
-    }
-
-    pub(super) fn check_fn_like_expr(
-        &mut self,
-        expr: &impl r#trait::FnExprLike<'cx>,
-        check_mode: Option<CheckMode>,
-    ) -> &'cx ty::Ty<'cx> {
-        self.check_fn_like_expr_or_object_literal_method(expr.id(), check_mode)
+        if self.get_effective_ret_type_node(node).is_none()
+            && !self.has_context_sensitive_params(node)
+            && let Some(contextual_sig) = self.get_contextual_sig(node)
+            && let ret_ty_of_sig = self.get_return_type_of_signature(contextual_sig)
+            && self.could_contain_ty_var(ret_ty_of_sig)
+        {
+            if let Some(context_free_ty) = self.get_node_links(node).get_context_free_ty() {
+                return Some(context_free_ty);
+            };
+            let ret_ty = self.get_return_type_from_body(node, check_mode);
+            let ret_only_sig = self.new_sig(ty::Sig {
+                id: ty::SigID::dummy(),
+                params: self.empty_array(),
+                ret: None,
+                flags: ty::SigFlags::IS_NON_INFERRABLE,
+                target: None,
+                mapper: None,
+                class_decl: None,
+                min_args_count: 0,
+                node_id: None,
+                composite_sigs: None,
+                composite_kind: None,
+            });
+            let prev = self.sig_links.insert(
+                ret_only_sig.id,
+                super::SigLinks::default().with_resolved_ret_ty(ret_ty),
+            );
+            debug_assert!(prev.is_none());
+            let symbol = self.get_symbol_of_declaration(node);
+            let call_sigs = self.alloc([ret_only_sig]);
+            let ret_only_ty = self.create_anonymous_ty_with_resolved(
+                Some(symbol),
+                ty::ObjectFlags::NON_INFERRABLE_TYPE,
+                self.alloc(Default::default()),
+                call_sigs,
+                self.empty_array(),
+                self.empty_array(),
+                None,
+                None,
+            );
+            self.get_mut_node_links(node)
+                .set_context_free_ty(ret_only_ty);
+            Some(ret_only_ty)
+        } else {
+            Some(self.any_fn_ty())
+        }
     }
 
     pub(super) fn check_fn_like_expr_deferred(&mut self, expr: &impl r#trait::FnExprLike<'cx>) {

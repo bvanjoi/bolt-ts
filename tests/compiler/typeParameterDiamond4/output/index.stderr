@@ -9,3 +9,9 @@
  15 │ top
     · ───
     ╰────
+
+  × Type 'number' is not assignable to type '"42"'.
+    ╭─[../../tests/compiler/typeParameterDiamond4/index.ts:26:9]
+ 26 │ a
+    · ─
+    ╰────

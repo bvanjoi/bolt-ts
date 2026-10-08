@@ -37,7 +37,7 @@ impl<'cx> TyChecker<'cx> {
             ParenExpr(n) => {
                 self.elaborate_error(Some(n.expr.id()), source, target, relation, error_node)
             }
-            BinExpr(n) if n.op.kind == ast::BinOpKind::Comma => {
+            BinExpr(n) if n.op == ast::BinOpKind::Comma => {
                 self.elaborate_error(Some(n.right.id()), source, target, relation, error_node)
             }
             AssignExpr(n) if n.op == ast::AssignOp::Eq => {

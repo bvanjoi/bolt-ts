@@ -2,6 +2,7 @@
 //@compiler-options: target=es2015
 // Original test intent:
 // Errors on '_this' should be reported in derived constructors,
+// even if 'super()' is not called.
 class C {
   constructor() {return {};}
 }

@@ -1,0 +1,23 @@
+  × Cannot find name 'foo'.
+   ╭─[../../tests/compiler/functionLikeInParameterInitializer/index.ts:7:34]
+ 7 │ foo
+   · ───
+   ╰────
+
+  × Cannot find name 'foo'.
+    ╭─[../../tests/compiler/functionLikeInParameterInitializer/index.ts:12:44]
+ 12 │ foo
+    · ───
+    ╰────
+
+  × Cannot find name 'foo'.
+    ╭─[../../tests/compiler/functionLikeInParameterInitializer/index.ts:18:50]
+ 18 │ foo
+    · ───
+    ╰────
+
+  × Cannot find name 'foo'.
+    ╭─[../../tests/compiler/functionLikeInParameterInitializer/index.ts:24:41]
+ 24 │ foo
+    · ───
+    ╰────

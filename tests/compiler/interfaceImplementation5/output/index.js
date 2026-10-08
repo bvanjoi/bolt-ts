@@ -1,4 +1,5 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/interfaceImplementation5.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 class C1 {
   get getset1() {
     return 1;

@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/genericClasses4.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
+// once caused stack overflow
 class Vec2_T {
   constructor(x, y) {
     this.x = x

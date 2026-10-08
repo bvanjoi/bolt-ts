@@ -12,6 +12,6 @@ interface I {
 class C {
     [x = 0]: string
     //~^ ERROR: A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type.
-    //~| ERROR: Property 'computed' has no initializer and is not definitely assigned in the constructor.
+    //~| ERROR: Property '[x = 0]' has no initializer and is not definitely assigned in the constructor.
     //~| ERROR: Cannot find name 'x'.
 }

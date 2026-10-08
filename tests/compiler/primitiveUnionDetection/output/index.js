@@ -2,6 +2,7 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict
 //@compiler-options: declaration
+//@run-fail
 var result = getInterfaceFromString({
   type: 'two'  
 });

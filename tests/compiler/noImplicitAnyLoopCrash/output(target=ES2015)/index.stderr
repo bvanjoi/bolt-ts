@@ -1,0 +1,20 @@
+  × A spread argument must either have a tuple type or be passed to a rest
+  │ parameter.
+    ╭─[../../tests/compiler/noImplicitAnyLoopCrash/index.ts:10:16]
+ 10 │ ...bar
+    · ──────
+    ╰────
+
+  × A spread argument must either have a tuple type or be passed to a rest
+  │ parameter.
+    ╭─[../../tests/compiler/noImplicitAnyLoopCrash/index.ts:10:16]
+ 10 │ ...bar
+    · ──────
+    ╰────
+
+  × Type 'undefined | number' must have a '[Symbol.iterator]()' method that
+  │ returns an iterator.
+    ╭─[../../tests/compiler/noImplicitAnyLoopCrash/index.ts:10:19]
+ 10 │ bar
+    · ───
+    ╰────

@@ -1,0 +1,77 @@
+  × Property 'at' does not exist on type 'number[]'.
+   ╭─[../../tests/compiler/indexAt/index.ts:7:5]
+ 7 │ at
+   · ──
+   ╰────
+
+  × Property 'at' does not exist on type '"foo"'.
+   ╭─[../../tests/compiler/indexAt/index.ts:9:7]
+ 9 │ at
+   · ──
+   ╰────
+
+  × Property 'at' does not exist on type 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:11:17]
+ 11 │ at
+    · ──
+    ╰────
+
+  × Property 'at' does not exist on type 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:13:18]
+ 13 │ at
+    · ──
+    ╰────
+
+  × Property 'at' does not exist on type 'Uint8ClampedArray<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:15:25]
+ 15 │ at
+    · ──
+    ╰────
+
+  × Property 'at' does not exist on type 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:17:18]
+ 17 │ at
+    · ──
+    ╰────
+
+  × Property 'at' does not exist on type 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:19:19]
+ 19 │ at
+    · ──
+    ╰────
+
+  × Property 'at' does not exist on type 'Int32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:21:18]
+ 21 │ at
+    · ──
+    ╰────
+
+  × Property 'at' does not exist on type 'Uint32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:23:19]
+ 23 │ at
+    · ──
+    ╰────
+
+  × Property 'at' does not exist on type 'Float32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:25:20]
+ 25 │ at
+    · ──
+    ╰────
+
+  × Property 'at' does not exist on type 'Float64Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:27:20]
+ 27 │ at
+    · ──
+    ╰────
+
+  × Property 'at' does not exist on type 'BigInt64Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:29:21]
+ 29 │ at
+    · ──
+    ╰────
+
+  × Property 'at' does not exist on type 'BigUint64Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/indexAt/index.ts:31:22]
+ 31 │ at
+    · ──
+    ╰────

@@ -1,17 +1,21 @@
+// From `github.com/microsoft/TypeScript/blob/v5.9.2/tests/cases/compiler/duplicateAnonymousModuleClasses.ts`, Apache-2.0 License
 var F = {};
 (function (F) {
 
+  // Should not be an error
   class Helper {}
   
 })(F);
 
 (function (F) {
 
-  class Helper {}
+  class // Should not be an error
+  Helper {}
   
 })(F);
 var Foo = {};
-(function (Foo) {
+(function (Foo) // Should not be an error
+{
 
   class Helper {}
   

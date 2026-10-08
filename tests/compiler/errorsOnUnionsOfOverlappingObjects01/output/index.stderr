@@ -1,0 +1,47 @@
+  × Argument of type '{ a: string; b: string; }' is not assignable to
+  │ parameter of type 'Foo | Other'.
+    ╭─[../../tests/compiler/errorsOnUnionsOfOverlappingObjects01/index.ts:22:3]
+ 22 │ x
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/errorsOnUnionsOfOverlappingObjects01/index.ts:24:12]
+ 24 │ b
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'a' does not exist
+  │ in type 'Bar | Other'.
+    ╭─[../../tests/compiler/errorsOnUnionsOfOverlappingObjects01/index.ts:30:5]
+ 30 │ a
+    · ─
+    ╰────
+
+  × Argument of type '{ dog: string; }' is not assignable to parameter of type
+  │ 'ExoticAnimal'.
+    ╭─[../../tests/compiler/errorsOnUnionsOfOverlappingObjects01/index.ts:49:10]
+ 49 │ { dog: "Barky McBarkface" }
+    · ───────────────────────────
+    ╰────
+
+  × Argument of type '{ man: string; bear: string; }' is not assignable to
+  │ parameter of type 'ExoticAnimal'.
+    ╭─[../../tests/compiler/errorsOnUnionsOfOverlappingObjects01/index.ts:51:10]
+ 51 │ { man: "Manny", bear: "Coffee" }
+    · ────────────────────────────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'beer' does not
+  │ exist in type 'ExoticAnimal'.
+    ╭─[../../tests/compiler/errorsOnUnionsOfOverlappingObjects01/index.ts:55:26]
+ 55 │ beer
+    · ────
+    ╰────
+
+  × Argument of type '{ man: string; beer: string; }' is not assignable to
+  │ parameter of type 'ExoticAnimal'.
+    ╭─[../../tests/compiler/errorsOnUnionsOfOverlappingObjects01/index.ts:57:10]
+ 57 │ manBeer
+    · ───────
+    ╰────

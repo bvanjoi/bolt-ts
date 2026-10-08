@@ -1,0 +1,20 @@
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess1/index.ts:18:9]
+ 18 │ super.x
+    · ───────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess1/index.ts:25:9]
+ 25 │ super.x
+    · ───────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superPropertyAccess1/index.ts:31:9]
+ 31 │ super.x
+    · ───────
+    ╰────

@@ -1,0 +1,102 @@
+  × 'b1' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:17:17]
+ 17 │ b1
+    · ──
+    ╰────
+
+  × 'a2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:19:12]
+ 19 │ a2
+    · ──
+    ╰────
+
+  × 'a3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:21:12]
+ 21 │ a3
+    · ──
+    ╰────
+
+  × 'b3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:21:16]
+ 21 │ b3
+    · ──
+    ╰────
+
+  × 'a3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:32:12]
+ 32 │ a3
+    · ──
+    ╰────
+
+  × 'b3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:32:18]
+ 32 │ b3
+    · ──
+    ╰────
+
+  × 'c3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:32:22]
+ 32 │ c3
+    · ──
+    ╰────
+
+  × 'd3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:32:28]
+ 32 │ d3
+    · ──
+    ╰────
+
+  × 'e3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:32:32]
+ 32 │ e3
+    · ──
+    ╰────
+
+  × 'b1' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:51:22]
+ 51 │ b1
+    · ──
+    ╰────
+
+  × 'a2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:53:13]
+ 53 │ a2
+    · ──
+    ╰────
+
+  × All destructured elements are unused.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:55:11]
+ 55 │ { a3, b3 } = { a3: 1, b3: 1 }
+    · ─────────────────────────────
+    ╰────
+
+  × 'a3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:85:9]
+ 85 │ a3
+    · ──
+    ╰────
+
+  × 'c3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:91:9]
+ 91 │ c3
+    · ──
+    ╰────
+
+  × 'd3' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:92:9]
+ 92 │ d3
+    · ──
+    ╰────
+
+  × All destructured elements are unused.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:87:13]
+ 87 │ ╭─▶ b31: {    //~ERROR: All destructured elements are unused.
+ 88 │ │                   b311, b312
+ 89 │ ╰─▶             }
+    ╰────
+
+  × All destructured elements are unused.
+    ╭─[../../tests/compiler/unusedVariablesWithUnderscoreInBindingElement/index.ts:98:11]
+ 98 │ { _a1, _b1 } = { _a1: 1, _b1: 1 }
+    · ─────────────────────────────────
+    ╰────

@@ -1,6 +1,6 @@
-  × Get accessor must be at least as accessible as the set accessor.
+  × A get accessor must be at least as accessible as the setter.
    ╭─[../../tests/compiler/gettersAndSettersAccessibility/index.ts:6:14]
- 6 │ Baz():number { return 0; } //~ERROR: Get accessor must be at least as accessible as the set accessor.
+ 6 │ Baz():number { return 0; } //~ERROR: A get accessor must be at least as accessible as the setter.
    · ───
  7 │     public set Baz
    ·                ─┬─

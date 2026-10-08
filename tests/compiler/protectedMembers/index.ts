@@ -79,7 +79,9 @@ class C extends A {
     z;
     static foo(a: A, b: B, c: C, d: D, e: E) {
         a.x = 1;  // Error, access must be through C or type derived from C
+        //~^ ERROR: Property 'x' is protected and only accessible through an instance of class 'C'. This is an instance of class 'A'.
         b.x = 1;  // Error, access must be through C or type derived from C
+        //~^ ERROR: Property 'x' is protected and only accessible through an instance of class 'C'. This is an instance of class 'B'.
         c.x = 1;
         d.x = 1;
         e.x = 1;

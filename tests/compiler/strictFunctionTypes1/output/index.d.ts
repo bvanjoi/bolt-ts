@@ -7,7 +7,7 @@ interface Func<T> {
 declare function f4<T>(f1: Func<T>, f2: Func<T>): Func<T>;
 declare function fo(x: Object): void;
 declare function fs(x: string): void;
-declare function fx(f: (x: "def") => void): void;
+declare function fx(f: (x: 'def') => void): void;
 declare var x1: (x: string) => void;
 declare var x2: "abc";
 declare var x3: "def" | "abc";

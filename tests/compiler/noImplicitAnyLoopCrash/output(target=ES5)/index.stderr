@@ -1,0 +1,19 @@
+  × A spread argument must either have a tuple type or be passed to a rest
+  │ parameter.
+    ╭─[../../tests/compiler/noImplicitAnyLoopCrash/index.ts:10:16]
+ 10 │ ...bar
+    · ──────
+    ╰────
+
+  × A spread argument must either have a tuple type or be passed to a rest
+  │ parameter.
+    ╭─[../../tests/compiler/noImplicitAnyLoopCrash/index.ts:10:16]
+ 10 │ ...bar
+    · ──────
+    ╰────
+
+  × Type 'undefined | number' is not an array type.
+    ╭─[../../tests/compiler/noImplicitAnyLoopCrash/index.ts:10:19]
+ 10 │ bar
+    · ───
+    ╰────

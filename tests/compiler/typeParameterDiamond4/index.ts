@@ -17,3 +17,13 @@ function diamondTop<Top>() {
         }
     }
 }
+
+type G<B> = B extends 'value' ? 42 : '42'
+
+declare function fff<const B>(b: B): G<B>;
+
+function test_test() {
+    let a: '42' = fff('value');
+    //~^ ERROR: Type 'number' is not assignable to type '"42"'.
+    let b: 42 = fff('value');
+}

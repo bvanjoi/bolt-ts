@@ -19,6 +19,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_effective_ty_param_decls(&self, id: ast::NodeID) -> ast::TyParams<'cx> {
+        // TODO: js doc
         let node = self.p.node(id);
         node.ty_params().unwrap_or_default()
     }
@@ -132,13 +133,13 @@ impl<'cx> TyChecker<'cx> {
         // }
         match node {
             ast::Node::TaggedTemplateExpr(n) => {
-                let mut args = vec![EffectiveCallArgument::Synthetic(SyntheticExpression {
-                    span: n.tag.span(),
-                    parent: n.tpl.id(),
-                    is_spread: false,
-                    tuple_name_source: None,
-                    ty: self.get_global_template_strings_array_ty(),
-                })];
+                let mut args = vec![EffectiveCallArgument::Synthetic(SyntheticExpression::new(
+                    n.tag.span(),
+                    n.tpl.id(),
+                    false,
+                    self.get_global_template_strings_array_ty(),
+                    None,
+                ))];
                 if let ast::TemplateExpressionKind::TemplateExpr(template) = n.tpl {
                     for span in template.spans {
                         args.push(EffectiveCallArgument::Expression(span.expr));
@@ -171,20 +172,19 @@ impl<'cx> TyChecker<'cx> {
                             for (j, ty) in tys.iter().enumerate() {
                                 let flags = t.element_flags[j];
                                 effective_args.push(EffectiveCallArgument::Synthetic(
-                                    SyntheticExpression {
-                                        span: arg.span(),
-                                        parent: arg.id(),
-                                        is_spread: flags.contains(ty::ElementFlags::VARIABLE),
-                                        ty: if flags.contains(ty::ElementFlags::REST) {
+                                    SyntheticExpression::new(
+                                        arg.span(),
+                                        arg.id(),
+                                        flags.contains(ty::ElementFlags::VARIABLE),
+                                        if flags.contains(ty::ElementFlags::REST) {
                                             self.create_array_ty_worker::<false>(ty)
                                         } else {
                                             ty
                                         },
-                                        tuple_name_source: t
-                                            .labeled_element_declarations
+                                        t.labeled_element_declarations
                                             .and_then(|n| n.get(j))
                                             .and_then(|n| *n),
-                                    },
+                                    ),
                                 ));
                             }
                         } else {
@@ -249,6 +249,19 @@ impl<'cx> TyChecker<'cx> {
             None
         }
     }
+
+    pub(super) fn get_effective_question_token(
+        &self,
+        node: ast::NodeID,
+    ) -> Option<bolt_ts_span::Span> {
+        let node = self.p.node(node);
+        if let Some(question) = node.question() {
+            return Some(question);
+        }
+        // TODO: optional js parameter
+        // TODO: parameter with js doc optional js parameter
+        None
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -261,6 +274,22 @@ pub struct SyntheticExpression<'cx> {
 }
 
 impl<'cx> SyntheticExpression<'cx> {
+    pub fn new(
+        span: bolt_ts_span::Span,
+        parent: ast::NodeID,
+        is_spread: bool,
+        ty: &'cx ty::Ty<'cx>,
+        tuple_name_source: Option<ty::TupleLabeledElementDeclaration<'cx>>,
+    ) -> Self {
+        Self {
+            span,
+            parent,
+            is_spread,
+            ty,
+            tuple_name_source,
+        }
+    }
+
     pub fn ty(&self) -> &'cx ty::Ty<'cx> {
         self.ty
     }
@@ -275,6 +304,10 @@ impl<'cx> SyntheticExpression<'cx> {
 
     pub fn tuple_name_source(&self) -> Option<ty::TupleLabeledElementDeclaration<'cx>> {
         self.tuple_name_source
+    }
+
+    pub fn span(&self) -> bolt_ts_span::Span {
+        self.span
     }
 }
 

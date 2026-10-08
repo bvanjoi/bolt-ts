@@ -1,0 +1,5 @@
+  × 'T' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedTypeParameterInLambda1/index.ts:9:17]
+ 9 │ T
+   · ─
+   ╰────

@@ -1,0 +1,5 @@
+  × This kind of expression is always falsy.
+    ╭─[../../tests/compiler/prefixUnaryOperatorsOnExportedVariables/index.ts:25:5]
+ 25 │ void x
+    · ──────
+    ╰────

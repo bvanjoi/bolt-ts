@@ -1121,6 +1121,21 @@ impl<'cx> TyChecker<'cx> {
                 links
             }
         } else {
+            if let Some(write_tys) = write_tys {
+                let write_ty = if is_union {
+                    self.get_union_ty::<false>(
+                        &write_tys,
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                } else {
+                    self.get_intersection_ty(&write_tys, IntersectionFlags::None, None, None)
+                };
+                links.set_write_ty(write_ty);
+            };
             let ty = if is_union {
                 self.get_union_ty::<false>(
                     &prop_tys,

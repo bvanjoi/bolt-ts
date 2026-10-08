@@ -23,7 +23,7 @@ impl<'cx> TyChecker<'cx> {
         match node.kind {
             Await(_) | Call(_) | TaggedTemplate(_) | EleAccess(_) | New(_) | PropAccess(_)
             | Yield(_) | This(_) => PredicateSemantics::SOMETIMES,
-            Bin(n) => match n.op.kind {
+            Bin(n) => match n.op {
                 ast::BinOpKind::LogicalOr | ast::BinOpKind::LogicalAnd => {
                     PredicateSemantics::SOMETIMES
                 }

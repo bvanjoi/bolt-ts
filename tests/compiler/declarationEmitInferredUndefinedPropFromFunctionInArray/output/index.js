@@ -2,6 +2,7 @@
 //@compiler-options: target=es2015
 //@compiler-options: declaration
 //@compiler-options: module=commonjs
+// repro from https://github.com/microsoft/TypeScript/issues/53914
 var b = [{
   foo: 0,
   m() {}  

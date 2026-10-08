@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/collisionCodeGenModuleWithMethodChildren.ts`, Apache-2.0 License
 //@compiler-options: target=esnext
+//@compiler-options: strict=false
 var M = {};
 (function (M) {
 
@@ -23,7 +24,8 @@ var M = {};
   
 })(M);
 
-(function (M) {
+(function (M) // Shouldnt bn _M
+{
 
   class e {
     fn3() {

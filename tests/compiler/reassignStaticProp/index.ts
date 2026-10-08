@@ -6,7 +6,7 @@ class foo {
  
     static bar:string; // errror - duplicate id
     //~^ ERROR: Duplicate identifier 'bar'.
-    //~| ERROR: Subsequent variable declarations must have the same type. Variable 'bar' must be of type 'number', but here has type 'string'.
+    //~| ERROR: Subsequent property declarations must have the same type. Property 'bar' must be of type 'number', but here has type 'string'.
 
 }
  

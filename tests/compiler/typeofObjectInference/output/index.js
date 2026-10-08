@@ -1,4 +1,5 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/typeofObjectInference.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var val = 1;
 function decorateA(fn) {
   return () => (fn({

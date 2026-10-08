@@ -1,4 +1,5 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/promiseVoidErrorCallback.ts`, Apache-2.0 License
+//@compiler-options: target=es6
 function f1() {
   return Promise.resolve({
       __t1: 'foo_t1'    

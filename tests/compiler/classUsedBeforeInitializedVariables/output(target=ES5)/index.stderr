@@ -1,0 +1,98 @@
+  × Property 'p4' is used before its initialization.
+   ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:9:15]
+ 9 │ p4
+   · ──
+   ╰────
+
+  × Property 'directlyAssigned' is used before its initialization.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:19:34]
+ 19 │ directlyAssigned
+    · ────────────────
+    ╰────
+
+  × Property 'withinObjectLiteral' is used before its initialization.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:30:15]
+ 30 │ withinObjectLiteral
+    · ───────────────────
+    ╰────
+
+  × Property 'withinObjectLiteral' is used before its initialization.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:30:15]
+ 30 │ withinObjectLiteral
+    · ───────────────────
+    ╰────
+
+  × Property 'withinObjectLiteral' is used before its initialization.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:30:15]
+ 30 │ withinObjectLiteral
+    · ───────────────────
+    ╰────
+
+  × Property 'withinObjectLiteral' is used before its initialization.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:30:15]
+ 30 │ withinObjectLiteral
+    · ───────────────────
+    ╰────
+
+  × Property 'withinObjectLiteralGetterName' is used before its
+  │ initialization.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:38:19]
+ 38 │ withinObjectLiteralGetterName
+    · ─────────────────────────────
+    ╰────
+
+  × Property 'withinObjectLiteralGetterName' is used before its
+  │ initialization.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:38:19]
+ 38 │ withinObjectLiteralGetterName
+    · ─────────────────────────────
+    ╰────
+
+  × Property 'withinObjectLiteralSetterName' is used before its
+  │ initialization.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:46:19]
+ 46 │ withinObjectLiteralSetterName
+    · ─────────────────────────────
+    ╰────
+
+  × Property 'withinObjectLiteralSetterName' is used before its
+  │ initialization.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:46:19]
+ 46 │ withinObjectLiteralSetterName
+    · ─────────────────────────────
+    ╰────
+
+  × Property 'withinClassDeclarationExtension' is used before its
+  │ initialization.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:51:64]
+ 51 │ withinClassDeclarationExtension
+    · ───────────────────────────────
+    ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:61:16]
+ 61 │ this
+    · ────
+    ╰────
+
+Warning: 
+  ⚠ An outer value of 'this' is shadowed by this container.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:61:16]
+ 61 │ this
+    · ────
+    ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:25:16]
+ 25 │ this
+    · ────
+    ╰────
+
+Warning: 
+  ⚠ An outer value of 'this' is shadowed by this container.
+    ╭─[../../tests/compiler/classUsedBeforeInitializedVariables/index.ts:25:16]
+ 25 │ this
+    · ────
+    ╰────

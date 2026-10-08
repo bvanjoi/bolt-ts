@@ -2,6 +2,7 @@
 //@compiler-options: target=es6
 //@compiler-options: strict=false
 //@compiler-options: declaration
+// No error
 var M = {};
 (function (M) {
 

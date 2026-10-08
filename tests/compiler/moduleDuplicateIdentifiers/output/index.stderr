@@ -1,0 +1,23 @@
+  × Duplicate identifier 'Kettle'.
+    ╭─[../../tests/compiler/moduleDuplicateIdentifiers/index.ts:31:14]
+ 27 │ Kettle {
+    · ───┬──
+    ·    ╰── Previous definition here
+ 28 │     member1 = 2;
+ 29 │ }
+ 30 │ 
+ 31 │ export class Kettle
+    ·              ──────
+    ╰────
+
+  × Cannot redeclare exported variable 'default'.
+   ╭─[../../tests/compiler/moduleDuplicateIdentifiers/index.ts:6:12]
+ 6 │ Foo = 2
+   · ───────
+   ╰────
+
+  × Cannot redeclare exported variable 'default'.
+   ╭─[../../tests/compiler/moduleDuplicateIdentifiers/index.ts:8:12]
+ 8 │ Foo = 42
+   · ────────
+   ╰────

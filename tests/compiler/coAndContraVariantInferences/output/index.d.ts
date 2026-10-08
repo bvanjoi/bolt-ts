@@ -3,10 +3,10 @@ interface Action<TName extends string, TPayload> {
   payload: TPayload;
 }
 type A = {
-  kind: "a";
+  kind: 'a';
 };
 type B = {
-  kind: "b";
+  kind: 'b';
 };
 declare var a: A;
 declare var b: B;

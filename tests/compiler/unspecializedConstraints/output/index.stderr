@@ -1,0 +1,29 @@
+  × Cannot find name 'TypeParameter'.
+    ╭─[../../tests/compiler/unspecializedConstraints/index.ts:91:44]
+ 91 │ TypeParameter
+    · ─────────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'Property'.
+    ╭─[../../tests/compiler/unspecializedConstraints/index.ts:41:20]
+ 41 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'Property'.
+    ╭─[../../tests/compiler/unspecializedConstraints/index.ts:45:20]
+ 45 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'Signature'.
+    ╭─[../../tests/compiler/unspecializedConstraints/index.ts:52:20]
+ 52 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'T'.
+     ╭─[../../tests/compiler/unspecializedConstraints/index.ts:127:52]
+ 127 │ undefined
+     · ─────────
+     ╰────

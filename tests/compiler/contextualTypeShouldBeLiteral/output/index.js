@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/contextualTypeShouldBeLiteral.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
+//@compiler-options: strict
 function foo(bar) {}
 foo({
   type: 'y',
@@ -36,7 +37,8 @@ var xyz = {
     this.value;
   }  
 };
-xyz;
+xyz;// Repro from #29168
+
 var test = {
   items: {
       hello: {

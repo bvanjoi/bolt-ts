@@ -1,8 +1,8 @@
 type A = string;
 type B = {
-  type: "INCREMENT";
+  type: 'INCREMENT';
 } | {
-  type: "DECREMENT";
+  type: 'DECREMENT';
 };
-type C = [0 | 1, "foo" | "bar"];
+type C = [0 | 1, 'foo' | 'bar'];
 type D = 1 | 2;

@@ -29,20 +29,20 @@
     ╰────
 
   × Declaration or statement expected.
-    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:3]
- 17 │ static
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:18:3]
+ 18 │ static
     · ──────
     ╰────
 
   × Expression expected.
-    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:20]
- 17 │ :
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:18:20]
+ 18 │ :
     · ─
     ╰────
 
   × Unexpected keyword or identifier.
-    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:10]
- 17 │ test(name?:any)
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:18:10]
+ 18 │ test(name?:any)
     · ───────────────
     ╰────
 
@@ -58,6 +58,12 @@
     · ────
     ╰────
 
+  × Cannot find name 'name'.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:11:15]
+ 11 │ name
+    · ────
+    ╰────
+
   × Cannot find name 'string'.
     ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:11:20]
  11 │ string
@@ -65,19 +71,19 @@
     ╰────
 
   × Cannot find name 'test'.
-    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:10]
- 17 │ test
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:18:10]
+ 18 │ test
+    · ────
+    ╰────
+
+  × Cannot find name 'name'.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:18:15]
+ 18 │ name
     · ────
     ╰────
 
   × Cannot find name 'any'.
-    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:21]
- 17 │ any
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:18:21]
+ 18 │ any
     · ───
-    ╰────
-
-  × An expression of type 'void' cannot be tested for truthiness.
-    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:15]
- 17 │ name
-    · ────
     ╰────

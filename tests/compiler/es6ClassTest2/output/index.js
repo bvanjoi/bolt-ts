@@ -1,11 +1,13 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/es6ClassTest2.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
+//@run-fail
 class BasicMonster {
   constructor(name, health) {
     this.name = name
     
-    this.health = health}
+    this// WScript.Echo("Attacks " + target);
+    .health = health}
   attack(target) {}
   isAlive = true;
 }
@@ -17,10 +19,15 @@ console.log((m5.isAlive).toString());
 class GetSetMonster {
   constructor(name, _health) {
     this.name = name
-    }
+    // WScript.Echo("Attacks " + target);
+  }
+  // The contextual keyword "get" followed by an identifier and
+  // a curly body defines a getter in the same way that "get"
+  // defines one in an object literal.
   attack(target) {}
   get isAlive() {
-    return this._health > 0;
+    return this// Likewise, "set" can be used to define setters.
+    ._health > 0;
   }
   set health(value) {
     if (value < 0) {
@@ -40,7 +47,8 @@ class OverloadedMonster {
     this.name = name
     
     this.health = health}
-  attack(target) {}
+  attack(target) {//WScript.Echo("Attacks " + target);
+  }
   isAlive = true;
 }
 var m5 = new OverloadedMonster('1');
@@ -99,7 +107,8 @@ class Visibility {
 }
 class BaseClassWithConstructor {
   constructor(x, s) {
-    this.x = x
+    this.// used to test codegen
+    x = x
     
     this.s = s}
 }

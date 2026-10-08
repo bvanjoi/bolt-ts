@@ -1,0 +1,5 @@
+  × 'Calculator' is declared but never used.
+   ╭─[../../tests/compiler/unusedClassesinModule1/index.ts:9:11]
+ 9 │ Calculator
+   · ──────────
+   ╰────
