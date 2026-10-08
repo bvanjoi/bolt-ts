@@ -2,8 +2,8 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict
 export function foo(arr) {
-  var zz = arr[1];
-// Error
+  var zz = arr[1];// Error
+  
 }// Repro from #38102
 
 export function isTypedArray(a) {

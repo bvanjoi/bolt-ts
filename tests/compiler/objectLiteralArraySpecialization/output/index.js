@@ -8,6 +8,6 @@ var thing = create([{
 }, {
   name: 'doug',
   id: 32  
-}]);
-// should not error
+}]);// should not error
+
 thing.doSomething((x, y) => (x.name === 'bob'));

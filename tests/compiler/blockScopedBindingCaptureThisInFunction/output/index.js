@@ -4,8 +4,8 @@
 // https://github.com/Microsoft/TypeScript/issues/11038
 () => (function () {
   for ( var someKey in {}) {
-    this.helloWorld();
-    // type('this') -> any
+    this.helloWorld();// type('this') -> any
+    
     () => (someKey);
   }
 });

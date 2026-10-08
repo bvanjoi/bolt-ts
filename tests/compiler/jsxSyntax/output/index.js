@@ -16,8 +16,8 @@ var App3 = {};
   (function (App5) {
   
     function App6() {}
-    App5// jsx syntax:
-    .App6 = App6;
+    App5.// jsx syntax:
+    App6 = App6;
     
   })(App5);
   App3.App5 = App5;
@@ -28,7 +28,7 @@ function e1() {
   return <App >jsx is working</App>;
 }
 <App  \>;
-<App  id=/* 1 */ /* 2 */ 'w &lt; w' \>;
+<App  id=/* 1 */ 'w &lt; w'/* 2 */  \>;
 ;
 ;
 <App/* this is a comment */   id={4} \>;
@@ -73,7 +73,7 @@ function e14() {
 x ? <App >
     {() => (null)}
 </App> : null;
-<App  className/** comment */ ={x.foo}>=</App>;
+<App  className={x.foo}/** comment */ >=</App>;
 <App  className={x.foo}>=</App>;
 <App >=</App>;
 <App >=</App>;

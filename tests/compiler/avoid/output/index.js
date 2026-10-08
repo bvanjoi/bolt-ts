@@ -4,16 +4,16 @@
 function f() {
   var x = 1;
 }
-var y = f();
-// error void fn
-var why = f();
-// error void fn
+var y = f();// error void fn
+
+var why = f();// error void fn
+
 var w;
-w = f();
-// error void fn
+w = f();// error void fn
+
 class C {
   g() {}
 }
-var z = new C().g();
-// error void fn
+var z = new C().g();// error void fn
+
 var N = new f();

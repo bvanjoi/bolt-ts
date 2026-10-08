@@ -19,10 +19,10 @@ var N = {};
   class D2 extends M.C2 {}
   N.D2 = D2;
   
-})(N);
-// no error
-var c = new M.C2();
-// no error
+})(N);// no error
+
+var c = new M.C2();// no error
+
 var c0 = new M.C2();
 var n = new N.D1();
 var n0 = new N.D1// error

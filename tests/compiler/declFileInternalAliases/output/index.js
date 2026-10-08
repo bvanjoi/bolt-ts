@@ -8,8 +8,8 @@ var m = {};
   m.c = c;
   
 })(m);
-var m1 // emit the type as m.c
-= {};
+var m1// emit the type as m.c
+ = {};
 (function (m1) {
 
   var x = m.c

@@ -12,8 +12,8 @@ function test1(result) {
 function want0(x) {}
 function test2(a) {
   if (a === 0) {
-    want0(a);
-  // Fails, but expect to work
+    want0(a);// Fails, but expect to work
+    
   }
   
 }

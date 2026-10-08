@@ -4,7 +4,7 @@
 //@compiler-options: declaration
 class BufferPool {
   setArray2(_, array) {
-    array.length;
-  // Requires exploration of >5 levels of constraints
+    array.length;// Requires exploration of >5 levels of constraints
+    
   }
 }

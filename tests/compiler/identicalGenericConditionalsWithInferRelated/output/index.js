@@ -3,10 +3,10 @@
 function f(arg) {
   var x = null;
   var y = null;
-  x = y;
-  // is err, should be ok
-  y = x;
-// is err, should be ok
+  x = y;// is err, should be ok
+  
+  y = x;// is err, should be ok
+  
 }// repro from https://github.com/microsoft/TypeScript/issues/26627
 
 class Y {

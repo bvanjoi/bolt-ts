@@ -10,9 +10,9 @@
 //@[d]     compiler-options: useDefineForClassFields=false
 var x = 1;
 class C {
-  p = //~[a]^ ERROR: Initializer of instance member variable 'p' cannot reference identifier 'x' declared in the constructor.
+  p = x//~[a]^ ERROR: Initializer of instance member variable 'p' cannot reference identifier 'x' declared in the constructor.
   //~[b]^^ ERROR: Initializer of instance member variable 'p' cannot reference identifier 'x' declared in the constructor.
   //~[d]^^^ ERROR: Initializer of instance member variable 'p' cannot reference identifier 'x' declared in the constructor.
-  x;
+  ;
   constructor(x) {}
 }

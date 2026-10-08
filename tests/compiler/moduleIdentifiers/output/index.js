@@ -4,9 +4,9 @@ var M = {};
 (function (M) {
 
   var a = 1;
-  M.//var p: M.P;
+  M.a //var p: M.P;
   //var m: M = M;
-  a = a
+  = a
   
 })(M);
 var x1 = M.a;

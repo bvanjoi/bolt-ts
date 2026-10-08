@@ -3,41 +3,41 @@
 //@compiler-options: strict
 //@compiler-options: declaration
 function f1(x) {
-  var y = x || 'hello';
-// NonNullable<T> | string
+  var y = x || 'hello';// NonNullable<T> | string
+  
 }
 function error() {
   throw new Error()
 }
-function f2(x) {
-  // NonNullable<T>
+function f2(x) {// NonNullable<T>
+
   return x || error();
 }
 function f3(x) {
-  var y = x;
-// {}
+  var y = x;// {}
+  
 }
 function f4(obj) {
   if (obj.x === 'hello') {
-    obj;
-  // NonNullable<T>
+    obj;// NonNullable<T>
+    
   }
   
   if (obj.x) {
-    obj;
-  // NonNullable<T>
+    obj;// NonNullable<T>
+    
   }
   
   if (typeof obj.x === 'string') {
-    obj;
-  // NonNullable<T>
+    obj;// NonNullable<T>
+    
   }
   
 }
 class A {
   x = 'hello';
   foo() {
-    var zz = this.x;
-  // string
+    var zz = this.x;// string
+    
   }
 }

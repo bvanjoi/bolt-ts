@@ -15,8 +15,8 @@ var A = {};
   var Origin = new Point//Error generates 'var <Alias> = <EntityName>;'
   (// no code gen expected
   0, 0);
-  A.Origin = //Error generates 'var <Alias> = <EntityName>;'
-  Origin
+  A.Origin =//Error generates 'var <Alias> = <EntityName>;'
+   Origin
   
 })(A);
 

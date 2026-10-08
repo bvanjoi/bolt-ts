@@ -103,8 +103,8 @@ function foo8(x) {
     (function () {
       return x + y + v;
     });
-    (() => (x + y + v)//===const
-    );
+    (() => (x + y + v))//===const
+    ;
   }
   use(v);
 }

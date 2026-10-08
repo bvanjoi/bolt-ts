@@ -12,12 +12,12 @@ var Z = {};
     M.bar = bar;
     
   })(M);
-  Z.M = // Should call Z.M.bar
-  M;
+  Z.M =// Should call Z.M.bar
+   M;
   
 })(Z);
-var A = // Should call Z.M.bar
-{};
+var A =// Should call Z.M.bar
+ {};
 (function (A) {
 
   var M = {};

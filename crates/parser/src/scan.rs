@@ -478,21 +478,40 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             return;
         }
         self.full_start_pos = self.pos;
+        // `comment_start_pos` use to record each start position of these comments,
+        // for example, when scan next token after `var`:
+        // ```
+        // var   /** a */ /** b */  a = 1;
+        //    |-> `full_start_pos` and `full_comment_start_pos` is init here
+        //               |-> `full_comment_start_pos` will update here but `full_start_pos` will not update
+        // ```
+        let mut full_comment_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
         let mut leading_comments = Vec::new();
         let mut trailing_comments = Vec::new();
         let mut start;
-        let is_leading_comment = |pos: usize| pos == 0 || self.input[pos - 1].is_ascii_whitespace();
-        let mut push_comment = |start: usize, pos: usize, comment_kind: CommentKind| {
-            if is_preserve_comment(VARIANT) {
-                let comment = Comment::new(start as u32, pos as u32, comment_kind);
-                if is_leading_comment(start) {
-                    leading_comments.push(comment);
-                } else {
-                    trailing_comments.push(comment);
-                }
+        let is_leading_comment = |this: &Self, full_comment_start_pos: usize| {
+            if full_comment_start_pos == 0
+                || this.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
+            {
+                true
+            } else {
+                this.input[full_comment_start_pos - 1].is_ascii_whitespace()
             }
         };
+        let mut push_comment =
+            |this: &Self, start: usize, pos: usize, comment_kind: CommentKind| {
+                debug_assert!(full_comment_start_pos <= start);
+                if is_preserve_comment(VARIANT) {
+                    let comment = Comment::new(start as u32, pos as u32, comment_kind);
+                    if is_leading_comment(this, full_comment_start_pos) {
+                        leading_comments.push(comment);
+                    } else {
+                        trailing_comments.push(comment);
+                    }
+                    full_comment_start_pos = pos;
+                }
+            };
         loop {
             start = self.pos;
             if self.pos == self.end() {
@@ -535,7 +554,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 self.pos += 1;
                             }
                         }
-                        push_comment(start, self.pos, CommentKind::SingleLine);
+                        push_comment(self, start, self.pos, CommentKind::SingleLine);
                         continue;
                     } else if self.next_ch() == Some(b'*') {
                         // `/*`
@@ -548,7 +567,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 self.pos += 1;
                             }
                         }
-                        push_comment(start, self.pos, CommentKind::MultiLine);
+                        push_comment(self, start, self.pos, CommentKind::MultiLine);
                         continue;
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
@@ -1021,21 +1040,40 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                     }
                 }
             };
+
             if is_preserve_comment(VARIANT) {
+                if self.full_start_pos != 0 {
+                    let last = self.leading_trailing_comments.last();
+                    match (last, trailing_comments.is_empty()) {
+                        (None, true) => {
+                            self.leading_trailing_comments.mark_no_comments(0);
+                        }
+                        (None, false) => {
+                            for comment in trailing_comments {
+                                self.leading_trailing_comments
+                                    .add_trailing_comment(0, comment);
+                            }
+                        }
+                        (Some(_), true) => {}
+                        (Some((&prev_token_pos, _)), false) => {
+                            for comment in trailing_comments {
+                                self.leading_trailing_comments
+                                    .add_trailing_comment(prev_token_pos, comment);
+                            }
+                        }
+                    }
+                }
                 let pos = token.start();
-                if leading_comments.is_empty() && trailing_comments.is_empty() {
+                if leading_comments.is_empty() {
                     self.leading_trailing_comments.mark_no_comments(pos);
                 } else {
                     for comment in leading_comments {
                         self.leading_trailing_comments
                             .add_leading_comment(pos, comment);
                     }
-                    for comment in trailing_comments {
-                        self.leading_trailing_comments
-                            .add_trailing_comment(pos, comment);
-                    }
                 }
             }
+
             self.token = token;
             break;
         }

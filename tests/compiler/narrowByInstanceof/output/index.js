@@ -3,27 +3,27 @@
 //@compiler-options: strict
 function foo(x, A, B, AB) {
   if (x instanceof A) {
-    x;
-  // A
+    x;// A
+    
   } else {
-    x;
-  // B | C
+    x;// B | C
+    
   }
   
   if (x instanceof B) {
-    x;
-  // B
+    x;// B
+    
   } else {
-    x;
-  // A | C
+    x;// A | C
+    
   }
   
   if (x instanceof AB) {
-    x;
-  // A | B
+    x;// A | B
+    
   } else {
-    x;
-  // A | B | C
+    x;// A | B | C
+    
   }
   
 }

@@ -3,5 +3,4 @@ var a = 'some' // comment
 var b = 'some' /* comment */
 + 'text';
 var c = 'some' /* comment */
-+ /*comment1*/
-'text';
++/*comment1*/  'text';
