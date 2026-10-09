@@ -73,6 +73,7 @@ with_option!(
     (resolve_package_json_exports, bool),
     (resolve_package_json_imports, bool),
     (remove_comments, bool),
+    (downlevel_iteration, bool),
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),
@@ -172,6 +173,9 @@ impl RawCompilerOptions {
         }
         if self.remove_comments.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::REMOVE_COMMENTS);
+        }
+        if self.downlevel_iteration.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::DOWNLEVEL_ITERATION);
         }
 
         match self.use_define_for_class_fields {

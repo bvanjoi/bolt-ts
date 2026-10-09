@@ -1,0 +1,5 @@
+  × Type 'IArguments' is not an array type.
+   ╭─[../../tests/compiler/argumentsObjectIterator01_ES5/index.ts:8:21]
+ 8 │ arguments
+   · ─────────
+   ╰────

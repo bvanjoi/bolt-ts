@@ -2326,7 +2326,13 @@ impl<'cx> TyChecker<'cx> {
                     .get_prop_of_ty::<false, false>(promised_ty, SymbolName::Atom(prop_node.name))
                     .is_some()
             {
-                todo!()
+                let error = errors::PropertyXDoesNotExistOnTypeY {
+                    span: prop_node.span,
+                    prop: pprint_ident(prop_node, &self.atoms),
+                    ty: self.print_ty(containing_ty, None).to_string(),
+                    related: vec![],
+                };
+                self.push_error(Box::new(error));
             } else {
                 self.elaborate_never_intersection(prop_node, containing_ty);
             }

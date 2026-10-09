@@ -1151,7 +1151,8 @@ impl<'cx> TyChecker<'cx> {
         let iterable_exists = self.get_global_iterable_ty::<false>() != self.empty_object_ty();
         let uplevel_iteration =
             iterable_exists && *self.config.compiler_options().target() >= Target::ES2015;
-        let downlevel_iteration = !uplevel_iteration; // TODO: config.downlevel_iteration;
+        let downlevel_iteration =
+            !uplevel_iteration && self.config.compiler_options().downlevel_iteration();
         let possible_out_of_bounds = self.config.compiler_options().no_unchecked_indexed_access()
             && mode.contains(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
         if uplevel_iteration || downlevel_iteration || allow_async_iterables {
@@ -1198,11 +1199,81 @@ impl<'cx> TyChecker<'cx> {
         let has_string_constituent = false;
         if !self.is_array_like_ty(array_ty) {
             if let Some(error_node) = error_node {
-                let error = errors::TypeXIsNotAnArrayType {
-                    span: self.p.node(error_node).span(),
-                    ty: self.print_ty(input_ty, None).to_string(),
-                };
-                self.push_error(Box::new(error));
+                // get_iteration_diagnostic_details
+                let allow_strings =
+                    has_string_constituent && mode.contains(IterationUse::ALLOWS_STRING_INPUT_FLAG);
+                let maybe_missing_await: bool;
+                let error_span = self.p.node(error_node).span();
+                if downlevel_iteration {
+                    maybe_missing_await = self.get_awaited_ty_of_promise(array_ty).is_some();
+                    if allow_async_iterables {
+                        let error = Box::new(errors::TypeXIsNotAnArrayTypeOrAStringTypeOrDoesNotHaveASymbolIteratorMethodThatReturnsAnIterator {
+                            span: error_span,
+                            ty: self.print_ty(input_ty, None).to_string(),
+                            did_you_forget_to_use_await: maybe_missing_await.then_some(error_span),
+                        });
+                        self.push_error(error);
+                    } else {
+                        let error = Box::new(errors::TypeXIsNotAnArrayTypeOrDoesNotHaveASymbolIteratorMethodThatReturnsAnIterator {
+                            span: error_span,
+                            ty: self.print_ty(input_ty, None).to_string(),
+                            did_you_forget_to_use_await: maybe_missing_await.then_some(error_span),
+                        });
+                        self.push_error(error);
+                    }
+                } else if self
+                    .get_iteration_ty_of_iterable(mode, IterationTypeKind::Yield, input_ty, None)
+                    .is_some()
+                {
+                    let error = Box::new(errors::TypeXCanOnlyBeIteratedThroughWhenUsingTheDownlevelIterationFlagOrWithATargetOfEs2015OrHigher {
+                        span: error_span,
+                        ty: self.print_ty(input_ty, None).to_string(),
+                        did_you_forget_to_use_await: None,
+                    });
+                    self.push_error(error);
+                } else if input_ty.symbol().is_some_and(|s| {
+                    // is_es2015or_later_iterable
+                    let SymbolName::Atom(name) = self.symbol(s).name else {
+                        return false;
+                    };
+                    name == keyword::IDENT_FLOAT32_ARRAY_CLASS
+                        || name == keyword::IDENT_FLOAT64_ARRAY_CLASS
+                        || name == keyword::IDENT_INT8_ARRAY_CLASS
+                        || name == keyword::IDENT_INT16_ARRAY_CLASS
+                        || name == keyword::IDENT_INT32_ARRAY_CLASS
+                        || name == keyword::IDENT_UINT8_ARRAY_CLASS
+                        || name == keyword::IDENT_UINT8_CLAMPED_ARRAY_CLASS
+                        || name == keyword::IDENT_UINT16_ARRAY_CLASS
+                        || name == keyword::IDENT_UINT32_ARRAY_CLASS
+                        || name == keyword::IDENT_NODE_LIST_CLASS
+                }) {
+                    maybe_missing_await = self.get_awaited_ty_of_promise(array_ty).is_some();
+                    let error = Box::new(errors::TypeXCanOnlyBeIteratedThroughWhenUsingTheDownlevelIterationFlagOrWithATargetOfEs2015OrHigher {
+                        span: error_span,
+                        ty: self.print_ty(input_ty, None).to_string(),
+                        did_you_forget_to_use_await: maybe_missing_await.then_some(error_span),
+                    });
+                    self.push_error(error);
+                } else {
+                    maybe_missing_await = self.get_awaited_ty_of_promise(array_ty).is_some();
+                    if allow_strings {
+                        let error = errors::TypeXIsNotAnArrayTypeOrAStringType {
+                            span: self.p.node(error_node).span(),
+                            ty: self.print_ty(input_ty, None).to_string(),
+                            did_you_forget_to_use_await: maybe_missing_await
+                                .then_some(self.p.node(error_node).span()),
+                        };
+                        self.push_error(Box::new(error));
+                    } else {
+                        let error = errors::TypeXIsNotAnArrayType {
+                            span: self.p.node(error_node).span(),
+                            ty: self.print_ty(input_ty, None).to_string(),
+                            did_you_forget_to_use_await: maybe_missing_await
+                                .then_some(self.p.node(error_node).span()),
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
             }
 
             if has_string_constituent {
