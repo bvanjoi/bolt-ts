@@ -30,3 +30,14 @@ declare function test3<T1, T2>(
 
 test3(partialObj1, partialObj2, someObj1);
 //~^ ERROR: Type '{ x: string; }' has no properties in common with type 'Partial<{ a: unknown; b: unknown; }> & Partial<{ c: unknown; d: unknown; }>'.
+
+type Value = { id: string } | null;
+declare function update<T>(
+	value: T,
+	callback: (value: NoInfer<T> | undefined) => NoInfer<T> | undefined,
+): void;
+declare const value: Value;
+update(value, (value) => {
+	if (!value) return value;
+	return { ...value };
+});

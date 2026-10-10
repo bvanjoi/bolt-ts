@@ -4,3 +4,9 @@
  3 │ [x: T]: string
    · ──────────────
    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'never'.
+   ╭─[../../tests/compiler/genericIndexTypeHasSensibleErrorMessage/index.ts:9:11]
+ 9 │ 'a'
+   · ───
+   ╰────

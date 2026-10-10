@@ -844,6 +844,25 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_token(TokenKind::Semi);
     }
 
+    fn visit_enum_member(&mut self, node: &'cx bolt_ts_ast::EnumMember<'cx>) -> Self::Result {
+        bolt_ts_ast_visitor::visit_enum_member_name_kind(self, &node.name);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_token(TokenKind::Eq);
+        self.emitter.print().p_whitespace();
+        let enum_member_value = self.resolver.get_enum_member_value(node);
+        match enum_member_value {
+            bolt_ts_checker::check::EnumMemberValue::Number(num) => {
+                self.emitter.print().p(&num.to_string());
+            }
+            bolt_ts_checker::check::EnumMemberValue::Str(str) => {
+                self.emitter.emit_atom(self.resolver.atoms(), str);
+            }
+            bolt_ts_checker::check::EnumMemberValue::Err => {
+                self.emitter.print().p("/* computed value */");
+            }
+        };
+    }
+
     fn visit_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) -> Self::Result {
         self.emit_declare_if_needed();
         self.emitter.print().p_token(TokenKind::Enum);
@@ -858,21 +877,6 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             node.members,
             |this, item, _| {
                 this.visit_enum_member(item);
-                this.emitter.print().p_whitespace();
-                this.emitter.print().p_token(TokenKind::Eq);
-                this.emitter.print().p_whitespace();
-                let enum_member_value = this.resolver.get_enum_member_value(item);
-                match enum_member_value {
-                    bolt_ts_checker::check::EnumMemberValue::Number(num) => {
-                        this.emitter.print().p(&num.to_string());
-                    }
-                    bolt_ts_checker::check::EnumMemberValue::Str(str) => {
-                        this.emitter.emit_atom(this.resolver.atoms(), str);
-                    }
-                    bolt_ts_checker::check::EnumMemberValue::Err => {
-                        this.emitter.print().p("/* computed value */");
-                    }
-                };
             },
             |this, _, _| {
                 this.emitter.print().p_token(TokenKind::Comma);

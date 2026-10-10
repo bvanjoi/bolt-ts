@@ -2,12 +2,12 @@
 //@compiler-options: target=es2015
 //@compiler-options: strictNullChecks
 class A {
-  kind = 'A';
-// (property) A.kind: "A"
+  kind = 'A';// (property) A.kind: "A"
+  
 }
 class B {
-  kind = 'B';
-// (property) B.kind: "B"
+  kind = 'B';// (property) B.kind: "B"
+  
 }
 function f(value) {
   switch (value.kind) {

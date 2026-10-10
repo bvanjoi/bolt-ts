@@ -64,3 +64,30 @@ pub struct InvalidUseOfXInStrictMode {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Function declarations are not allowed inside blocks in strict mode when targeting ES5. Class definitions are automatically in strict mode."
+)]
+pub struct FunctionDeclarationsAreNotAllowedInsideBlocksInStrictModeWhenTargetingEs5ClassDefinitionsAreAutomaticallyInStrictMode
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Modules are automatically in strict mode."
+)]
+pub struct FunctionDeclarationsAreNotAllowedInsideBlocksInStrictModeWhenTargetingEs5ModulesAreAutomaticallyInStrictMode
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'.")]
+pub struct FunctionDeclarationsAreNotAllowedInsideBlocksInStrictModeWhenTargetingEs5 {
+    #[label(primary)]
+    pub span: Span,
+}

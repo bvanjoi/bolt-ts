@@ -7,6 +7,7 @@ use bolt_ts_ast::TokenKind;
 use bolt_ts_ast_visitor::{Visitor, noop_visit_type_node};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_checker::emit_resolver::EmitResolver;
+use bolt_ts_scanner::is_line_break;
 use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashSet;
 
@@ -639,17 +640,15 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
             if p >= pos {
                 break;
             }
-            if let Some(at_token) = at_token {
-                for c in at_token
-                    .get_leading_comments()
-                    .iter()
-                    .chain(at_token.get_trailing_comments())
-                {
-                    let text = &self.origin[c.start() as usize..c.end() as usize];
-                    let text = text.replace("\r\n", "\n");
-                    self.emitter.content.p(&text);
-                    self.emitter.content.p_newline();
-                }
+            for c in at_token
+                .get_leading_comments()
+                .iter()
+                .chain(at_token.get_trailing_comments())
+            {
+                let text = &self.origin[c.start() as usize..c.end() as usize];
+                let text = text.replace("\r\n", "\n");
+                self.emitter.content.p(&text);
+                self.emitter.content.p_newline();
             }
             self.comment_idx += 1;
         }
@@ -667,15 +666,9 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
         // emit token with comments
         let comments = self.resolver.get_leading_trailing_comments(self.module_id);
         match comments.get_comments_by_index(self.comment_idx) {
-            Some((&pos, Some(comments))) => {
+            Some((&pos, comments)) => {
                 let line_map = self.resolver.get_line_map(self.module_id);
                 let pos = bolt_ts_parser::compute_line_and_char_of_pos(line_map, pos as usize);
-                // let start = line_map[pos.line];
-                // let end = start + pos.column as u32;
-                // let is_start_of_line = self.origin[start as usize..end as usize]
-                //     .chars()
-                //     .into_iter()
-                //     .all(|ch| ch.is_whitespace());
                 for c in comments.get_leading_comments() {
                     let text = &self.origin[c.start() as usize..c.end() as usize];
                     let text = text.replace("\r\n", "\n");
@@ -738,7 +731,14 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
         self.emit_token(TokenKind::Var);
         self.emitter.print().p_whitespace();
         self.emit_var_decls(node.list);
-        self.emit_token(TokenKind::Semi);
+        if next_adjacent_token_on_this_line_is_semi(
+            self.origin.as_bytes(),
+            node.span.hi() as usize - 1,
+        ) {
+            self.emit_token(TokenKind::Semi);
+        } else {
+            self.emitter.print().p_token(TokenKind::Semi);
+        }
     }
 
     fn visit_var_decl(&mut self, node: &'cx ast::VarDecl<'cx>) -> Self::Result {
@@ -1330,7 +1330,14 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
             Var(n) => self.visit_var_stmt(n),
             Expr(n) => {
                 self.visit_expr_stmt(n);
-                self.emit_token(TokenKind::Semi);
+                if next_adjacent_token_on_this_line_is_semi(
+                    self.origin.as_bytes(),
+                    n.span.hi() as usize - 1,
+                ) {
+                    self.emit_token(TokenKind::Semi);
+                } else {
+                    self.emitter.print().p_token(TokenKind::Semi);
+                }
             }
             Fn(n) => self.visit_fn_decl(n),
             If(n) => self.visit_if_stmt(n),
@@ -1340,7 +1347,17 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                 self.emit_token(TokenKind::Semi);
             }
             Class(n) => self.visit_class_decl(n),
-            Throw(n) => self.visit_throw_stmt(n),
+            Throw(n) => {
+                self.visit_throw_stmt(n);
+                if next_adjacent_token_on_this_line_is_semi(
+                    self.origin.as_bytes(),
+                    n.span.hi() as usize - 1,
+                ) {
+                    self.emit_token(TokenKind::Semi);
+                } else {
+                    self.emitter.print().p_token(TokenKind::Semi);
+                }
+            }
             NestedModule(n) => self.visit_nested_module_decl(n),
             BlockModule(n) => self.visit_block_module_decl(n),
             Enum(n) => self.visit_enum_decl(n),
@@ -1766,6 +1783,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     }
 
     fn visit_template_expr(&mut self, node: &'cx ast::TemplateExpr<'cx>) -> Self::Result {
+        // visit_template_head
         self.emit_token(TokenKind::Backtick);
         let content = self.atoms().get(node.head.text);
         let content = escape_snippet_text(content);
@@ -2151,4 +2169,30 @@ fn print_token_value(emitter: &mut Emitter, token: TokenKind, val: &str) {
 
 fn escape_snippet_text(s: &str) -> String {
     s.replace('$', "\\$")
+}
+
+fn next_adjacent_token_on_this_line_is(origin: &[u8], mut pos: usize, t: TokenKind) -> bool {
+    let t = t.as_str();
+    loop {
+        let Some(ch) = origin.get(pos) else {
+            return false;
+        };
+        if is_line_break(*ch) {
+            break false;
+        }
+        if ch.is_ascii_whitespace() {
+            pos += 1;
+            continue;
+        }
+        if origin[pos..].starts_with(t.as_bytes()) {
+            break true;
+        } else {
+            pos += t.len();
+            continue;
+        }
+    }
+}
+
+fn next_adjacent_token_on_this_line_is_semi(origin: &[u8], pos: usize) -> bool {
+    next_adjacent_token_on_this_line_is(origin, pos, TokenKind::Semi)
 }

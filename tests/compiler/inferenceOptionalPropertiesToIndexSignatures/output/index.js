@@ -17,8 +17,8 @@ var obj = {
       param2    
   } : {})  
 };
-var query // string | number
-= Object.entries(obj).// string | number | undefined
+var query// string | number
+ = Object.entries(obj).// string | number | undefined
 map(([k, v]// string | number
 ) => (`${k}=${encodeURIComponent(v// string | number
 // Repro from #43045

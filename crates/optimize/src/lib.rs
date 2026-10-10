@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 mod emit;
 
 use bolt_ts_checker::check::TyChecker;

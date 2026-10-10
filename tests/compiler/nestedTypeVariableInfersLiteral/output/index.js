@@ -14,10 +14,10 @@ var nestedUnionArray = nestedUnion({
 });
 hasZField(directUnionSingle)// ok
 ;
-hasZField(directUnionArray// ok
-);
-hasZField(// ok
-nestedSingle);
-hasZField// ok
-(nestedUnionSingle);
+hasZField(directUnionArray)// ok
+;
+hasZField(nestedSingle)// ok
+;
+hasZField(nestedUnionSingle)// ok
+;
 hasZField(nestedUnionArray);

@@ -3,13 +3,13 @@
 var fa = function () {
   return 3;
 };
-fa = function () {// should not work
-};
+fa = function () {}// should not work
+;
 var fv = function () {};
 fv = function () {
   return 0;
-// should work
-};
+}// should work
+;
 function execAny(callback) {
   return callback(0);
 }
@@ -20,8 +20,8 @@ function execVoid(callback) {
 }
 execVoid(function () {
   return 0;
-});
-// should work
+});// should work
+
 var fra = function () {
   return function () {};
 }// should work
@@ -29,8 +29,8 @@ var fra = function () {
 var frv = function () {
   return function () {
     return 0;
-  };
-// should work
+  };// should work
+  
 };
 var fra3 = (function () {
   return function (v) {

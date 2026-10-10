@@ -56,6 +56,7 @@ bitflags::bitflags! {
         const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 28;
         const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 29;
         const CHECK_JS                                  = 1 << 30;
+        const DOWNLEVEL_ITERATION                       = 1 << 31;
     }
 }
 
@@ -215,6 +216,12 @@ impl NormalizedCompilerOptions {
     #[inline(always)]
     pub const fn remove_comments(&self) -> bool {
         self.flags.contains(CompilerOptionFlags::REMOVE_COMMENTS)
+    }
+
+    #[inline(always)]
+    pub const fn downlevel_iteration(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::DOWNLEVEL_ITERATION)
     }
 
     pub fn import_syntax_affects_module_resolution(&self) -> bool {

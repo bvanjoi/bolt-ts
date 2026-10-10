@@ -2,10 +2,10 @@
 class Greeter {
   get greet() {
     throw ''
-  }
-  // should not raise an error
+  }// should not raise an error
+  
   greeting() {
     throw ''
-  }
-// should not raise an error
+  }// should not raise an error
+  
 }

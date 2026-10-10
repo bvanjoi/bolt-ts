@@ -12,9 +12,9 @@ var M = {};
   console.// 2
   log(x);
   
-})(M);
+})(M);// 2
 
-// 2
+
 (function (M) {
 
   console.log(x);

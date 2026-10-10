@@ -2,29 +2,29 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
 class c1 {
-  foo(_i, ...restParameters) {
-    //_i is error
-    var _i = 10;
-  // no error
+  foo(_i, ...restParameters) {//_i is error
+  
+    var _i = 10;// no error
+    
   }
-  fooNoError(_i) {
-    // no error
-    var _i = 10;
-  // no error
+  fooNoError(_i) {// no error
+  
+    var _i = 10;// no error
+    
   }// no codegen no error
-  
   // no codegen no error
-  f4(_i, ...rest) {
-    // error
-    var _i;
-  // no error
-  }// no error
   
+  f4(_i, ...rest) {// error
+  
+    var _i;// no error
+    
+  }// no error
   // no error
-  f4NoError(_i) {
-    // no error
-    var _i;
-  // no error
+  
+  f4NoError(_i) {// no error
+  
+    var _i;// no error
+    
   }
 }// No error - no code gen
 // no error
@@ -36,9 +36,9 @@ class c1 {
 class c3 {
   foo(...restParameters) {
     var _i = 10;
-  }
-  // no error
+  }// no error
+  
   fooNoError() {
     var _i = 10;
   }
-}
+}// no error

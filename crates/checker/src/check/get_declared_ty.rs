@@ -631,6 +631,7 @@ impl<'cx> TyChecker<'cx> {
                         }
                         EnumMemberValue::Err => self.create_computed_enum_ty(member_symbol),
                     };
+                    let member_ty = self.get_fresh_ty_of_literal_ty(member_ty);
                     self.get_mut_symbol_links(member_symbol)
                         .set_declared_ty(member_ty);
                     member_ty_list.push(self.get_regular_ty_of_literal_ty(member_ty))

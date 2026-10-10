@@ -6,8 +6,8 @@ function f(y, f, x) {
   return [y, f(x)];
 }
 var a, b;
-var d = f(b, (x) => (x.a), a);
-// type [A, A]
-var d2 = f(b, (x) => (x.a), null);
-// type [B, A]
+var d = f(b, (x) => (x.a), a);// type [A, A]
+
+var d2 = f(b, (x) => (x.a), null);// type [B, A]
+
 var d3 = f(b, (x) => (x.b), null);
