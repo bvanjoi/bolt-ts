@@ -1347,7 +1347,17 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                 self.emit_token(TokenKind::Semi);
             }
             Class(n) => self.visit_class_decl(n),
-            Throw(n) => self.visit_throw_stmt(n),
+            Throw(n) => {
+                self.visit_throw_stmt(n);
+                if next_adjacent_token_on_this_line_is_semi(
+                    self.origin.as_bytes(),
+                    n.span.hi() as usize - 1,
+                ) {
+                    self.emit_token(TokenKind::Semi);
+                } else {
+                    self.emitter.print().p_token(TokenKind::Semi);
+                }
+            }
             NestedModule(n) => self.visit_nested_module_decl(n),
             BlockModule(n) => self.visit_block_module_decl(n),
             Enum(n) => self.visit_enum_decl(n),

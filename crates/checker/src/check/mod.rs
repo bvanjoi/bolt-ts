@@ -270,7 +270,9 @@ pub struct TyChecker<'cx> {
     mark_tys: nohash_hasher::IntSet<TyID>,
     shared_flow_info: Vec<(FlowID, FlowTy<'cx>)>,
     common_ty_links_arena: ty::CommonTyLinksArena<'cx>,
-    fresh_ty_links_arena: ty::FreshTyLinksArena<'cx>,
+    /// `fresh_ty` and `regular_ty` both literal type,
+    /// but `fresh_ty` means it can be widened, while `regular_ty` means not.
+    fresh_regular_ty_links_arena: ty::FreshTyLinksArena<'cx>,
     union_ty_links_arena: ty::UnionTyLinksArena<'cx>,
     intersection_ty_links_arena: ty::IntersectionTyLinksArena<'cx>,
     constituent_map_for_union_ty:
@@ -933,7 +935,7 @@ impl<'cx> TyChecker<'cx> {
             ty_links: no_hashmap_with_capacity(cap),
             tuple_tys: no_hashmap_with_capacity(cap),
             common_ty_links_arena,
-            fresh_ty_links_arena: ty::FreshTyLinksArena::with_capacity(cap),
+            fresh_regular_ty_links_arena: ty::FreshTyLinksArena::with_capacity(cap),
             interface_ty_links_arena: ty::InterfaceTyLinksArena::with_capacity(cap),
             object_mapped_ty_links_arena: ty::ObjectMappedTyLinksArena::with_capacity(cap),
             conditional_links_arena: ty::ConditionalLinksArena::with_capacity(cap),

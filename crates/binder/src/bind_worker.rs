@@ -161,27 +161,28 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.create_final_res(i.id, symbol);
     }
 
-    fn bind_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
-        let ele_name = f
+    fn bind_fn_decl(&mut self, n: &'cx ast::FnDecl<'cx>) {
+        let ele_name = n
             .name
             .map(|name| SymbolName::Atom(name.name))
             .unwrap_or_else(|| SymbolName::ExportDefault);
         if self.in_strict_mode {
+            self.check_strict_mode_function_declaration(n);
             let symbol = self.bind_block_scoped_decl(
-                f.id,
+                n.id,
                 ele_name,
                 SymbolFlags::FUNCTION,
                 SymbolFlags::FUNCTION_EXCLUDES,
             );
-            self.create_final_res(f.id, symbol);
+            self.create_final_res(n.id, symbol);
         } else {
             let symbol = self.declare_symbol_and_add_to_symbol_table(
                 ele_name,
-                f.id,
+                n.id,
                 SymbolFlags::FUNCTION,
                 SymbolFlags::FUNCTION_EXCLUDES,
             );
-            self.create_final_res(f.id, symbol);
+            self.create_final_res(n.id, symbol);
         }
     }
 
@@ -338,36 +339,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 SymbolFlags::PROPERTY_EXCLUDES,
                 DeclareSymbolProperty::empty(),
             );
-        }
-    }
-
-    fn check_strict_mode_eval_or_arguments(&mut self, context_node: ast::NodeID, n: &ast::Ident) {
-        debug_assert!(self.in_strict_mode);
-        if matches!(n.name, keyword::IDENT_ARGUMENTS | keyword::IDENT_EVAL) {
-            if self
-                .node_query()
-                .get_containing_class(context_node)
-                .is_some()
-            {
-                let error = bolt_ts_binder_errors::CodeContainedInAClassIsEvaluatedInJavaScriptSStrictModeWhichDoesNotAllowThisUseOf0ForMoreInformationSeeHttpsColonSlashSlashdeveloperMozillaOrgSlashenUsSlashdocsSlashWebSlashJavaScriptSlashReferenceSlashStrictMode {
-                    span: n.span,
-                    name: self.atoms.get(n.name).to_string(),
-                };
-                self.push_error(Box::new(error));
-            } else if self.p.external_module_indicator.is_some() {
-                let error =
-                    bolt_ts_binder_errors::InvalidUseOfXModulesAreAutomaticallyInStrictMode {
-                        name: self.atoms.get(n.name).to_string(),
-                        span: n.span,
-                    };
-                self.push_error(Box::new(error));
-            } else {
-                let error = bolt_ts_binder_errors::InvalidUseOfXInStrictMode {
-                    name: self.atoms.get(n.name).to_string(),
-                    span: n.span,
-                };
-                self.push_error(Box::new(error));
-            }
         }
     }
 

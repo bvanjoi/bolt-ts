@@ -10,8 +10,6 @@ namespace P {
   }
 }
 type P = P.T;
-{
-  function f(p: P) {
-    const _: string | undefined = p.name;
-  }
+function f(p: P) {
+  const _: string | undefined = p.name;
 }

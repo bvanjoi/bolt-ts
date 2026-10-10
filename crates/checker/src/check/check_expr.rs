@@ -87,7 +87,7 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!()
             }
         } else if let Some(links) = ty.fresh_ty_links_id() {
-            self.fresh_ty_links_arena[links].get_fresh_ty()
+            self.fresh_regular_ty_links_arena[links].get_fresh_ty()
         } else {
             unreachable!()
         }
@@ -95,7 +95,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn set_fresh_ty(&mut self, ty: &'cx ty::Ty<'cx>, fresh_ty: &'cx ty::Ty<'cx>) {
         let links = ty.fresh_ty_links_id().unwrap();
-        self.fresh_ty_links_arena[links].set_fresh_ty(fresh_ty);
+        self.fresh_regular_ty_links_arena[links].set_fresh_ty(fresh_ty);
     }
 
     pub(super) fn get_regular_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
@@ -108,7 +108,7 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!()
             }
         } else if let Some(links) = ty.fresh_ty_links_id() {
-            self.fresh_ty_links_arena[links].get_regular_ty()
+            self.fresh_regular_ty_links_arena[links].get_regular_ty()
         } else {
             unreachable!()
         }
@@ -116,7 +116,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn set_regular_ty(&mut self, ty: &'cx ty::Ty<'cx>, regular_ty: &'cx ty::Ty<'cx>) {
         let links = ty.fresh_ty_links_id().unwrap();
-        self.fresh_ty_links_arena[links].set_regular_ty(regular_ty);
+        self.fresh_regular_ty_links_arena[links].set_regular_ty(regular_ty);
     }
 
     pub(super) fn get_fresh_ty_of_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -124,7 +124,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(fresh_ty) = self.get_fresh_ty(ty) {
                 fresh_ty
             } else {
-                let links = self.fresh_ty_links_arena.alloc(Default::default());
+                let links = self.fresh_regular_ty_links_arena.alloc(Default::default());
                 let fresh_ty = match ty.kind {
                     ty::TyKind::NumberLit(lit) => {
                         let t = self.alloc(ty::NumberLitTy {
@@ -152,8 +152,8 @@ impl<'cx> TyChecker<'cx> {
                     }
                     _ => unreachable!(),
                 };
-                self.fresh_ty_links_arena[links].set_fresh_ty(fresh_ty);
-                self.fresh_ty_links_arena[links].set_regular_ty(ty);
+                self.fresh_regular_ty_links_arena[links].set_fresh_ty(fresh_ty);
+                self.fresh_regular_ty_links_arena[links].set_regular_ty(ty);
                 self.set_fresh_ty(ty, fresh_ty);
                 assert!(self.get_regular_ty(ty).is_some_and(|t| t == ty));
                 fresh_ty
@@ -1357,7 +1357,7 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let fresh_ty_links = a.fresh_ty_links;
-        if let Some(ty) = self.fresh_ty_links_arena[fresh_ty_links].get_regular_ty() {
+        if let Some(ty) = self.fresh_regular_ty_links_arena[fresh_ty_links].get_regular_ty() {
             return ty;
         }
 
@@ -1391,7 +1391,7 @@ impl<'cx> TyChecker<'cx> {
             None,
             None,
         );
-        self.fresh_ty_links_arena[fresh_ty_links].set_regular_ty(regular);
+        self.fresh_regular_ty_links_arena[fresh_ty_links].set_regular_ty(regular);
         regular
     }
 
