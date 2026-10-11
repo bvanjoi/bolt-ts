@@ -28,7 +28,7 @@ function repeatString(string, times/**
   }
   
   if (times < 0) {
-    throw new Error()
+    throw new Error();
   }
   
   var repeated = '';
@@ -44,17 +44,17 @@ function repeatString(string, times/**
   }
   return repeated;
 }
-function endsWith(haystack, needle) /**
+function endsWith(haystack, needle/**
  * Determine if the string ends with the specified substring.
  *
  * @param {string} haystack String to search in
  * @param {string} needle   String to search for
  * @return {boolean}
  */
-{
+) {
   return haystack.slice(-needle.length) === needle;
 }
-function trimEnd(haystack, needle) /**
+function trimEnd(haystack, needle/**
  * Trim the specified substring off the string. If the string does not end
  * with the specified substring, this is a no-op.
  *
@@ -62,32 +62,32 @@ function trimEnd(haystack, needle) /**
  * @param {string} needle   String to search for
  * @return {string}
  */
-{
+) {
   return endsWith(haystack, needle) ? haystack.slice(0, -needle.length) : haystack;
 }
 function hyphenToCamelCase(string) {
-  return /**
+  /**
  * Convert a hyphenated string to camelCase.
  */
-  string.replace(/-(.)/g, function (match, chr) {
+  return string.replace(/-(.)/g, function (match, chr) {
     return chr.toUpperCase();
   });
 }
 function isEmpty(string) {
-  return /**
+  /**
  * Determines if the specified string consists entirely of whitespace.
  */
-  !/[^\s]/.test(string);
+  return !/[^\s]/.test(string);
 }
 function isConvertiblePixelValue(value) {
-  return /**
+  /**
  * Determines if the CSS value can be converted from a
  * 'px' suffixed string to a numeric value
  *
  * @param {string} value CSS property value
  * @return {boolean}
  */
-  /^\d+px$/.test(value);
+  return /^\d+px$/.test(value);
 }
 export class HTMLtoJSX {
   output;

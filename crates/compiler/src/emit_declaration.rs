@@ -281,6 +281,25 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
 
 impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     type Result = ();
+    fn visit_pred_ty(&mut self, node: &'cx bolt_ts_ast::PredTy<'cx>) -> Self::Result {
+        if node.asserts.is_some() {
+            self.emitter.print().p("asserts");
+            self.emitter.print().p_whitespace();
+        }
+        match node.name {
+            ast::PredTyName::Ident(ident) => self.visit_ident(ident),
+            ast::PredTyName::This(_) => {
+                self.emitter.print().p("this");
+            }
+        }
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("is");
+        self.emitter.print().p_whitespace();
+        if let Some(ty) = node.ty {
+            self.visit_ty(ty);
+        }
+    }
+
     fn visit_program(&mut self, node: &'cx ast::Program<'cx>) -> Self::Result {
         for stmt in node.stmts() {
             self.visit_stmt(stmt);

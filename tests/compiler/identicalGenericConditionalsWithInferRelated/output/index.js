@@ -11,6 +11,6 @@ function f(arg) {
 
 class Y {
   decode(ctor) {
-    throw new Error()
+    throw new Error();
   }
 }

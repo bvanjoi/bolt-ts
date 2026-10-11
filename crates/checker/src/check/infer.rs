@@ -1910,7 +1910,7 @@ impl<'cx> InferenceState<'cx, '_> {
         target_flags: TypeFlags,
     ) {
         let mut type_variable_count = 0;
-        if target_flags.intersects(TypeFlags::UNION) {
+        if target_flags.contains(TypeFlags::UNION) {
             let mut naked_type_variable = None;
             let sources = if let Some(source_union) = source.kind.as_union() {
                 source_union.tys

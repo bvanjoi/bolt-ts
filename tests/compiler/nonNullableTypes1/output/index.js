@@ -7,7 +7,7 @@ function f1(x) {
   
 }
 function error() {
-  throw new Error()
+  throw new Error();
 }
 function f2(x) {// NonNullable<T>
 
