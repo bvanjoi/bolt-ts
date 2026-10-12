@@ -1,0 +1,19 @@
+  × Function declarations are not allowed inside blocks in strict mode when
+  │ targeting 'ES5'.
+    ╭─[../../tests/compiler/downlevelLetConst18/index.ts:11:14]
+ 11 │ foo
+    · ───
+    ╰────
+
+  × Function declarations are not allowed inside blocks in strict mode when
+  │ targeting 'ES5'.
+    ╭─[../../tests/compiler/downlevelLetConst18/index.ts:16:14]
+ 16 │ foo1
+    · ────
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/downlevelLetConst18/index.ts:40:5]
+ 40 │ a
+    · ─
+    ╰────

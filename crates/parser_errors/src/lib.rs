@@ -850,6 +850,13 @@ pub struct TypeParametersCannotAppearOnAConstructorDeclaration {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An ambient module declaration is only allowed at the top level in a file.")]
+pub struct AnAmbientModuleDeclarationIsOnlyAllowedAtTheTopLevelInAFile {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A namespace declaration is only allowed at the top level of a namespace or module.")]
 pub struct ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule {
     #[label(primary)]
