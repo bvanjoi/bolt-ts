@@ -1,5 +1,5 @@
 [package]
-name = "bolt_ts_optimize"
+name = "bolt_ts_emit"
 version = "0.1.0"
 edition = "2024"
 

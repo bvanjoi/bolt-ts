@@ -16,9 +16,9 @@ foo(5);
 foo(E.A);
 class A {
   a;
-}// Ok
-
-class B {
+}
+class// Ok
+ B {
   b;
 }
 function bar(x) {

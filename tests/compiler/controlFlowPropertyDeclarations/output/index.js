@@ -124,10 +124,10 @@ export class HTMLtoJSX {
     this.output += text;
   };
 }
+;
 /**
  * Handles parsing of inline styles
  */
-;
 export class StyleParser {
   styles = {};
   toJSXString = () => {
