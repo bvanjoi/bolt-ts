@@ -518,9 +518,9 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         paths.len() == paths.iter().collect::<std::collections::HashSet<_>>().len()
     });
 
-    let compiler_options = checker.config.compiler_options().flags();
+    let no_emit = checker.config.compiler_options().no_emit();
     let mut files = vec![];
-    if !compiler_options.contains(CompilerOptionFlags::NO_EMIT) {
+    if !no_emit {
         for (item, js_code, dts_code) in emit_modules(entries, &mut checker) {
             let output_file = OutputFile::new(js_code, dts_code);
             files.push((item, output_file));

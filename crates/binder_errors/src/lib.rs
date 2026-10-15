@@ -67,7 +67,7 @@ pub struct InvalidUseOfXInStrictMode {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
-    "Function declarations are not allowed inside blocks in strict mode when targeting ES5. Class definitions are automatically in strict mode."
+    "Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Class definitions are automatically in strict mode."
 )]
 pub struct FunctionDeclarationsAreNotAllowedInsideBlocksInStrictModeWhenTargetingEs5ClassDefinitionsAreAutomaticallyInStrictMode
 {

@@ -21,7 +21,7 @@ macro_rules! normalized_option {
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
-    pub struct CompilerOptionFlags: u32 {
+    pub struct CompilerOptionFlags: u64 {
         const NO_EMIT                                   = 1 << 0;
         const NO_IMPLICIT_ANY                           = 1 << 1;
         const NO_IMPLICIT_THIS                          = 1 << 2;
@@ -48,15 +48,18 @@ bitflags::bitflags! {
         const RESOLVE_PACKAGE_JSON_IMPORTS              = 1 << 21;
         const REMOVE_COMMENTS                           = 1 << 22;
 
-        const ALWAYS_STRICT                             = 1 << 23;
-        const DECLARATION                               = 1 << 24;
-        const PRESERVE_SYMLINKS                         = 1 << 25;
-        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 26;
-        const ES_MODULE_INTEROP                         = 1 << 27;
-        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 28;
-        const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 29;
-        const CHECK_JS                                  = 1 << 30;
-        const DOWNLEVEL_ITERATION                       = 1 << 31;
+        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 23;
+        const ES_MODULE_INTEROP                         = 1 << 24;
+        const EMIT_DECLARATION_ONLY                     = 1 << 25;
+
+        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 26;
+        const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 27;
+
+        const ALWAYS_STRICT                             = 1 << 28;
+        const DECLARATION                               = 1 << 29;
+        const PRESERVE_SYMLINKS                         = 1 << 30;
+        const CHECK_JS                                  = 1 << 31;
+        const DOWNLEVEL_ITERATION                       = 1 << 32;
     }
 }
 
@@ -224,6 +227,12 @@ impl NormalizedCompilerOptions {
             .contains(CompilerOptionFlags::DOWNLEVEL_ITERATION)
     }
 
+    #[inline(always)]
+    pub const fn emit_declaration_only(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::EMIT_DECLARATION_ONLY)
+    }
+
     pub fn import_syntax_affects_module_resolution(&self) -> bool {
         let module_resolution = self.module_resolution();
         (NormalizedModuleResolution::Node16 <= *module_resolution
@@ -247,6 +256,16 @@ impl NormalizedCompilerOptions {
     pub const fn no_fallthrough_cases_in_switch(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::NO_FALLTHROUGH_CASES_IN_SWITCH)
+    }
+
+    #[inline(always)]
+    pub const fn declaration(&self) -> bool {
+        self.flags.contains(CompilerOptionFlags::DECLARATION)
+    }
+
+    #[inline(always)]
+    pub const fn no_emit(&self) -> bool {
+        self.flags.contains(CompilerOptionFlags::NO_EMIT)
     }
 }
 

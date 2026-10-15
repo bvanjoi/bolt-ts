@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type '_provider.UsefulClass'.
+    ╭─[../../tests/compiler/innerAliases2/index.ts:15:21]
+ 15 │ g
+    · ─
+    ╰────
