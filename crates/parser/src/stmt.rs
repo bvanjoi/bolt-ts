@@ -454,7 +454,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         if matches!(self.token.kind, TokenKind::Ident if self.ident_token() == keyword::IDENT_GLOBAL)
         {
             let name = self.create_ident(true, None);
-            self.check_module_declaration_error(name.span);
+            self.check_module_declaration_error::<true, false>(name.span);
             let name = ast::ModuleName::Ident(name);
             return self.parse_ambient_external_module_decl::<true>(start, modifiers, name);
         } else if self.parse_optional(TokenKind::Namespace).is_none() {
@@ -467,7 +467,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     self.push_error(Box::new(error));
                 }
                 let name = self.parse_string_lit();
-                self.check_module_declaration_error(name.span);
+                self.check_module_declaration_error::<false, true>(name.span);
                 let name = ast::ModuleName::StringLit(name);
                 return self.parse_ambient_external_module_decl::<false>(start, modifiers, name);
             }
@@ -498,7 +498,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 ast::StmtKind::BlockModule(module)
             }
         };
-        self.check_module_declaration_error(name.span);
+        self.check_module_declaration_error::<false, false>(name.span);
         self.has_export_decl = save_has_export_decl;
         module
     }
@@ -940,11 +940,13 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         let mods = self.parse_modifiers::<false, false, true>(false);
         let is_ambient = mods.is_some_and(Self::contain_declare_mod);
-        if mods.is_some_and(|ms| {
-            ms.flags
-                .contains(ast::ModifierFlags::EXPORT.union(ast::ModifierFlags::DEFAULT))
-        }) {
-            self.check_export_default_error(self.token.span);
+        if let Some(ms) = mods {
+            let flags = ms.flags;
+            if flags.contains(ast::ModifierFlags::EXPORT.union(ast::ModifierFlags::DEFAULT)) {
+                self.check_export_default_error(self.token.span);
+            } else if flags.contains(ast::ModifierFlags::EXPORT) {
+                self.check_export_declaration_error(self.token.span);
+            }
         }
         if is_ambient {
             self.do_inside_of_node_flags(NodeFlags::AMBIENT, |this| this.parse_decl_worker(mods))

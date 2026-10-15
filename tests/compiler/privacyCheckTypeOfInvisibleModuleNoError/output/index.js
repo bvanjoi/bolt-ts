@@ -5,8 +5,8 @@ var Outer = {};
 (function (Outer) {
 
   var Inner = {};
-  (function (Inner// Since we dont unwind inner any more, it is error here
-  ) {
+  (function (// Since we dont unwind inner any more, it is error here
+  Inner) {
   
     var m;
     Inner.m = m

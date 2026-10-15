@@ -1,0 +1,17 @@
+  × Type 'string' is not assignable to type 'T1'.
+   ╭─[../../tests/compiler/didYouMeanStringLiteral/index.ts:9:7]
+ 9 │ t1
+   · ──
+   ╰────
+
+  × Type 'string' is not assignable to type '"number" | "boolean"'.
+    ╭─[../../tests/compiler/didYouMeanStringLiteral/index.ts:11:7]
+ 11 │ t2
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type '"string" | "boolean"'.
+    ╭─[../../tests/compiler/didYouMeanStringLiteral/index.ts:13:7]
+ 13 │ t3
+    · ──
+    ╰────

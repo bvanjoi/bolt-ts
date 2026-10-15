@@ -1,0 +1,6 @@
+  × Function declarations are not allowed inside blocks in strict mode when
+  │ targeting 'ES5'.
+    ╭─[../../tests/compiler/downlevelLetConst19/index.ts:16:14]
+ 16 │ b
+    · ─
+    ╰────

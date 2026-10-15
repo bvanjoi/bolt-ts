@@ -7,3 +7,13 @@ var x, y;
 [{ ...x }] = [{ abc: 1 }];
 for ([{ ...y }] of [[{ abc: 1 }]]) ;
 
+
+enum K {
+  ID = "id",
+}
+
+type Item = { [K.ID]: string };
+
+function f({ [K.ID]: id, ...rest }: Required<Item>): Item {
+  return { [K.ID]: id, ...rest };
+}

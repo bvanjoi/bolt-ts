@@ -22,9 +22,9 @@ class c5b {
 
 (function (c5b) {
 
-  var y = 2;
-  c5b// should be ok
-  .y = y
+  var y = 2;// should be ok
+  
+  c5b.y = y
   
 })(c5b);
 class c5c {

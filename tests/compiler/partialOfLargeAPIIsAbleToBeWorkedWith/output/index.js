@@ -10,6 +10,6 @@ for ( var k of keys) {
 
 var obj2 = {};
 for ( var k of keys) {
-  obj2[k] = () => ('12');
-// shouldn't cause a complexity error
+  obj2[k] = () => ('12');// shouldn't cause a complexity error
+  
 }

@@ -5,6 +5,7 @@ mod bind_container;
 mod bind_for_in_for_of;
 mod bind_ret_or_throw;
 mod bind_worker;
+mod check_strict_mode;
 mod container_flags;
 mod create;
 

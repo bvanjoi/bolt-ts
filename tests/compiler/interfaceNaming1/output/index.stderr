@@ -1,0 +1,46 @@
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/interfaceNaming1/index.ts:4:1]
+ 4 │ interface
+   · ─────────
+   ╰────
+
+  × Identifier expected. 'interface' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/interfaceNaming1/index.ts:7:11]
+ 7 │ interface
+   · ─────────
+   ╰────
+
+  × Cannot find name 'interface'.
+   ╭─[../../tests/compiler/interfaceNaming1/index.ts:4:1]
+ 4 │ interface
+   · ─────────
+   ╰────
+
+Advice: 
+  ☞ 'interface' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/interfaceNaming1/index.ts:4:1]
+ 4 │ interface { }
+   · ─────────
+ 5 │ //~^ ERROR: Unexpected keyword or identifier.
+ 6 │ //~| ERROR: Cannot find name 'interface'.
+ 7 │ interface interface
+   ·           ────┬────
+   ·               ╰── 'interface' is defined here.
+   ╰────
+
+  × Cannot find name 'interface'.
+   ╭─[../../tests/compiler/interfaceNaming1/index.ts:9:1]
+ 9 │ interface
+   · ─────────
+   ╰────
+
+Advice: 
+  ☞ 'interface' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/interfaceNaming1/index.ts:9:1]
+ 7 │ interface{ }
+   · ────┬────
+   ·     ╰── 'interface' is defined here.
+ 8 │ //~^ ERROR: Identifier expected. 'interface' is a reserved word in strict mode.
+ 9 │ interface
+   · ─────────
+   ╰────

@@ -1,0 +1,12 @@
+  × Function declarations are not allowed inside blocks in strict mode when
+  │ targeting 'ES5'.
+   ╭─[../../tests/compiler/blockScopedFunctionDeclarationES5/index.ts:7:12]
+ 7 │ foo
+   · ───
+   ╰────
+
+  × Cannot find name 'foo'.
+    ╭─[../../tests/compiler/blockScopedFunctionDeclarationES5/index.ts:11:1]
+ 11 │ foo
+    · ───
+    ╰────

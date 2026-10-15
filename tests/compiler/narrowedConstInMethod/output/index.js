@@ -7,8 +7,8 @@ function f() {
     return {
           bar() {
         return x.length;
-      }      
-    // ok
+      }// ok
+            
     };
   }
   
@@ -19,8 +19,8 @@ function f2() {
     return class {
       bar() {
         return x.length;
-      }
-    // ok
+      }// ok
+      
     };
   }
   

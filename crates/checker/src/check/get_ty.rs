@@ -2436,7 +2436,7 @@ impl<'cx> TyChecker<'cx> {
         if !IS_ENUM_LITERAL && let Some(ty) = self.num_lit_tys.get(&val) {
             ty
         } else {
-            let links = self.fresh_ty_links_arena.alloc(Default::default());
+            let links = self.fresh_regular_ty_links_arena.alloc(Default::default());
             let kind = TyKind::NumberLit(self.alloc(ty::NumberLitTy { val, links, symbol }));
             let flags = if IS_ENUM_LITERAL {
                 debug_assert!(symbol.is_some());
@@ -2446,7 +2446,7 @@ impl<'cx> TyChecker<'cx> {
                 TypeFlags::NUMBER_LITERAL
             };
             let ty = self.new_ty(kind, flags);
-            self.fresh_ty_links_arena[links].set_regular_ty(ty);
+            self.fresh_regular_ty_links_arena[links].set_regular_ty(ty);
             self.num_lit_tys.insert(val, ty);
             ty
         }
@@ -2472,10 +2472,10 @@ impl<'cx> TyChecker<'cx> {
                 debug_assert!(symbol.is_none());
                 TypeFlags::STRING_LITERAL
             };
-            let links = self.fresh_ty_links_arena.alloc(Default::default());
+            let links = self.fresh_regular_ty_links_arena.alloc(Default::default());
             let kind = TyKind::StringLit(self.alloc(ty::StringLitTy { val, links, symbol }));
             let ty = self.new_ty(kind, flags);
-            self.fresh_ty_links_arena[links].set_regular_ty(ty);
+            self.fresh_regular_ty_links_arena[links].set_regular_ty(ty);
             self.string_lit_tys.insert(val, ty);
             ty
         }
@@ -2486,10 +2486,10 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.bigint_lit_tys.get(&key) {
             ty
         } else {
-            let links = self.fresh_ty_links_arena.alloc(Default::default());
+            let links = self.fresh_regular_ty_links_arena.alloc(Default::default());
             let kind = TyKind::BigIntLit(self.alloc(ty::BigIntLitTy { val, neg, links }));
             let ty = self.new_ty(kind, TypeFlags::BIG_INT_LITERAL);
-            self.fresh_ty_links_arena[links].set_regular_ty(ty);
+            self.fresh_regular_ty_links_arena[links].set_regular_ty(ty);
             self.bigint_lit_tys.insert(key, ty);
             ty
         }

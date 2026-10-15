@@ -1,0 +1,11 @@
+  × Tuple type '[]' of length '0' has no element at index '0'.
+    ╭─[../../tests/compiler/downlevelLetConst12/index.ts:11:6]
+ 11 │ baz
+    · ───
+    ╰────
+
+  × Tuple type '[]' of length '0' has no element at index '0'.
+    ╭─[../../tests/compiler/downlevelLetConst12/index.ts:15:8]
+ 15 │ baz3
+    · ────
+    ╰────

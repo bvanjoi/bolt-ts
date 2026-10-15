@@ -3,8 +3,8 @@
 //@compiler-options: strict
 var withoutAsConst = {
   1: {
-      type: 'text'    
-  /*as const*/ }  
+      type: 'text'/*as const*/     
+  }  
 };
 var withAsConst = {
   1: {

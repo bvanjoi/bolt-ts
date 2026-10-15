@@ -253,13 +253,13 @@ dependencies = [
  "bolt_ts_config",
  "bolt_ts_early_resolve",
  "bolt_ts_ecma_rules",
+ "bolt_ts_emit",
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
  "bolt_ts_middle",
  "bolt_ts_module_graph",
  "bolt_ts_module_resolve",
- "bolt_ts_optimize",
  "bolt_ts_parser",
  "bolt_ts_path",
  "bolt_ts_span",
@@ -345,6 +345,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "bolt_ts_emit"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.9.4",
+ "bolt_ts_arena",
+ "bolt_ts_ast",
+ "bolt_ts_ast_visitor",
+ "bolt_ts_atom",
+ "bolt_ts_binder",
+ "bolt_ts_checker",
+ "bolt_ts_config",
+ "bolt_ts_ecma_logical",
+ "bolt_ts_parser",
+ "bolt_ts_scanner",
+ "bolt_ts_span",
+ "bolt_ts_utils",
+ "nohash-hasher",
+ "paste",
+ "rustc-hash",
+]
+
+[[package]]
 name = "bolt_ts_errors"
 version = "0.1.0"
 dependencies = [
@@ -379,10 +401,10 @@ dependencies = [
  "bolt_ts_atom",
  "bolt_ts_compiler",
  "bolt_ts_config",
+ "bolt_ts_emit",
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
- "bolt_ts_optimize",
  "bolt_ts_span",
  "indexmap",
  "serde_json",
@@ -478,10 +500,10 @@ dependencies = [
  "bolt_ts_atom",
  "bolt_ts_compiler",
  "bolt_ts_config",
+ "bolt_ts_emit",
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
- "bolt_ts_optimize",
  "bolt_ts_span",
  "indexmap",
  "napi",
@@ -490,28 +512,6 @@ dependencies = [
  "serde",
  "serde_json",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "bolt_ts_optimize"
-version = "0.1.0"
-dependencies = [
- "bitflags 2.9.4",
- "bolt_ts_arena",
- "bolt_ts_ast",
- "bolt_ts_ast_visitor",
- "bolt_ts_atom",
- "bolt_ts_binder",
- "bolt_ts_checker",
- "bolt_ts_config",
- "bolt_ts_ecma_logical",
- "bolt_ts_parser",
- "bolt_ts_scanner",
- "bolt_ts_span",
- "bolt_ts_utils",
- "nohash-hasher",
- "paste",
- "rustc-hash",
 ]
 
 [[package]]
@@ -633,10 +633,10 @@ dependencies = [
  "bolt_ts_atom",
  "bolt_ts_compiler",
  "bolt_ts_config",
+ "bolt_ts_emit",
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
- "bolt_ts_optimize",
  "bolt_ts_span",
  "console_error_panic_hook",
  "indexmap",

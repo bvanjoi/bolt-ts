@@ -399,7 +399,7 @@ impl<'cx> TyChecker<'cx> {
                         .union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL)
                 )
         );
-        let links = self.fresh_ty_links_arena.alloc(Default::default());
+        let links = self.fresh_regular_ty_links_arena.alloc(Default::default());
 
         let ty = self.alloc(ty::AnonymousTy {
             symbol,
@@ -472,7 +472,7 @@ impl<'cx> TyChecker<'cx> {
         debug_assert!(
             node.is_none() || object_flags.contains(ty::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
         );
-        let links = self.fresh_ty_links_arena.alloc(Default::default());
+        let links = self.fresh_regular_ty_links_arena.alloc(Default::default());
         let ty = self.alloc(ty::AnonymousTy {
             symbol: Some(symbol),
             target: Some(target),
@@ -522,24 +522,24 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn create_computed_enum_ty(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        let r_links = self.fresh_ty_links_arena.alloc(Default::default());
+        let r_links = self.fresh_regular_ty_links_arena.alloc(Default::default());
         let regular_ty = self.alloc(ty::EnumTy {
             symbol,
             fresh_ty_links: r_links,
         });
         let r = self.new_ty(ty::TyKind::Enum(regular_ty), TypeFlags::ENUM);
 
-        let f_links = self.fresh_ty_links_arena.alloc(Default::default());
+        let f_links = self.fresh_regular_ty_links_arena.alloc(Default::default());
         let fresh_ty = self.alloc(ty::EnumTy {
             symbol,
             fresh_ty_links: f_links,
         });
         let f = self.new_ty(ty::TyKind::Enum(fresh_ty), TypeFlags::ENUM);
 
-        self.fresh_ty_links_arena[r_links].set_regular_ty(r);
-        self.fresh_ty_links_arena[r_links].set_fresh_ty(f);
-        self.fresh_ty_links_arena[f_links].set_regular_ty(r);
-        self.fresh_ty_links_arena[f_links].set_fresh_ty(f);
+        self.fresh_regular_ty_links_arena[r_links].set_regular_ty(r);
+        self.fresh_regular_ty_links_arena[r_links].set_fresh_ty(f);
+        self.fresh_regular_ty_links_arena[f_links].set_regular_ty(r);
+        self.fresh_regular_ty_links_arena[f_links].set_fresh_ty(f);
 
         r
     }
@@ -954,7 +954,7 @@ impl<'cx> TyChecker<'cx> {
         } else if IS_ENUM {
             flags |= TypeFlags::ENUM_LITERAL;
         }
-        let fresh_ty_links = self.fresh_ty_links_arena.alloc(Default::default());
+        let fresh_ty_links = self.fresh_regular_ty_links_arena.alloc(Default::default());
         let union_ty_links = self.union_ty_links_arena.alloc(Default::default());
         let promise_or_awaitable_links = self
             .promise_or_awaitable_links_arena
@@ -1695,7 +1695,7 @@ impl<'cx> TyChecker<'cx> {
             self.new_ty(ty::TyKind::Intersection(ty), flags)
         } else {
             debug_assert!(flags == TypeFlags::UNION);
-            let fresh_ty_links = self.fresh_ty_links_arena.alloc(Default::default());
+            let fresh_ty_links = self.fresh_regular_ty_links_arena.alloc(Default::default());
             let union_ty_links = self.union_ty_links_arena.alloc(Default::default());
             let promise_or_awaitable_links = self
                 .promise_or_awaitable_links_arena

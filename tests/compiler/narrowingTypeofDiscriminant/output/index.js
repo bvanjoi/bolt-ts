@@ -10,21 +10,21 @@ function f(wrapped) {
 }
 function f1(obj) {
   if (typeof obj.kind === 'string') {
-    obj;
-  // { kind: 'a', data: string }
+    obj;// { kind: 'a', data: string }
+    
   } else {
-    obj;
-  // { kind: 1, data: number }
+    obj;// { kind: 1, data: number }
+    
   }
   
 }
 function f2(obj) {
   if (typeof obj.kind === 'string') {
-    obj;
-  // { kind: 'a', data: string }
+    obj;// { kind: 'a', data: string }
+    
   } else {
-    obj;
-  // { kind: 1, data: number } | undefined
+    obj;// { kind: 1, data: number } | undefined
+    
   }
   
 }// Repro from #51700

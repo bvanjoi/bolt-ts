@@ -270,7 +270,9 @@ pub struct TyChecker<'cx> {
     mark_tys: nohash_hasher::IntSet<TyID>,
     shared_flow_info: Vec<(FlowID, FlowTy<'cx>)>,
     common_ty_links_arena: ty::CommonTyLinksArena<'cx>,
-    fresh_ty_links_arena: ty::FreshTyLinksArena<'cx>,
+    /// `fresh_ty` and `regular_ty` both literal type,
+    /// but `fresh_ty` means it can be widened, while `regular_ty` means not.
+    fresh_regular_ty_links_arena: ty::FreshTyLinksArena<'cx>,
     union_ty_links_arena: ty::UnionTyLinksArena<'cx>,
     intersection_ty_links_arena: ty::IntersectionTyLinksArena<'cx>,
     constituent_map_for_union_ty:
@@ -933,7 +935,7 @@ impl<'cx> TyChecker<'cx> {
             ty_links: no_hashmap_with_capacity(cap),
             tuple_tys: no_hashmap_with_capacity(cap),
             common_ty_links_arena,
-            fresh_ty_links_arena: ty::FreshTyLinksArena::with_capacity(cap),
+            fresh_regular_ty_links_arena: ty::FreshTyLinksArena::with_capacity(cap),
             interface_ty_links_arena: ty::InterfaceTyLinksArena::with_capacity(cap),
             object_mapped_ty_links_arena: ty::ObjectMappedTyLinksArena::with_capacity(cap),
             conditional_links_arena: ty::ConditionalLinksArena::with_capacity(cap),
@@ -2326,7 +2328,13 @@ impl<'cx> TyChecker<'cx> {
                     .get_prop_of_ty::<false, false>(promised_ty, SymbolName::Atom(prop_node.name))
                     .is_some()
             {
-                todo!()
+                let error = errors::PropertyXDoesNotExistOnTypeY {
+                    span: prop_node.span,
+                    prop: pprint_ident(prop_node, &self.atoms),
+                    ty: self.print_ty(containing_ty, None).to_string(),
+                    related: vec![],
+                };
+                self.push_error(Box::new(error));
             } else {
                 self.elaborate_never_intersection(prop_node, containing_ty);
             }
@@ -3544,92 +3552,93 @@ impl<'cx> TyChecker<'cx> {
         decl_container: ast::NodeID,
     ) -> bool {
         assert_eq!(used_id.module(), decl.module());
-        self.node_query(used_id.module())
-            .find_ancestor(used_id, |current_id| {
-                let current = self.p.node(current_id);
-                if current_id == decl_container {
-                    return Some(false);
-                } else if current.is_fn_like() {
-                    return Some(true);
-                } else if current.is_class_static_block_decl() {
-                    return Some(self.p.node(decl).span().lo() < used_span.lo());
-                }
+        let nq = self.node_query(used_id.module());
 
-                let parent_node = self.p.node(self.parent(current_id)?);
-                let prop_decl = parent_node.as_class_prop_elem()?;
+        nq.find_ancestor(used_id, |current_id| {
+            let current = self.p.node(current_id);
+            if current_id == decl_container {
+                return Some(false);
+            } else if current.is_fn_like() {
+                return Some(nq.get_immediately_invoked_fn_expr(current_id).is_none());
+            } else if current.is_class_static_block_decl() {
+                return Some(self.p.node(decl).span().lo() < used_span.lo());
+            }
 
-                let init_of_prop = prop_decl
-                    .init
-                    .map(|init| init.id() == current_id)
-                    .unwrap_or_default();
-                if init_of_prop {
-                    if parent_node.is_static() {
-                        let n = self.p.node(decl);
-                        if n.is_class_method_elem() {
-                            return Some(true);
-                        } else if let Some(prop_decl) = n.as_class_prop_elem()
-                            && let Some(usage_class) = self
-                                .node_query(used_id.module())
-                                .get_containing_class(used_id)
-                            && let Some(decl_class) =
-                                self.node_query(decl.module()).get_containing_class(decl)
-                            && usage_class == decl_class
-                        {
-                            let prop_name = prop_decl.name;
-                            if let ast::PropNameKind::Ident(_) = prop_name.kind {
-                                // TODO: is_private_name
-                                // let ty = {
-                                //     let s = self.get_symbol_of_decl(decl);
-                                //     self.get_type_of_symbol(s)
-                                // };
-                                // let p = self.p.node(self.parent(decl).unwrap());
-                                // let elems = match p {
-                                //     ast::Node::ClassDecl(c) => c.elems,
-                                //     ast::Node::ClassExpr(c) => c.elems,
-                                //     _ => unreachable!(),
-                                // };
-                                // let static_blocks = elems.list.iter().filter_map(|n| {
-                                //     if let ast::ClassElemKind::StaticBlockDecl(block) = n.kind {
-                                //         Some(block)
-                                //     } else {
-                                //         None
-                                //     }
-                                // });
-                                // let mut is_prop_initialized_in_static_block = false;
-                                // let p_span = p.span();
-                                // let current_span = current.span();
-                                // for static_block in static_blocks {
-                                //     if static_block.span.lo() > p_span.lo()
-                                //         && static_block.span.lo() <= current_span.lo()
-                                //     {
-                                //         // TODO:
-                                //     }
-                                // }
+            let parent_node = self.p.node(self.parent(current_id)?);
+            let prop_decl = parent_node.as_class_prop_elem()?;
 
-                                // if is_prop_initialized_in_static_block {
-                                //     return Some(true);
-                                // }
-                            }
-                        }
-                    } else {
-                        let n = self.p.node(decl);
-                        let is_decl_instance_prop = n.is_class_prop_elem() && !n.is_static();
-                        if !is_decl_instance_prop {
-                            return Some(true);
-                        } else if let Some(usage_class) = self
+            let init_of_prop = prop_decl
+                .init
+                .map(|init| init.id() == current_id)
+                .unwrap_or_default();
+            if init_of_prop {
+                if parent_node.is_static() {
+                    let n = self.p.node(decl);
+                    if n.is_class_method_elem() {
+                        return Some(true);
+                    } else if let Some(prop_decl) = n.as_class_prop_elem()
+                        && let Some(usage_class) = self
                             .node_query(used_id.module())
                             .get_containing_class(used_id)
-                            && let Some(decl_class) =
-                                self.node_query(decl.module()).get_containing_class(decl)
-                            && usage_class != decl_class
-                        {
-                            return Some(true);
+                        && let Some(decl_class) =
+                            self.node_query(decl.module()).get_containing_class(decl)
+                        && usage_class == decl_class
+                    {
+                        let prop_name = prop_decl.name;
+                        if let ast::PropNameKind::Ident(_) = prop_name.kind {
+                            // TODO: is_private_name
+                            // let ty = {
+                            //     let s = self.get_symbol_of_decl(decl);
+                            //     self.get_type_of_symbol(s)
+                            // };
+                            // let p = self.p.node(self.parent(decl).unwrap());
+                            // let elems = match p {
+                            //     ast::Node::ClassDecl(c) => c.elems,
+                            //     ast::Node::ClassExpr(c) => c.elems,
+                            //     _ => unreachable!(),
+                            // };
+                            // let static_blocks = elems.list.iter().filter_map(|n| {
+                            //     if let ast::ClassElemKind::StaticBlockDecl(block) = n.kind {
+                            //         Some(block)
+                            //     } else {
+                            //         None
+                            //     }
+                            // });
+                            // let mut is_prop_initialized_in_static_block = false;
+                            // let p_span = p.span();
+                            // let current_span = current.span();
+                            // for static_block in static_blocks {
+                            //     if static_block.span.lo() > p_span.lo()
+                            //         && static_block.span.lo() <= current_span.lo()
+                            //     {
+                            //         // TODO:
+                            //     }
+                            // }
+
+                            // if is_prop_initialized_in_static_block {
+                            //     return Some(true);
+                            // }
                         }
                     }
+                } else {
+                    let n = self.p.node(decl);
+                    let is_decl_instance_prop = n.is_class_prop_elem() && !n.is_static();
+                    if !is_decl_instance_prop {
+                        return Some(true);
+                    } else if let Some(usage_class) = self
+                        .node_query(used_id.module())
+                        .get_containing_class(used_id)
+                        && let Some(decl_class) =
+                            self.node_query(decl.module()).get_containing_class(decl)
+                        && usage_class != decl_class
+                    {
+                        return Some(true);
+                    }
                 }
-                None
-            })
-            .is_some()
+            }
+            None
+        })
+        .is_some()
     }
 
     fn is_block_scoped_name_declared_before_use(
