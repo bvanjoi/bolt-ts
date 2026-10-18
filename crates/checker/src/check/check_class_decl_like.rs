@@ -435,58 +435,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    /// `check_property_initializer` should be called after `check_class_elements` to
-    /// ensure the constructor is checked.
-    pub(super) fn check_property_initializer(&mut self, class: &impl ClassLike<'cx>) {
-        if self.config.compiler_options().strict_null_checks()
-            && self
-                .config
-                .compiler_options()
-                .strict_property_initialization()
-            && let class_id = class.id()
-            && !self
-                .p
-                .node_flags(class_id)
-                .contains(ast::NodeFlags::AMBIENT)
-        {
-            let ctor = class.find_ctor_decl();
-            for elem in class.elems().list {
-                if elem
-                    .kind
-                    .modifiers()
-                    .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
-                {
-                    continue;
-                }
-                if !elem.kind.is_static() && elem.kind.is_kind_without_init() {
-                    let ast::ClassElemKind::Prop(prop) = elem.kind else {
-                        unreachable!()
-                    };
-                    let prop_name = prop.name;
-                    if matches!(
-                        prop.name.kind,
-                        ast::PropNameKind::Ident(_)
-                            | ast::PropNameKind::PrivateIdent(_)
-                            | ast::PropNameKind::Computed(_)
-                    ) {
-                        let symbol = self.get_symbol_of_declaration(prop.id);
-                        let prop_ty = self.get_type_of_symbol(symbol);
-                        if !(prop_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
-                            || prop_ty.contains_undefined_ty())
-                            && ctor.is_none_or(|ctor| {
-                                !self.is_property_initialized_in_constructor(prop.id, ctor)
-                            })
-                        {
-                            let error = errors::PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
-                                    span: prop_name.span(),
-                                    property: prop_name.kind.to_string(&self.atoms),
-                                };
-                            self.push_error(Box::new(error));
-                        }
-                    }
-                }
-            }
-        }
+    pub(super) fn mark_check_property_initializer_deferred(&mut self, class: &impl ClassLike<'cx>) {
+        let idx = class.id().module().as_usize();
+        let prev = self.deferred_class_nodes_for_property_initializer_check[idx].insert(class.id());
+        debug_assert!(prev);
     }
 
     pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLike<'cx>) {
@@ -849,16 +801,17 @@ impl<'cx> TyChecker<'cx> {
                         && let Some(error_node) = error_node
                     {
                         let decl = self.p.node(error_node);
+                        let span = class.name().map_or(class.span(), |name| name.span);
                         if decl.is_class_expr() {
                             let error = errors::NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
-                                    span: class.span(),
+                                    span,
                                     member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
                                     class: self.print_ty(base_ty, None).to_string(),
                                 };
                             self.push_error(Box::new(error));
                         } else {
                             let error = errors::NonAbstractClass0DoesNotImplementInheritedAbstractMember1FromClass2 {
-                                    span: class.span(),
+                                    span,
                                     non_abstract_class: self.p.node(class_id).name().unwrap().to_string(&self.atoms),
                                     member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
                                     abstract_class: self.print_ty(base_ty, None).to_string(),
@@ -920,15 +873,5 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-    }
-
-    fn is_property_initialized_in_constructor(
-        &self,
-        property: ast::NodeID,
-        ctor: &'cx ast::ClassCtor<'cx>,
-    ) -> bool {
-        // ensure class constructor had been checked
-        self.property_initializer_in_class_constructor_map
-            .has(ctor, property)
     }
 }

@@ -1054,7 +1054,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_class_decl(&mut self, n: &'cx ast::ClassDecl<'cx>) {
         self.check_class_like_decl(n);
         self.check_class_elements(n.elems);
-        self.check_property_initializer(n);
+        self.mark_check_property_initializer_deferred(n);
         self.register_potentially_unused_class_declaration(n);
     }
 

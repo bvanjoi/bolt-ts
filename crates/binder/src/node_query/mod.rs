@@ -1144,11 +1144,11 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     pub fn get_control_flow_container(&self, node: ast::NodeID) -> ast::NodeID {
         let parent = self.parent(node).unwrap();
         self.find_ancestor(parent, |n| {
-            let n = self.node(n);
-            if (n.is_fn_like() && self.get_immediately_invoked_fn_expr(node).is_none())
-                || n.is_module_block()
-                || n.is_program()
-                || n.is_class_prop_elem()
+            let node = self.node(n);
+            if (node.is_fn_like() && self.get_immediately_invoked_fn_expr(n).is_none())
+                || node.is_module_block()
+                || node.is_program()
+                || node.is_class_prop_elem()
             {
                 Some(true)
             } else {

@@ -21,23 +21,9 @@
    · ─
    ╰────
 
-  × Property 'a' has no initializer and is not definitely assigned in the
-  │ constructor.
-   ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:7:5]
- 7 │ a
-   · ─
-   ╰────
-
   × Duplicate identifier 'b'.
     ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:15:5]
  15 │ b
-    · ─
-    ╰────
-
-  × Property 'b' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:13:5]
- 13 │ b
     · ─
     ╰────
 
@@ -51,6 +37,20 @@
   │ must be of type 'number', but here has type 'string'.
     ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:22:5]
  22 │ c
+    · ─
+    ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:7:5]
+ 7 │ a
+   · ─
+   ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:13:5]
+ 13 │ b
     · ─
     ╰────
 

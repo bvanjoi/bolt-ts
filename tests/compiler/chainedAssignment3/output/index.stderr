@@ -1,17 +1,3 @@
-  × Property 'id' has no initializer and is not definitely assigned in the
-  │ constructor.
-   ╭─[../../tests/compiler/chainedAssignment3/index.ts:4:3]
- 4 │ id
-   · ──
-   ╰────
-
-  × Property 'value' has no initializer and is not definitely assigned in the
-  │ constructor.
-   ╭─[../../tests/compiler/chainedAssignment3/index.ts:9:3]
- 9 │ value
-   · ─────
-   ╰────
-
   × Type 'null' is not assignable to type 'B'.
     ╭─[../../tests/compiler/chainedAssignment3/index.ts:15:5]
  15 │ b
@@ -47,3 +33,17 @@
  28 │ b
     · ─
     ╰────
+
+  × Property 'id' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/chainedAssignment3/index.ts:4:3]
+ 4 │ id
+   · ──
+   ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/chainedAssignment3/index.ts:9:3]
+ 9 │ value
+   · ─────
+   ╰────

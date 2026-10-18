@@ -488,6 +488,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         let root = checker.p.root(*item);
         checker.check_program(root);
         checker.check_deferred_nodes(*item);
+        checker.check_deferred_class_nodes_for_property_initializer(*item);
         if checker.p.get(*item).is_external_or_commonjs_module() {
             checker.check_external_module_exports(root.id());
         }

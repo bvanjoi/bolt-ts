@@ -254,6 +254,8 @@ pub struct TyChecker<'cx> {
     type_contextual: Vec<TyContextual<'cx>>,
     contextual_binding_patterns: Vec<ast::NodeID>,
     deferred_nodes: Vec<indexmap::IndexSet<ast::NodeID, FxBuildHasher>>,
+    deferred_class_nodes_for_property_initializer_check:
+        Vec<indexmap::IndexSet<ast::NodeID, FxBuildHasher>>,
     // === links ===
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     transient_symbol_links: Vec<SymbolLinks<'cx>>,
@@ -970,6 +972,10 @@ impl<'cx> TyChecker<'cx> {
             contextual_binding_patterns: Vec::with_capacity(32),
             deferred_nodes: vec![
                 indexmap::IndexSet::with_capacity_and_hasher(64, FxBuildHasher);
+                p.module_count()
+            ],
+            deferred_class_nodes_for_property_initializer_check: vec![
+                indexmap::IndexSet::with_capacity_and_hasher(16, FxBuildHasher);
                 p.module_count()
             ],
             current_node: None,

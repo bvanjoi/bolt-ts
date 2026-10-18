@@ -1,0 +1,17 @@
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/readonlyInNonPropertyParameters/index.ts:9:9]
+ 9 │ readonly
+   · ────────
+   ╰────
+
+  × A parameter property is only allowed in a constructor implementation.
+    ╭─[../../tests/compiler/readonlyInNonPropertyParameters/index.ts:11:8]
+ 11 │ readonly
+    · ────────
+    ╰────
+
+  × A parameter property is only allowed in a constructor implementation.
+    ╭─[../../tests/compiler/readonlyInNonPropertyParameters/index.ts:14:2]
+ 14 │ readonly
+    · ────────
+    ╰────
