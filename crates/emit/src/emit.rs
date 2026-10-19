@@ -69,6 +69,7 @@ fn emit_module<'cx>(module_id: ModuleID, checker: &mut TyChecker<'cx>) -> (Strin
         comment_idx: 0,
         flags,
         target,
+        ctx: Context::empty(),
     };
     let root = emitter.resolver.program(module_id);
     emitter.emit_program(root);
@@ -83,9 +84,14 @@ fn emit_module<'cx>(module_id: ModuleID, checker: &mut TyChecker<'cx>) -> (Strin
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
-    pub struct EmitDeclarationFlags: u8 {
+    struct EmitDeclarationFlags: u8 {
         const STRIP_EXPORT_MODIFIER = 1 << 0;
         const NEED_DECLARE          = 1 << 1;
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    struct Context: u8 {
+        const IN_STATEMENT_EXPRESSION = 1 << 0;
     }
 }
 
@@ -153,10 +159,18 @@ struct ModuleEmitter<'cx, 'a> {
     module_id: ModuleID,
     comment_idx: usize,
     flags: EmitDeclarationFlags,
+    ctx: Context,
     target: EmitTarget,
 }
 
 impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
+    fn in_context(&mut self, context: Context, f: impl FnOnce(&mut Self)) {
+        let saved = self.ctx;
+        self.ctx.insert(context);
+        f(self);
+        self.ctx = saved;
+    }
+
     fn with_target(&mut self, target: EmitTarget, f: impl FnOnce(&mut Self)) {
         if self.target == EmitTarget::JS && target == EmitTarget::DECLARATION {
             return;
@@ -1287,17 +1301,14 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         }
     }
     fn emit_ident(&mut self, node: &'cx ast::Ident) {
-        if self.target == EmitTarget::JS {
-            let content = self.atoms().get(node.name);
-            self.emit_token_value(TokenKind::Ident, content);
-        } else if self.target == EmitTarget::DECLARATION {
+        if self.target.contains(EmitTarget::DECLARATION)
+            && !self.ctx.contains(Context::IN_STATEMENT_EXPRESSION)
+        {
             self.dts.emit_atom(self.resolver.atoms(), node.name);
-        } else {
+        }
+        if self.target.contains(EmitTarget::JS) {
             let content = self.atoms().get(node.name);
             self.emit_token_value(TokenKind::Ident, content);
-            if self.target == EmitTarget::all() {
-                self.dts.emit_atom(self.resolver.atoms(), node.name);
-            }
         }
     }
 
@@ -3014,86 +3025,82 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
         }
     }
-    fn emit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) {
-        if self.target == EmitTarget::DECLARATION {
-            self.walk_stmt(node);
-        } else {
-            use ast::StmtKind::*;
-            match node.kind {
-                Var(n) => self.emit_var_stmt(n),
-                Expr(n) => {
-                    self.emit_expr_stmt(n);
-                    if next_adjacent_token_on_this_line_is_semi(
-                        self.origin.as_bytes(),
-                        n.span.hi() as usize - 1,
-                    ) {
-                        self.emit_token(TokenKind::Semi);
-                    } else {
-                        self.js.print().p_token(TokenKind::Semi);
-                    }
-                }
-                Fn(n) => self.emit_fn_decl(n),
-                If(n) => self.emit_if_stmt(n),
-                Block(n) => self.emit_block_stmt(n),
-                Ret(n) => {
-                    self.emit_ret_stmt(n);
-                    self.emit_token(TokenKind::Semi);
-                }
-                Class(n) => self.emit_class_decl(n),
-                Throw(n) => {
-                    self.emit_throw_stmt(n);
-                    if next_adjacent_token_on_this_line_is_semi(
-                        self.origin.as_bytes(),
-                        n.span.hi() as usize - 1,
-                    ) {
-                        self.emit_token(TokenKind::Semi);
-                    } else {
-                        self.js.print().p_token(TokenKind::Semi);
-                    }
-                }
-                NestedModule(n) => self.emit_nested_module_decl(n),
-                BlockModule(n) => self.emit_block_module_decl(n),
-                Enum(n) => self.emit_enum_decl(n),
-                Import(n) => self.emit_import_decl(n),
-                ImportEquals(n) => self.emit_import_equals_decl(n),
-                Export(n) => self.emit_export_decl(n),
-                ExportAssign(n) => {
-                    self.emit_export_assign(n);
-                    self.emit_token(TokenKind::Semi);
-                }
-                For(n) => self.emit_for_stmt(n),
-                ForOf(n) => self.emit_for_of_stmt(n),
-                ForIn(n) => self.emit_for_in_stmt(n),
-                Break(n) => {
-                    self.emit_break_stmt(n);
-                    self.emit_token(TokenKind::Semi);
-                }
-                Continue(n) => {
-                    self.emit_continue_stmt(n);
-                    self.emit_token(TokenKind::Semi);
-                }
-                Try(n) => self.emit_try_stmt(n),
-                While(n) => self.emit_while_stmt(n),
-                Do(n) => self.emit_do_while_stmt(n),
-                Labeled(n) => self.emit_labeled_stmt(n),
-                Empty(_) => self.emit_token(TokenKind::Semi),
-                Switch(n) => self.emit_switch_stmt(n),
-                Interface(n) => {
-                    if self.target.contains(EmitTarget::DECLARATION) {
-                        self.with_target(EmitTarget::DECLARATION, |this| {
-                            this.emit_interface_decl(n)
-                        });
-                    }
-                }
-                TypeAlias(n) => {
-                    if self.target.contains(EmitTarget::DECLARATION) {
-                        self.with_target(EmitTarget::DECLARATION, |this| {
-                            this.emit_type_alias_decl(n)
-                        });
-                    }
-                }
-                Debugger(_) => {}
+
+    fn emit_expression_stmt(&mut self, n: &'cx ast::ExprStmt<'cx>) {
+        self.in_context(Context::IN_STATEMENT_EXPRESSION, |this| {
+            this.emit_expr(n.expr);
+            if next_adjacent_token_on_this_line_is_semi(
+                this.origin.as_bytes(),
+                n.span.hi() as usize - 1,
+            ) {
+                this.emit_token(TokenKind::Semi);
+            } else {
+                this.js.print().p_token(TokenKind::Semi);
             }
+        });
+    }
+    fn emit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) {
+        use ast::StmtKind::*;
+        match node.kind {
+            Block(n) => self.emit_block_stmt(n),
+            Class(n) => self.emit_class_decl(n),
+            Import(n) => self.emit_import_decl(n),
+            ImportEquals(n) => self.emit_import_equals_decl(n),
+            Interface(n) => {
+                if self.target.contains(EmitTarget::DECLARATION) {
+                    self.emit_interface_decl(n)
+                }
+            }
+            Expr(n) => self.emit_expression_stmt(n),
+            Try(n) => self.emit_try_stmt(n),
+            TypeAlias(n) => {
+                if self.target.contains(EmitTarget::DECLARATION) {
+                    self.emit_type_alias_decl(n)
+                }
+            }
+            NestedModule(n) => self.emit_nested_module_decl(n),
+            BlockModule(n) => self.emit_block_module_decl(n),
+            Var(n) => self.emit_var_stmt(n),
+            Fn(n) => self.emit_fn_decl(n),
+            If(n) => self.emit_if_stmt(n),
+            Ret(n) => {
+                self.emit_ret_stmt(n);
+                self.emit_token(TokenKind::Semi);
+            }
+            Throw(n) => {
+                self.emit_throw_stmt(n);
+                if next_adjacent_token_on_this_line_is_semi(
+                    self.origin.as_bytes(),
+                    n.span.hi() as usize - 1,
+                ) {
+                    self.emit_token(TokenKind::Semi);
+                } else {
+                    self.js.print().p_token(TokenKind::Semi);
+                }
+            }
+            Enum(n) => self.emit_enum_decl(n),
+            Export(n) => self.emit_export_decl(n),
+            ExportAssign(n) => {
+                self.emit_export_assign(n);
+                self.emit_token(TokenKind::Semi);
+            }
+            For(n) => self.emit_for_stmt(n),
+            ForOf(n) => self.emit_for_of_stmt(n),
+            ForIn(n) => self.emit_for_in_stmt(n),
+            Break(n) => {
+                self.emit_break_stmt(n);
+                self.emit_token(TokenKind::Semi);
+            }
+            Continue(n) => {
+                self.emit_continue_stmt(n);
+                self.emit_token(TokenKind::Semi);
+            }
+            While(n) => self.emit_while_stmt(n),
+            Do(n) => self.emit_do_while_stmt(n),
+            Labeled(n) => self.emit_labeled_stmt(n),
+            Empty(_) => self.emit_token(TokenKind::Semi),
+            Switch(n) => self.emit_switch_stmt(n),
+            Debugger(_) => {}
         }
     }
     fn emit_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
@@ -3550,22 +3557,19 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.emit_string_lit(node.module);
         }
     }
+
     fn emit_assign_expr(&mut self, node: &'cx ast::AssignExpr<'cx>) {
-        if self.target == EmitTarget::JS {
-            self.emit_expr(node.left);
-            self.js.print().p_whitespace();
-            let token = match node.op {
-                ast::AssignOp::LogicalAndEq | ast::AssignOp::LogicalOrEq => TokenKind::Unknown,
-                _ => node.op.into(),
-            };
-            self.emit_token_value(token, node.op.as_str());
-            self.js.print().p_whitespace();
-            self.emit_expr(node.right);
-        } else if self.target == EmitTarget::DECLARATION {
-        } else {
-            self.with_target(EmitTarget::JS, |this| this.emit_assign_expr(node));
-        }
+        self.emit_expr(node.left);
+        self.js.print().p_whitespace();
+        let token = match node.op {
+            ast::AssignOp::LogicalAndEq | ast::AssignOp::LogicalOrEq => TokenKind::Unknown,
+            _ => node.op.into(),
+        };
+        self.emit_token_value(token, node.op.as_str());
+        self.js.print().p_whitespace();
+        self.emit_expr(node.right);
     }
+
     fn emit_bin_expr(&mut self, node: &'cx ast::BinExpr<'cx>) {
         if self.target == EmitTarget::DECLARATION {
             self.walk_bin_expr(node)
@@ -3586,9 +3590,9 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.emit_token(TokenKind::RParen);
         }
     }
-    fn emit_this_expr(&mut self, _node: &'cx ast::ThisExpr) {
+    fn emit_this_expr(&mut self, node: &'cx ast::ThisExpr) {
         if self.target == EmitTarget::DECLARATION {
-            self.walk_this_expr(_node)
+            self.walk_this_expr(node)
         } else {
             self.emit_token(TokenKind::This);
         }
@@ -5090,15 +5094,6 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     fn emit_class_semi_elem(&mut self, _n: &'cx ast::ClassSemiElem) {
         self.walk_class_semi_elem(_n);
     }
-    fn emit_debugger_stmt(&mut self, _n: &'cx ast::DebuggerStmt) {
-        self.walk_debugger_stmt(_n);
-    }
-    fn emit_empty_stmt(&mut self, _n: &'cx ast::EmptyStmt) {
-        self.walk_empty_stmt(_n);
-    }
-    fn emit_expr_stmt(&mut self, n: &'cx ast::ExprStmt<'cx>) {
-        self.walk_expr_stmt(n);
-    }
     fn emit_glob_export(&mut self, n: &'cx ast::GlobExport<'cx>) {
         self.walk_glob_export(n);
     }
@@ -5335,9 +5330,6 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         }
         self.walk_type_arguments(n.type_arguments)
     }
-    fn walk_expr_stmt(&mut self, n: &'cx ast::ExprStmt<'cx>) {
-        self.emit_expr(n.expr)
-    }
     fn walk_ns_export(&mut self, n: &'cx ast::NsExport<'cx>) {
         self.emit_module_export_name(n.name);
         self.emit_string_lit(n.module)
@@ -5549,7 +5541,6 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     fn walk_template_span(&mut self, n: &'cx ast::TemplateSpan<'cx>) {
         self.emit_expr(n.expr)
     }
-    fn walk_empty_stmt(&mut self, _n: &'cx ast::EmptyStmt) {}
     fn walk_labeled_stmt(&mut self, n: &'cx ast::LabeledStmt<'cx>) {
         self.emit_ident(n.label);
         self.emit_stmt(n.stmt)
@@ -5560,40 +5551,6 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     }
     fn walk_block_stmt(&mut self, n: &'cx ast::BlockStmt<'cx>) {
         self.walk_stmts(n.stmts)
-    }
-    fn walk_stmt(&mut self, stmt: &'cx ast::Stmt) {
-        use ast::StmtKind::*;
-        match stmt.kind {
-            Block(node) => self.emit_block_stmt(node),
-            Class(node) => self.emit_class_decl(node),
-            Import(node) => self.emit_import_decl(node),
-            ImportEquals(node) => self.emit_import_equals_decl(node),
-            Interface(node) => self.emit_interface_decl(node),
-            Expr(node) => self.emit_expr_stmt(node),
-            Var(node) => self.emit_var_stmt(node),
-            Try(node) => self.emit_try_stmt(node),
-            TypeAlias(node) => self.emit_type_alias_decl(node),
-            NestedModule(node) => self.emit_nested_module_decl(node),
-            BlockModule(node) => self.emit_block_module_decl(node),
-            While(node) => self.emit_while_stmt(node),
-            If(node) => self.emit_if_stmt(node),
-            Enum(node) => self.emit_enum_decl(node),
-            Fn(node) => self.emit_fn_decl(node),
-            Ret(node) => self.emit_ret_stmt(node),
-            Export(node) => self.emit_export_decl(node),
-            ExportAssign(node) => self.emit_export_assign(node),
-            Empty(node) => self.emit_empty_stmt(node),
-            Throw(node) => self.emit_throw_stmt(node),
-            For(node) => self.emit_for_stmt(node),
-            ForOf(node) => self.emit_for_of_stmt(node),
-            ForIn(node) => self.emit_for_in_stmt(node),
-            Break(node) => self.emit_break_stmt(node),
-            Continue(node) => self.emit_continue_stmt(node),
-            Do(node) => self.emit_do_while_stmt(node),
-            Debugger(node) => self.emit_debugger_stmt(node),
-            Labeled(node) => self.emit_labeled_stmt(node),
-            Switch(node) => self.emit_switch_stmt(node),
-        }
     }
     fn walk_class_extends_clause(&mut self, n: &'cx ast::ClassExtendsClause<'cx>) {
         self.emit_expr_with_ty_args(n.expr_with_ty_args)
@@ -5656,7 +5613,6 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             Named(n) => self.emit_jsx_named_attr(n),
         }
     }
-    fn walk_debugger_stmt(&mut self, _n: &'cx ast::DebuggerStmt) {}
     fn walk_cond_expr(&mut self, n: &'cx ast::CondExpr<'cx>) {
         self.emit_expr(n.cond);
         self.emit_expr(n.when_true);

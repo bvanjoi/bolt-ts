@@ -1,7 +1,10 @@
 use std::ops::{Index, IndexMut};
 
+use super::Ternary;
 use super::check_expr::IterationUse;
+use super::check_type_related_to::IntersectionState;
 use super::check_type_related_to::RecursionFlags;
+use super::check_type_related_to::{RelationContext, TypeRelatedChecker};
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
 use super::get_effective_node::{EffectiveCallArgument, EffectiveCallArguments};
@@ -111,20 +114,29 @@ pub(super) struct InferenceContext<'cx> {
     pub ret_mapper: Option<&'cx dyn ty::TyMap<'cx>>,
     pub outer_ret_mapper: Option<&'cx dyn ty::TyMap<'cx>>,
     pub inferred_type_parameters: Option<thin_vec::ThinVec<&'cx ty::Ty<'cx>>>, // Inferred type parameters for function result
-    pub compare: InferenceCompare,
+    pub compare: InferenceCompare<'cx>,
 }
 
 fn compare_ty<'cx>(
-    checker: &mut TyChecker<'cx>,
+    c: &mut TyChecker<'cx>,
     a: &'cx ty::Ty<'cx>,
     b: &'cx ty::Ty<'cx>,
-    compare: InferenceCompare,
+    compare: InferenceCompare<'cx>,
 ) -> bool {
     match compare {
         InferenceCompare::CompareTypesAssignable => {
-            checker.is_type_related_to(a, b, RelationKind::Assignable)
+            c.is_type_related_to(a, b, RelationKind::Assignable)
         }
-        InferenceCompare::IsRelatedTo(relation) => checker.is_type_related_to(a, b, relation),
+        InferenceCompare::IsRelatedTo(ctx) => {
+            let mut checker = TypeRelatedChecker::from_context(c, ctx);
+            checker.is_related_to(
+                a,
+                b,
+                RecursionFlags::BOTH,
+                false,
+                IntersectionState::empty(),
+            ) != Ternary::FALSE
+        }
     }
 }
 
@@ -135,7 +147,7 @@ impl<'cx> InferenceContext<'cx> {
         inferences: InferenceInfosArenaId<'cx>,
         sig: Option<&'cx ty::Sig<'cx>>,
         flags: InferenceFlags,
-        compare: InferenceCompare,
+        compare: InferenceCompare<'cx>,
     ) -> Self {
         let sources = checker
             .inference_infos_arena
@@ -166,7 +178,7 @@ impl<'cx> TyChecker<'cx> {
         type_parameters: &[&'cx ty::Ty<'cx>],
         sig: Option<&'cx ty::Sig<'cx>>,
         flags: InferenceFlags,
-        compare: Option<InferenceCompare>,
+        compare: Option<InferenceCompare<'cx>>,
     ) -> InferenceId<'cx> {
         let next = self.inferences.next_id();
         let inferences = type_parameters
@@ -189,8 +201,8 @@ impl<'cx> TyChecker<'cx> {
         let inference_context = self.inference(context_id);
         let sig = inference_context.sig;
         let flags = inference_context.flags | extra_flags;
-        let compare = inference_context.compare;
         let inferences = self.inference_infos_arena.get(inference_context.inferences);
+        let compare = inference_context.compare.clone();
         let inferences = self.inference_infos_arena.alloc(inferences.clone());
         let next = self.inferences.next_id();
         let inference = InferenceContext::create(self, next, inferences, sig, flags, compare);
@@ -514,7 +526,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(inferred_ty) = i.inferred_ty {
             return inferred_ty;
         }
-        let compare = self.inference(inference).compare;
+        let compare = self.inference(inference).compare.clone();
         let mut inferred_ty = None;
         let mut fallback_ty = None;
         if let Some(sig) = self.get_inference_sig(inference) {
@@ -634,14 +646,14 @@ impl<'cx> TyChecker<'cx> {
             if let Some(ty) = inferred_ty {
                 let constraint_with_this =
                     self.get_type_with_this_argument::<false>(instantiated_constraint, Some(ty));
-                if !compare_ty(self, ty, constraint_with_this, compare) {
+                if !compare_ty(self, ty, constraint_with_this, compare.clone()) {
                     let filtered_by_constraint = if self
                         .inference_info(inference, idx)
                         .priority
                         .is_some_and(|p| p == InferencePriority::RETURN_TYPE)
                     {
                         self.filter_type(ty, |this, t| {
-                            compare_ty(this, t, constraint_with_this, compare)
+                            compare_ty(this, t, constraint_with_this, compare.clone())
                         })
                     } else {
                         self.never_ty
@@ -829,7 +841,7 @@ impl<'cx> TyChecker<'cx> {
                     let sources = self.alloc(sources);
                     let mapper = self.making_inference_fixing_mapper(next, sources);
                     let non_fixing_mapper = self.making_inference_non_fixing_mapper(next, sources);
-                    let compare = ret_inference.compare;
+                    let compare = ret_inference.compare.clone();
                     let inference_context = InferenceContext {
                         sig: ret_inference.sig,
                         flags: ret_inference.flags,
@@ -2875,8 +2887,8 @@ impl<'cx> Inferences<'cx> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) struct InferenceId<'cx>(bolt_ts_arena::la_arena::Idx<InferenceContext<'cx>>);
 
-#[derive(Debug, Clone, Copy)]
-pub(super) enum InferenceCompare {
-    IsRelatedTo(RelationKind),
+#[derive(Debug, Clone)]
+pub(super) enum InferenceCompare<'cx> {
+    IsRelatedTo(RelationContext<'cx>),
     CompareTypesAssignable,
 }

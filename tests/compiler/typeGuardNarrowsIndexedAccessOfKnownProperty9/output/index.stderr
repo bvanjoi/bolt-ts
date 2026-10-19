@@ -1,0 +1,11 @@
+  × 'c' is declared but its value is never read.
+    ╭─[../../tests/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty9/index.ts:11:13]
+ 11 │ c
+    · ─
+    ╰────
+
+  × 'd' is declared but its value is never read.
+    ╭─[../../tests/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty9/index.ts:13:13]
+ 13 │ d
+    · ─
+    ╰────

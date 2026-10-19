@@ -2087,7 +2087,7 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx ty::Sig<'cx>,
         contextual_sig: &'cx ty::Sig<'cx>,
         inference_context: Option<InferenceId<'cx>>,
-        compare: Option<InferenceCompare>,
+        compare: Option<InferenceCompare<'cx>>,
     ) -> &'cx ty::Sig<'cx> {
         let context = {
             let ty_params = self.get_ty_params_for_mapper(sig);
