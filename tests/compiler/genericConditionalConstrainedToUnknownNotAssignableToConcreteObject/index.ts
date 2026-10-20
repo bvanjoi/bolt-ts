@@ -15,7 +15,7 @@ function g<
     M extends keyof T
 >(a2: ReturnType<T[M]>, x: A) {
     x = a2;
-    //~^ ERROR: Type 'ReturnType' is not assignable to type 'A'.
+    //~^ ERROR: Type 'ReturnType<T[M]>' is not assignable to type 'A'.
 }
 
 // Original CFA report of the above issue

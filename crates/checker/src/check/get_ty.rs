@@ -2172,6 +2172,14 @@ impl<'cx> TyChecker<'cx> {
             let check_ty = self.instantiate_ty(root.check_ty, mapper);
             let extends_ty = self.instantiate_ty(root.extends_ty, mapper);
             let conditional_links = self.conditional_links_arena.alloc(Default::default());
+            let alias_ty_arguments = if alias_symbol.is_some() {
+                alias_ty_arguments
+            } else if let Some(alias_ty_args) = root.alias_ty_args {
+                Some(self.instantiate_tys(alias_ty_args, mapper.unwrap()))
+            } else {
+                None
+            };
+            let alias_symbol = alias_symbol.or(root.alias_symbol);
             let cond_ty = self.alloc(ty::CondTy {
                 root,
                 check_ty,

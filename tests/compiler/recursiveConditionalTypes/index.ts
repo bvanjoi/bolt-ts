@@ -26,11 +26,11 @@ type P2 = __Awaited<InfinitePromise<number>>;  // Error
 function f11<T, U extends T>(tx: T, ta: __Awaited<T>, ux: U, ua: __Awaited<U>) {
     ta = ua;
     ua = ta;  // Error
-    //~^ ERROR: Type '__Awaited' is not assignable to type '__Awaited'.
+    //~^ ERROR: Type '__Awaited<T>' is not assignable to type '__Awaited<U>'.
     ta = tx;  // Error
-    //~^ ERROR: Type 'T' is not assignable to type '__Awaited'.
+    //~^ ERROR: Type 'T' is not assignable to type '__Awaited<T>'.
     tx = ta;  // Error
-    //~^ ERROR: Type '__Awaited' is not assignable to type 'T'.
+    //~^ ERROR: Type '__Awaited<T>' is not assignable to type 'T'.
 }
 
 // Flattening arrays
@@ -61,9 +61,9 @@ type TT5 = TupleOf<number, 1000>;  // Depth error
 
 function f22<N extends number, M extends N>(tn: TupleOf<number, N>, tm: TupleOf<number, M>) {
     tn = tm;
-    //~^ ERROR: Type 'TupleOf' is not assignable to type 'TupleOf'.
+    //~^ ERROR: Type 'TupleOf<number, M>' is not assignable to type 'TupleOf<number, N>'.
     tm = tn;
-    //~^ ERROR: Type 'TupleOf' is not assignable to type 'TupleOf'.
+    //~^ ERROR: Type 'TupleOf<number, N>' is not assignable to type 'TupleOf<number, M>'.
 }
 
 declare function f23<T>(t: TupleOf<T, 3>): T;
@@ -130,7 +130,7 @@ type Grow2<T extends unknown[], N extends number> = T['length'] extends N ? T : 
 
 function f21<T extends number>(x: Grow1<[], T>, y: Grow2<[], T>) {
     f21(y, x);  // Error
-    //~^ ERROR: Argument of type 'Grow2' is not assignable to parameter of type 'Grow1'.
+    //~^ ERROR: Argument of type 'Grow2<[], T>' is not assignable to parameter of type 'Grow1<[], T>'.
 }
 
 // Repros from #41756
@@ -183,5 +183,5 @@ type Enumerate<N extends number> = number extends N
 
 function foo2<T extends unknown[]>(value: T): Enumerate<T['length']> {
     return value.length;  // Error
-    //~^ ERROR: Type 'number' is not assignable to type 'Enumerate'.
+    //~^ ERROR: Type 'number' is not assignable to type 'Enumerate<T["length"]>'.
 }
