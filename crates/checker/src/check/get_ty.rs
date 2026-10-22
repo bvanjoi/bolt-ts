@@ -274,6 +274,9 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_of_func_class_enum_module(symbol)
         } else if node.is_enum_member() {
             self.get_ty_enum_member(symbol)
+        } else if node.is_assign_expr() {
+            // TODO: getWidenedTypeForAssignmentDeclaration
+            self.any_ty
         } else {
             unreachable!("node: {node:#?}");
         };

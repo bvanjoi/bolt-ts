@@ -525,21 +525,24 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     }
 
     fn parse_module_block(&mut self) -> &'cx ast::ModuleBlock<'cx> {
-        self.do_inside_of_parse_context(ParseContext::MODULE_BLOCK, |this| {
-            let start = this.token.start();
-            this.expect(TokenKind::LBrace);
+        self.do_inside_of_parse_context(
+            ParseContext::MODULE_BLOCK
+                .union(ParseContext::MODULE_BLOCK_TOP_LEVEL)
+                .union(ParseContext::BLOCK),
+            |this| {
+                let start = this.token.start();
+                this.expect(TokenKind::LBrace);
 
-            let save_external_module_indicator = this.external_module_indicator;
+                let save_external_module_indicator = this.external_module_indicator;
 
-            let stmts = this.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
-                this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
-            });
+                let stmts = this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt);
 
-            this.external_module_indicator = save_external_module_indicator;
+                this.external_module_indicator = save_external_module_indicator;
 
-            this.expect(TokenKind::RBrace);
-            this.create_module_block(this.new_span(start), stmts)
-        })
+                this.expect(TokenKind::RBrace);
+                this.create_module_block(this.new_span(start), stmts)
+            },
+        )
     }
 
     fn parse_ambient_external_module_decl<const IS_GLOBAL_ARGUMENT: bool>(

@@ -1583,9 +1583,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_class_instance_property(&self, node: ast::NodeID) -> bool {
-        if self.is_in_js_file(node) {
-            todo!()
-        }
+        // if self.is_in_js_file(node) {
+        //     todo!()
+        // }
         let Some(parent) = self.parent(node) else {
             return false;
         };

@@ -730,9 +730,46 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     .get_assignment_declaration_kind_for_assign_expr(n);
                 match special_kind {
                     AssignmentDeclarationKind::Property => self.bind_special_prop_assignment(n),
+                    AssignmentDeclarationKind::ThisProperty => self.bind_this_prop_assignment(n),
                     _ => {
                         // TODO
                     }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn bind_this_prop_assignment(&mut self, node: &'cx ast::AssignExpr<'cx>) {
+        debug_assert!(self.node_query().is_in_js_file(node.id));
+        let this_container = self.node_query().get_this_container(node.id, false, false);
+
+        match self.p.node(this_container) {
+            ast::Node::FnDecl(_) | ast::Node::FnExpr(_) => {
+                let c = self.final_res[&this_container];
+                if self.symbols.get(c).value_decl.is_some() {
+                    //TODO: has_dynamic_node
+                    let name = node
+                        .left
+                        .get_element_or_property_access_argument_expression_or_name();
+                    let name = match name {
+                        ast::DeclarationName::Ident(ident) => Some(SymbolName::Atom(ident.name)),
+                        _ => {
+                            // TODO
+                            None
+                        }
+                    };
+                    self.declare_symbol(
+                        name,
+                        SymbolTableLocation::members(this_container),
+                        Some(c),
+                        node.id,
+                        SymbolFlags::PROPERTY.union(SymbolFlags::ASSIGNMENT),
+                        SymbolFlags::PROPERTY_EXCLUDES
+                            .intersection(SymbolFlags::PROPERTY.complement()),
+                        DeclareSymbolProperty::empty(),
+                    );
+                    self.symbols.get_mut(c).flags |= SymbolFlags::CLASS;
                 }
             }
             _ => {}

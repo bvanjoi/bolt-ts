@@ -2161,6 +2161,25 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
+    fn is_js_constructor(&mut self, node: ast::NodeID) -> bool {
+        debug_assert!(self.node_query(node.module()).is_in_js_file(node));
+        let n = self.p.node(node);
+        match n {
+            ast::Node::FnDecl(_) | ast::Node::FnExpr(_) => {
+                // TODO: more case
+                let symbol = self.get_symbol_of_declaration(node);
+                self.symbol(symbol)
+                    .members
+                    .as_ref()
+                    .is_some_and(|m| !m.0.is_empty())
+            }
+            _ => {
+                //TODO: variable
+                false
+            }
+        }
+    }
+
     fn try_get_this_ty_at<const INCLUDE_GLOBAL_THIS: bool>(
         &mut self,
         node: ast::NodeID,
@@ -2176,17 +2195,23 @@ impl<'cx> TyChecker<'cx> {
         if container.is_fn_like() && !self.is_in_parameter_initializer_before_containing_fn(node) {
             let mut this_ty = if let Some(this_ty) = self.get_this_ty_of_decl(container_id) {
                 Some(this_ty)
-            } else if in_js {
-                todo!("getTypeForThisExpressionFromJSDoc(container)")
             } else {
+                // TODO: in_js then "getTypeForThisExpressionFromJSDoc(container)"
                 None
             };
 
             if this_ty.is_none() {
-                // TODO: in_js && get_class_name_from_prototype_method
+                // TODO: get_class_name_from_prototype_method
+                if in_js && self.is_js_constructor(container_id) {
+                    let s = self.final_res(container_id);
+                    let s = self.get_merged_symbol(s);
+                    let ty = self.get_declared_ty_of_symbol(s);
+                    let ty = ty.kind.expect_object_reference();
+                    this_ty = ty.target.kind.expect_object_interface().this_ty;
+                }
 
                 if this_ty.is_none() {
-                    this_ty = self.get_contextual_this_parameter_type(container_id)
+                    this_ty = self.get_contextual_this_parameter_type(container_id);
                 }
             }
 
