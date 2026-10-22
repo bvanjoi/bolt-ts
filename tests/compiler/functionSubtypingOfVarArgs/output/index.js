@@ -7,10 +7,10 @@ class EventBase {
     this._listeners.push(listener);
   }
 }
-class StringEvent extends EventBase {
-  // should work
-  add(listener) {
-    // valid, items is subtype of args
+class StringEvent extends EventBase {// should work
+
+  add(listener) {// valid, items is subtype of args
+  
     super.add(listener);
   }
 }

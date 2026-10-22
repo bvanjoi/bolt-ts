@@ -200,17 +200,27 @@ prefilled_atom_map!(
             IDENT_NAN:                              ["NaN", 141],
             IDENT_TARGET:                           ["target", 142],
             IDENT_HAS_OWN_PROPERTY:                 ["hasOwnProperty", 143],
-            IDENT_DEFINE_PROPERTY:                   ["defineProperty", 144]
+            IDENT_DEFINE_PROPERTY:                  ["defineProperty", 144],
+            IDENT_FLOAT32_ARRAY_CLASS:              ["Float32Array", 145],
+            IDENT_FLOAT64_ARRAY_CLASS:              ["Float64Array", 146],
+            IDENT_INT8_ARRAY_CLASS:                 ["Int8Array", 147],
+            IDENT_INT16_ARRAY_CLASS:                ["Int16Array", 148],
+            IDENT_INT32_ARRAY_CLASS:                ["Int32Array", 149],
+            IDENT_UINT8_ARRAY_CLASS:                ["Uint8Array", 150],
+            IDENT_UINT8_CLAMPED_ARRAY_CLASS:        ["Uint8ClampedArray", 151],
+            IDENT_UINT16_ARRAY_CLASS:               ["Uint16Array", 152],
+            IDENT_UINT32_ARRAY_CLASS:               ["Uint32Array", 153],
+            IDENT_NODE_LIST_CLASS:                  ["NodeList", 154],
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 145]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 155]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 146]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 156]
         },
         NUMBER: {
-            NUMBER_ZERO:                            ["0", 147],
-            NUMBER_NEGATIVE_INFINITY:               ["-Infinity", 148]
+            NUMBER_ZERO:                            ["0", 157],
+            NUMBER_NEGATIVE_INFINITY:               ["-Infinity", 158]
         },
     }
 );

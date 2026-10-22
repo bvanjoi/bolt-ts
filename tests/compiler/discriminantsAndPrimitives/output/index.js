@@ -53,6 +53,6 @@ var n;
 if (n.type === 'Disjunction') {
   n.alternatives.slice();
 } else {
-  n.elements.slice// n should be narrowed to Pattern
-  ();
+  n.elements.slice()// n should be narrowed to Pattern
+  ;
 }

@@ -10,20 +10,6 @@
     · ────
     ╰────
 
-  × Property 'next' has no initializer and is not definitely assigned in the
-  │ constructor.
-   ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:8:16]
- 8 │ next
-   · ────
-   ╰────
-
-  × Property 'prev' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:10:16]
- 10 │ prev
-    · ────
-    ╰────
-
   × Argument of type 'null' is not assignable to parameter of type 'T'.
      ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:120:52]
  120 │ null
@@ -41,3 +27,17 @@
  141 │ null
      · ────
      ╰────
+
+  × Property 'next' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:8:16]
+ 8 │ next
+   · ────
+   ╰────
+
+  × Property 'prev' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:10:16]
+ 10 │ prev
+    · ────
+    ╰────

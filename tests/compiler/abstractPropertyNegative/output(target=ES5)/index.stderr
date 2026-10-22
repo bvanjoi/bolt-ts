@@ -1,0 +1,68 @@
+  × Abstract modifier can only appear within an abstract class.
+    ╭─[../../tests/compiler/abstractPropertyNegative/index.ts:21:5]
+ 21 │ abstract
+    · ────────
+    ╰────
+
+  × Expected '{'.
+    ╭─[../../tests/compiler/abstractPropertyNegative/index.ts:24:1]
+ 24 │ }
+    · ─
+    ╰────
+
+  × Non-abstract class 'C' does not implement inherited abstract member
+  │ 'mismatch' from class 'B'.
+    ╭─[../../tests/compiler/abstractPropertyNegative/index.ts:18:7]
+ 18 │ C
+    · ─
+    ╰────
+
+  × Cannot assign to 'ro' because it is a read-only property.
+    ╭─[../../tests/compiler/abstractPropertyNegative/index.ts:27:3]
+ 27 │ ro
+    · ──
+    ╰────
+
+  × Property 'num' in type 'WrongTypePropertyImpl<WrongTypePropertyImpl>' is
+  │ not assignable to the same property in base type
+  │ 'WrongTypeProperty<WrongTypePropertyImpl>'.
+    ╭─[../../tests/compiler/abstractPropertyNegative/index.ts:34:5]
+ 34 │ num
+    · ───
+    ╰────
+
+  × Property 'num' in type 'WrongTypeAccessorImpl<WrongTypeAccessorImpl>' is
+  │ not assignable to the same property in base type
+  │ 'WrongTypeAccessor<WrongTypeAccessorImpl>'.
+    ╭─[../../tests/compiler/abstractPropertyNegative/index.ts:41:9]
+ 41 │ num
+    · ───
+    ╰────
+
+  × Property 'num' in type 'WrongTypeAccessorImpl2<WrongTypeAccessorImpl2>' is
+  │ not assignable to the same property in base type
+  │ 'WrongTypeAccessor<WrongTypeAccessorImpl2>'.
+    ╭─[../../tests/compiler/abstractPropertyNegative/index.ts:45:5]
+ 45 │ num
+    · ───
+    ╰────
+
+  × Accessors must both be abstract or non-abstract.
+    ╭─[../../tests/compiler/abstractPropertyNegative/index.ts:50:18]
+ 50 │ p1(): string;
+    · ──
+ 51 │     //~^ ERROR: Accessors must both be abstract or non-abstract.
+ 52 │     set p1
+    ·         ─┬
+    ·          ╰── Setter declaration is defined here.
+    ╰────
+
+  × Accessors must both be abstract or non-abstract.
+    ╭─[../../tests/compiler/abstractPropertyNegative/index.ts:53:9]
+ 53 │ p2(): string { return "should work"; }
+    · ──
+ 54 │     //~^ ERROR: Accessors must both be abstract or non-abstract.
+ 55 │     abstract set p2
+    ·                  ─┬
+    ·                   ╰── Setter declaration is defined here.
+    ╰────

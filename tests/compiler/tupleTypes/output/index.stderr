@@ -1,0 +1,188 @@
+  × Variable 't' is used before being assigned.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:11:10]
+ 11 │ t
+    · ─
+    ╰────
+
+  × Variable 't' is used before being assigned.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:14:10]
+ 14 │ t
+    · ─
+    ╰────
+
+  × Variable 't' is used before being assigned.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:17:10]
+ 17 │ t
+    · ─
+    ╰────
+
+  × Tuple type '[number, string]' of length '2' has no element at index '2'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:17:12]
+ 17 │ 2
+    · ─
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 't2'
+  │ must be of type 'undefined', but here has type 'number | string'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:20:5]
+ 20 │ t2
+    · ──
+    ╰────
+
+  × Type '[]' is not assignable to type '[number, string]'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:23:1]
+ 23 │ t
+    · ─
+    ╰────
+
+  × Type '[number]' is not assignable to type '[number, string]'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:25:1]
+ 25 │ t
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:28:6]
+ 28 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:28:15]
+ 28 │ 1
+    · ─
+    ╰────
+
+  × Type '[number, string, number]' is not assignable to type '[number,
+  │ string]'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:31:1]
+ 31 │ t
+    · ─
+    ╰────
+
+  × Tuple type '[number, string]' of length '2' has no element at index '2'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:49:14]
+ 49 │ 2
+    · ─
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'tt2'
+  │ must be of type 'undefined', but here has type 'number | string'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:51:5]
+ 51 │ tt2
+    · ───
+    ╰────
+
+  × Type '[number, undefined]' is not assignable to type '[number, string]'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:54:1]
+ 54 │ tt
+    · ──
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:56:10]
+ 56 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:58:7]
+ 58 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:58:18]
+ 58 │ undefined
+    · ─────────
+    ╰────
+
+  × Type '[]' is not assignable to type '[number, string]'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:61:1]
+ 61 │ tt
+    · ──
+    ╰────
+
+  × Variable 'a1' is used before being assigned.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:68:5]
+ 68 │ a1
+    · ──
+    ╰────
+
+  × Type '[number, string]' is not assignable to type 'number[]'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:68:1]
+ 68 │ a
+    · ─
+    ╰────
+
+  × Variable 'a2' is used before being assigned.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:71:5]
+ 71 │ a2
+    · ──
+    ╰────
+
+  × Variable 'a3' is used before being assigned.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:73:5]
+ 73 │ a3
+    · ──
+    ╰────
+
+  × Type '[number, { }]' is not assignable to type 'number[]'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:73:1]
+ 73 │ a
+    · ─
+    ╰────
+
+  × Variable 'a2' is used before being assigned.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:76:6]
+ 76 │ a2
+    · ──
+    ╰────
+
+  × Type '[number, number]' is not assignable to type '[number, string]'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:76:1]
+ 76 │ a1
+    · ──
+    ╰────
+
+  × Variable 'a3' is used before being assigned.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:79:6]
+ 79 │ a3
+    · ──
+    ╰────
+
+  × Type '[number, { }]' is not assignable to type '[number, string]'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:79:1]
+ 79 │ a1
+    · ──
+    ╰────
+
+  × Variable 'a2' is used before being assigned.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:83:6]
+ 83 │ a2
+    · ──
+    ╰────
+
+  × Type '0' is not assignable to type '1'.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:88:1]
+ 88 │ b.length
+    · ────────
+    ╰────
+
+  × Cannot assign to 'length' because it is a read-only property.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:91:4]
+ 91 │ length
+    · ──────
+    ╰────
+
+  × Cannot assign to 'length' because it is a read-only property.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:94:4]
+ 94 │ length
+    · ──────
+    ╰────
+
+  × Cannot assign to 'length' because it is a read-only property.
+    ╭─[../../tests/compiler/tupleTypes/index.ts:97:4]
+ 97 │ length
+    · ──────
+    ╰────

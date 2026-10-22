@@ -1,0 +1,47 @@
+  × Left side of comma operator is unused and has no side effects.
+   ╭─[../../tests/compiler/commaOperator1/index.ts:6:12]
+ 6 │ 1
+   · ─
+   ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+   ╭─[../../tests/compiler/commaOperator1/index.ts:6:12]
+ 6 │ 1, 2
+   · ────
+   ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+   ╭─[../../tests/compiler/commaOperator1/index.ts:6:11]
+ 6 │ (1, 2, 3)
+   · ─────────
+   ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+   ╭─[../../tests/compiler/commaOperator1/index.ts:6:11]
+ 6 │ (1, 2, 3), 4
+   · ────────────
+   ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+   ╭─[../../tests/compiler/commaOperator1/index.ts:6:29]
+ 6 │ 6
+   · ─
+   ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+   ╭─[../../tests/compiler/commaOperator1/index.ts:6:11]
+ 6 │ (1, 2, 3), 4, 5
+   · ───────────────
+   ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+    ╭─[../../tests/compiler/commaOperator1/index.ts:15:12]
+ 15 │ a
+    · ─
+    ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+    ╭─[../../tests/compiler/commaOperator1/index.ts:15:12]
+ 15 │ a, v1
+    · ─────
+    ╰────

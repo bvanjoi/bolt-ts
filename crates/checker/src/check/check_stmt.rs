@@ -73,11 +73,16 @@ impl<'cx> TyChecker<'cx> {
             Continue(_) => {}
             Try(n) => self.check_try_stmt(n),
             While(n) => self.check_while_stmt(n),
-            Do(_) => {}
+            Do(n) => self.check_do_while_stmt(n),
             Debugger(_) => {}
             Switch(n) => self.check_switch_stmt(n),
             Labeled(n) => self.check_stmt(n.stmt),
         };
+    }
+
+    fn check_do_while_stmt(&mut self, node: &'cx ast::DoWhileStmt<'cx>) {
+        self.check_stmt(node.stmt);
+        self.check_truthiness_expr(node.expr, None);
     }
 
     fn check_export_assignment(&mut self, node: &'cx ast::ExportAssign<'cx>) {
@@ -1049,7 +1054,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_class_decl(&mut self, n: &'cx ast::ClassDecl<'cx>) {
         self.check_class_like_decl(n);
         self.check_class_elements(n.elems);
-        self.check_property_initializer(n);
+        self.mark_check_property_initializer_deferred(n);
         self.register_potentially_unused_class_declaration(n);
     }
 

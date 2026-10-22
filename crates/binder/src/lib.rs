@@ -5,6 +5,7 @@ mod bind_container;
 mod bind_for_in_for_of;
 mod bind_ret_or_throw;
 mod bind_worker;
+mod check_strict_mode;
 mod container_flags;
 mod create;
 
@@ -319,7 +320,6 @@ pub fn prop_name_opt(name: &ast::PropNameKind) -> Option<SymbolName> {
         ast::PropNameKind::Computed(c) => {
             use bolt_ts_ast::ExprKind::*;
             match c.expr.kind {
-                Ident(n) => Some(SymbolName::Atom(n.name)),
                 StringLit(n) => Some(SymbolName::Atom(n.val)),
                 NumLit(n) => Some(SymbolName::EleNum(n.val.into())),
                 _ => {

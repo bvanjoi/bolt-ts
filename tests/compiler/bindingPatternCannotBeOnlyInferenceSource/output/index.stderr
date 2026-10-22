@@ -1,89 +1,92 @@
   × Object is of type 'unknown'.
-   ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:6:7]
- 6 │ {} = f()
+   ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:7:7]
+ 7 │ {} = f()
    · ────────
    ╰────
 
   × Property '"p1"' does not exist on type 'unknown'.
-   ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:8:9]
- 8 │ p1
+   ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:9:9]
+ 9 │ p1
    · ──
    ╰────
 
   × Object is of type 'unknown'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:10:7]
- 10 │ [] = f()
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:11:7]
+ 11 │ [] = f()
     · ────────
     ╰────
 
-  × Type 'unknown' is not an array type.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:10:7]
- 10 │ [] = f()
+  × Type 'unknown' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:11:7]
+ 11 │ [] = f()
     · ────────
     ╰────
 
-  × Type 'unknown' is not an array type.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:13:7]
- 13 │ [e1, e2]
+  × Type 'unknown' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:14:7]
+ 14 │ [e1, e2]
     · ────────
     ╰────
 
-  × Type 'unknown' is not an array type.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:13:7]
- 13 │ [e1, e2]
+  × Type 'unknown' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:14:7]
+ 14 │ [e1, e2]
     · ────────
     ╰────
 
   × Type 'undefined' is not assignable to type 'V'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:86:20]
- 86 │ bugs
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:87:20]
+ 87 │ bugs
     · ────
     ╰────
 
   × Type '{ life: undefined; }' is not assignable to type 'V'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:88:20]
- 88 │ bugs
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:89:20]
+ 89 │ bugs
     · ────
     ╰────
 
   × Type 'boolean' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:46:15]
- 46 │ _
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:47:15]
+ 47 │ _
     · ─
     ╰────
 
   × Tuple type '[boolean]' of length '1' has no element at index '1'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:50:12]
- 50 │ 1
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:51:12]
+ 51 │ 1
     · ─
     ╰────
 
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:59:13]
- 59 │ a0
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:60:13]
+ 60 │ a0
     · ──
     ╰────
 
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:61:13]
- 61 │ a1
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:62:13]
+ 62 │ a1
     · ──
     ╰────
 
   × Tuple type '[string, string]' of length '2' has no element at index '2'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:63:11]
- 63 │ 2
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:64:11]
+ 64 │ 2
     · ─
     ╰────
 
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:73:21]
- 73 │ a0
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:74:21]
+ 74 │ a0
     · ──
     ╰────
 
   × Tuple type '[string]' of length '1' has no element at index '1'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:75:19]
- 75 │ 1
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:76:19]
+ 76 │ 1
     · ─
     ╰────

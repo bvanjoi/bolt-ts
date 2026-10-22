@@ -513,6 +513,7 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
                         .potential_unused_renamed_binding_elements_in_types
                         .insert(node.id);
                     debug_assert!(prev);
+                    // TODO: is_reference
                     let error = Box::new(
                         errors::XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
                             span: name.span,

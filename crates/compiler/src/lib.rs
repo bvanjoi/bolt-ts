@@ -3,7 +3,6 @@
 mod cli;
 mod compiler_result;
 mod diag;
-mod emit_declaration;
 mod match_files;
 
 use std::path::PathBuf;
@@ -11,7 +10,6 @@ use std::sync::{Arc, Mutex};
 
 use self::cli::get_filenames;
 pub use self::compiler_result::{CompilerResult, OutputFile};
-use self::emit_declaration::emit_declarations;
 
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_binder::bind_parallel;
@@ -20,8 +18,8 @@ use bolt_ts_binder::{BinderResult, MergeGlobalSymbolResult};
 use bolt_ts_checker::check::MergeModuleAugmentationResult;
 use bolt_ts_config::{CompilerOptionFlags, NormalizedTsConfig, parse_tsconfig};
 use bolt_ts_early_resolve::early_resolve_parallel;
+use bolt_ts_emit::emit_modules;
 use bolt_ts_fs::{CachedFileSystem, MemoryFS, read_file_with_encoding};
-use bolt_ts_optimize::optimize_and_js_emit;
 use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 use bolt_ts_span::ModuleArena;
 use bolt_ts_utils::path::NormalizePath;
@@ -490,6 +488,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         let root = checker.p.root(*item);
         checker.check_program(root);
         checker.check_deferred_nodes(*item);
+        checker.check_deferred_class_nodes_for_property_initializer(*item);
         if checker.p.get(*item).is_external_or_commonjs_module() {
             checker.check_external_module_exports(root.id());
         }
@@ -520,31 +519,10 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         paths.len() == paths.iter().collect::<std::collections::HashSet<_>>().len()
     });
 
-    let compiler_options = checker.config.compiler_options().flags();
+    let no_emit = checker.config.compiler_options().no_emit();
     let mut files = vec![];
-    if !compiler_options.contains(CompilerOptionFlags::NO_EMIT) {
-        let dts_output = if compiler_options.contains(CompilerOptionFlags::DECLARATION) {
-            emit_declarations(&entries, &mut checker)
-        } else {
-            entries
-                .iter()
-                .filter_map(|&item| {
-                    let is_default_lib = checker.module_arena.get_module(item).is_default_lib();
-                    if is_default_lib {
-                        None
-                    } else {
-                        Some((item, "".to_string()))
-                    }
-                })
-                .collect()
-        };
-        let js_output = optimize_and_js_emit(entries, &mut checker);
-
-        for ((item, js_code), (item2, dts_code)) in js_output.files.into_iter().zip(dts_output) {
-            debug_assert!(
-                item == item2,
-                "id in js output: {item:#?}, id in dts output: {item2:#?}"
-            );
+    if !no_emit {
+        for (item, js_code, dts_code) in emit_modules(entries, &mut checker) {
             let output_file = OutputFile::new(js_code, dts_code);
             files.push((item, output_file));
         }

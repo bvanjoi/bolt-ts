@@ -9,7 +9,7 @@
 // https://github.com/microsoft/TypeScript/issues/57286#issuecomment-1927920336
 class BaseClass {
   fake() {
-    throw new Error('')
+    throw new Error('');
   }
 }
 class Klass extends BaseClass {

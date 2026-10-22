@@ -274,6 +274,9 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_of_func_class_enum_module(symbol)
         } else if node.is_enum_member() {
             self.get_ty_enum_member(symbol)
+        } else if node.is_assign_expr() {
+            // TODO: getWidenedTypeForAssignmentDeclaration
+            self.any_ty
         } else {
             unreachable!("node: {node:#?}");
         };
@@ -2172,6 +2175,14 @@ impl<'cx> TyChecker<'cx> {
             let check_ty = self.instantiate_ty(root.check_ty, mapper);
             let extends_ty = self.instantiate_ty(root.extends_ty, mapper);
             let conditional_links = self.conditional_links_arena.alloc(Default::default());
+            let alias_ty_arguments = if alias_symbol.is_some() {
+                alias_ty_arguments
+            } else if let Some(alias_ty_args) = root.alias_ty_args {
+                Some(self.instantiate_tys(alias_ty_args, mapper.unwrap()))
+            } else {
+                None
+            };
+            let alias_symbol = alias_symbol.or(root.alias_symbol);
             let cond_ty = self.alloc(ty::CondTy {
                 root,
                 check_ty,
@@ -2436,7 +2447,7 @@ impl<'cx> TyChecker<'cx> {
         if !IS_ENUM_LITERAL && let Some(ty) = self.num_lit_tys.get(&val) {
             ty
         } else {
-            let links = self.fresh_ty_links_arena.alloc(Default::default());
+            let links = self.fresh_regular_ty_links_arena.alloc(Default::default());
             let kind = TyKind::NumberLit(self.alloc(ty::NumberLitTy { val, links, symbol }));
             let flags = if IS_ENUM_LITERAL {
                 debug_assert!(symbol.is_some());
@@ -2446,7 +2457,7 @@ impl<'cx> TyChecker<'cx> {
                 TypeFlags::NUMBER_LITERAL
             };
             let ty = self.new_ty(kind, flags);
-            self.fresh_ty_links_arena[links].set_regular_ty(ty);
+            self.fresh_regular_ty_links_arena[links].set_regular_ty(ty);
             self.num_lit_tys.insert(val, ty);
             ty
         }
@@ -2472,10 +2483,10 @@ impl<'cx> TyChecker<'cx> {
                 debug_assert!(symbol.is_none());
                 TypeFlags::STRING_LITERAL
             };
-            let links = self.fresh_ty_links_arena.alloc(Default::default());
+            let links = self.fresh_regular_ty_links_arena.alloc(Default::default());
             let kind = TyKind::StringLit(self.alloc(ty::StringLitTy { val, links, symbol }));
             let ty = self.new_ty(kind, flags);
-            self.fresh_ty_links_arena[links].set_regular_ty(ty);
+            self.fresh_regular_ty_links_arena[links].set_regular_ty(ty);
             self.string_lit_tys.insert(val, ty);
             ty
         }
@@ -2486,10 +2497,10 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.bigint_lit_tys.get(&key) {
             ty
         } else {
-            let links = self.fresh_ty_links_arena.alloc(Default::default());
+            let links = self.fresh_regular_ty_links_arena.alloc(Default::default());
             let kind = TyKind::BigIntLit(self.alloc(ty::BigIntLitTy { val, neg, links }));
             let ty = self.new_ty(kind, TypeFlags::BIG_INT_LITERAL);
-            self.fresh_ty_links_arena[links].set_regular_ty(ty);
+            self.fresh_regular_ty_links_arena[links].set_regular_ty(ty);
             self.bigint_lit_tys.insert(key, ty);
             ty
         }

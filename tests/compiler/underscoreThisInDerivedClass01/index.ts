@@ -1,0 +1,27 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/underscoreThisInDerivedClass01.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+
+// Original test intent:
+// When arrow functions capture 'this', the lexical 'this' owner
+// currently captures 'this' using a variable named '_this'.
+// That means that '_this' becomes a reserved identifier in certain places.
+//
+// Constructors have adopted the same identifier name ('_this')
+// for capturing any potential return values from super calls,
+// so we expect the same behavior.
+
+class C {
+    constructor() {
+        return {};
+    }
+}
+
+class D extends C {
+    constructor() {
+        var _this = "uh-oh?";
+        console.log("ruh-roh...");
+        super();
+        console.log("d'oh!");
+    }
+}

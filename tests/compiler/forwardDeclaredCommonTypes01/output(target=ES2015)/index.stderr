@@ -1,0 +1,101 @@
+  × Cannot find name 'Promise'.
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:15:9]
+ 15 │ Promise
+    · ───────
+    ╰────
+
+Advice: 
+  ☞ 'Promise' only refers to a type, but is being used as a value here.
+  [Failed to read contents for label `'Promise' is defined here.` (offset: 71948, length: 7): OutOfBounds]
+
+  × Cannot find name 'Symbol'.
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:17:9]
+ 17 │ Symbol
+    · ──────
+    ╰────
+
+Advice: 
+  ☞ 'Symbol' only refers to a type, but is being used as a value here.
+  [Failed to read contents for label `'Symbol' is defined here.` (offset: 3518, length: 6): OutOfBounds]
+
+  × Cannot find name 'Symbol'.
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:17:17]
+ 17 │ Symbol
+    · ──────
+    ╰────
+
+Advice: 
+  ☞ 'Symbol' only refers to a type, but is being used as a value here.
+  [Failed to read contents for label `'Symbol' is defined here.` (offset: 3518, length: 6): OutOfBounds]
+
+  × Cannot find name 'Map'.
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:20:9]
+ 20 │ Map
+    · ───
+    ╰────
+
+Advice: 
+  ☞ 'Map' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:9:11]
+ 9 │ Map
+   · ─┬─
+   ·  ╰── 'Map' is defined here.
+   ╰────
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:20:9]
+ 20 │ Map
+    · ───
+    ╰────
+
+  × Cannot find name 'WeakMap'.
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:22:9]
+ 22 │ WeakMap
+    · ───────
+    ╰────
+
+Advice: 
+  ☞ 'WeakMap' only refers to a type, but is being used as a value here.
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:10:11]
+ 10 │ WeakMap
+    · ───┬───
+    ·    ╰── 'WeakMap' is defined here.
+    ╰────
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:22:9]
+ 22 │ WeakMap
+    · ───────
+    ╰────
+
+  × Cannot find name 'Set'.
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:24:9]
+ 24 │ Set
+    · ───
+    ╰────
+
+Advice: 
+  ☞ 'Set' only refers to a type, but is being used as a value here.
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:11:11]
+ 11 │ Set
+    · ─┬─
+    ·  ╰── 'Set' is defined here.
+    ╰────
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:24:9]
+ 24 │ Set
+    · ───
+    ╰────
+
+  × Cannot find name 'WeakSet'.
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:26:9]
+ 26 │ WeakSet
+    · ───────
+    ╰────
+
+Advice: 
+  ☞ 'WeakSet' only refers to a type, but is being used as a value here.
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:12:11]
+ 12 │ WeakSet
+    · ───┬───
+    ·    ╰── 'WeakSet' is defined here.
+    ╰────
+    ╭─[../../tests/compiler/forwardDeclaredCommonTypes01/index.ts:26:9]
+ 26 │ WeakSet
+    · ───────
+    ╰────

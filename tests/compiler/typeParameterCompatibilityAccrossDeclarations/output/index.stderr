@@ -1,0 +1,17 @@
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/typeParameterCompatibilityAccrossDeclarations/index.ts:23:5]
+ 23 │ i
+    · ─
+    ╰────
+
+  × Variable 'i2' is used before being assigned.
+    ╭─[../../tests/compiler/typeParameterCompatibilityAccrossDeclarations/index.ts:27:6]
+ 27 │ i2
+    · ──
+    ╰────
+
+  × Type 'null' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/typeParameterCompatibilityAccrossDeclarations/index.ts:7:38]
+ 7 │ null
+   · ────
+   ╰────

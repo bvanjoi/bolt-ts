@@ -1,10 +1,3 @@
-  × Property 'isDairyFree' has no initializer and is not definitely assigned
-  │ in the constructor.
-    ╭─[../../tests/compiler/objectCreationOfElementAccessExpression/index.ts:27:13]
- 27 │ isDairyFree
-    · ───────────
-    ╰────
-
   × Value of type 'typeof Cookie' is not callable.
     ╭─[../../tests/compiler/objectCreationOfElementAccessExpression/index.ts:58:63]
  58 │ Cookie
@@ -29,4 +22,11 @@
     ╭─[../../tests/compiler/objectCreationOfElementAccessExpression/index.ts:61:41]
  61 │ new IceCream('Mint chocolate chip') , Cookie('Chocolate chip', false) , new Cookie('Peanut butter', true)
     · ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ╰────
+
+  × Property 'isDairyFree' has no initializer and is not definitely assigned
+  │ in the constructor.
+    ╭─[../../tests/compiler/objectCreationOfElementAccessExpression/index.ts:27:13]
+ 27 │ isDairyFree
+    · ───────────
     ╰────

@@ -34,6 +34,18 @@
     · ─
     ╰────
 
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:58:5]
+ 58 │ x3
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:60:5]
+ 60 │ x4
+    · ──
+    ╰────
+
   × Property 'a' has no initializer and is not definitely assigned in the
   │ constructor.
     ╭─[../../tests/compiler/typeofProperty/index.ts:23:5]
@@ -53,16 +65,4 @@
     ╭─[../../tests/compiler/typeofProperty/index.ts:49:5]
  49 │ x
     · ─
-    ╰────
-
-  × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/compiler/typeofProperty/index.ts:58:5]
- 58 │ x3
-    · ──
-    ╰────
-
-  × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/compiler/typeofProperty/index.ts:60:5]
- 60 │ x4
-    · ──
     ╰────

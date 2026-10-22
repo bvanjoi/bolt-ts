@@ -54,3 +54,5 @@ var mResult1 = m[MyEmusEnum.emu];
 var mResult2 = m[MyEmusEnum[MyEmusEnum.emu]];
 var mResult3 = m[hi];
 
+const f = ({ q = {} }, k: string) => q[k]
+//~^ ERROR: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ }'.

@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 
 use super::PResult;
 use super::const_variant::is_dts_variant;
+use super::const_variant::is_js_like_variant;
 use super::parsing_ctx::ParseContext;
 use super::parsing_ctx::ParsingContext;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
@@ -83,6 +84,9 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         let mut node_context_flags = ast::NodeFlags::empty();
         if is_dts_variant(VARIANT) {
             node_context_flags |= ast::NodeFlags::AMBIENT;
+        }
+        if is_js_like_variant(VARIANT) {
+            node_context_flags |= ast::NodeFlags::JAVASCRIPT_FILE;
         }
         Self {
             input,

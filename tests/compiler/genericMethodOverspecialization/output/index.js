@@ -10,7 +10,7 @@ var elements = names.map(function (name) {
 var xxx = elements.filter(function (e) {
   return !e.isDisabled;
 });
-var widths = elements.map(function (e) {
-  // should not error
+var widths = elements.map(function (e) {// should not error
+
   return e.clientWidth;
 });

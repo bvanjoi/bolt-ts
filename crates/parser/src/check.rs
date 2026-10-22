@@ -25,13 +25,25 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         });
     }
 
-    pub(super) fn check_module_declaration_error(&mut self, span: bolt_ts_span::Span) {
+    pub(super) fn check_module_declaration_error<
+        const IS_GLOBAL_SCOPE_AUGMENTATION: bool,
+        const IS_STRING_AUGMENTATION: bool,
+    >(
+        &mut self,
+        span: bolt_ts_span::Span,
+    ) {
         self.check_module_element_context(|this| {
-            let error =
-                errors::ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule {
-                    span,
-                };
-            this.push_error(Box::new(error));
+            if IS_GLOBAL_SCOPE_AUGMENTATION || IS_STRING_AUGMENTATION {
+                let error =
+                    errors::AnAmbientModuleDeclarationIsOnlyAllowedAtTheTopLevelInAFile { span };
+                this.push_error(Box::new(error));
+            } else {
+                let error =
+                    errors::ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule {
+                        span,
+                    };
+                this.push_error(Box::new(error));
+            }
         });
     }
 
@@ -43,13 +55,11 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         });
     }
 
-    fn is_in_module_or_namespace(&self) -> bool {
-        self.parse_context
-            .intersects(ParseContext::TOP_LEVEL.union(ParseContext::MODULE_BLOCK))
-    }
-
     pub(super) fn check_module_element_context(&mut self, push_error: impl FnOnce(&mut Self)) {
-        if self.is_in_module_or_namespace() {
+        if self
+            .parse_context
+            .intersects(ParseContext::TOP_LEVEL.union(ParseContext::MODULE_BLOCK_TOP_LEVEL))
+        {
             return;
         }
 

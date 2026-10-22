@@ -2,8 +2,8 @@
 //@compiler-options: target=es2018
 var 𝑚 = 4;
 var 𝑀 = 5;
-console.log(𝑀 + 𝑚);
-// 9
+console.log(𝑀 + 𝑚);// 9
+
 class K {
   #𝑚 = 4;
   #𝑀 = 5;
@@ -22,12 +22,12 @@ console.log(ၡ𝑀ဒ ** ၡ𝑀ဒ);
 var 𝑀ဒၡ = 7;
 console.log(𝑀ဒၡ ** 𝑀ဒၡ);
 var 𝓱𝓮𝓵𝓵𝓸 = '𝔀𝓸𝓻𝓵𝓭';
-var Ɐⱱ = 'ok';
-// BMP
-var 𓀸𓀹𓀺 = 'ok';
-// SMP
-var 𡚭𡚮𡚯 = 'ok';
-// SIP
+var Ɐⱱ = 'ok';// BMP
+
+var 𓀸𓀹𓀺 = 'ok';// SMP
+
+var 𡚭𡚮𡚯 = 'ok';// SIP
+
 var 𡚭𓀺ⱱ𝓮 = 'ok';
 var 𓀺ⱱ𝓮𡚭 = 'ok';
 var ⱱ𝓮𡚭𓀺 = 'ok';
