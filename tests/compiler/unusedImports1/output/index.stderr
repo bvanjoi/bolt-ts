@@ -1,0 +1,5 @@
+  × 'Calculator' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedImports1/file2.ts:1:9]
+ 1 │ Calculator
+   · ──────────
+   ╰────

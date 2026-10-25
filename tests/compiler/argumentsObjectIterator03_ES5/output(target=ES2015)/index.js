@@ -3,8 +3,8 @@
 //@[target=ES2015]  compiler-options: target=es2015
 function asReversedTuple(a, b, c) {
   var [x, y, z] = arguments;
-  //~[target=ES5]^      ERROR: Type 'IArguments' is not an array type.
-  //~[target=ES5]|      ERROR: Type 'IArguments' is not an array type.
-  //~[target=ES5]|      ERROR: Type 'IArguments' is not an array type.
+  //~[target=ES5]^      ERROR: Type 'IArguments' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+  //~[target=ES5]|      ERROR: Type 'IArguments' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+  //~[target=ES5]|      ERROR: Type 'IArguments' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
   return [z, y, x];
 }

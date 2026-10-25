@@ -158,7 +158,9 @@ fn run_test_with(
                 let code = module_arena.get_content(diag.inner.module_id());
                 let start =
                     bolt_ts_errors::miette_label_span_to_line_position(primary_label, code).0;
+                let file = module_arena.get_path(diag.inner.module_id()).to_path_buf();
                 Some(compile_test::errors::Error {
+                    file,
                     line_num: start.line + 1,
                     kind: Some(kind),
                     msg,

@@ -1123,6 +1123,22 @@ pub struct ImportClause<'cx> {
     pub kind: Option<ImportClauseKind<'cx>>,
 }
 
+impl<'cx> ImportClause<'cx> {
+    pub fn declaration_count(&self) -> usize {
+        let mut count = 0;
+        if self.name.is_some() {
+            count += 1;
+        }
+        if let Some(kind) = &self.kind {
+            match kind {
+                ImportClauseKind::Ns(_) => count += 1,
+                ImportClauseKind::Specs(specs) => count += specs.len(),
+            }
+        }
+        count
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ImportClauseKind<'cx> {
     Ns(&'cx NsImport<'cx>),
