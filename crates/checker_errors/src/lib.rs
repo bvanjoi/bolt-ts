@@ -2375,3 +2375,10 @@ pub struct TypeXIsNotAnArrayTypeOrDoesNotHaveASymbolIteratorMethodThatReturnsAnI
     #[label = "Did you forget to use 'await'?"]
     pub did_you_forget_to_use_await: Option<Span>,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Fallthrough case in switch.")]
+pub struct FallthroughCaseInSwitch {
+    #[label(primary)]
+    pub span: Span,
+}

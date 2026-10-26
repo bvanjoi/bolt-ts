@@ -1246,22 +1246,26 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
 
     fn check_variable_declaration_should_initializer(&mut self, n: &'cx ast::VarDecl<'cx>) {
         let flags = self.node_flags_map.get(n.id);
-        if flags.contains(ast::NodeFlags::CONST)
-            && !flags.contains(ast::NodeFlags::AMBIENT)
-            && n.init.is_none()
-        {
-            let span = n.name.span;
-            self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
-            return;
-        }
-
-        match n.name.kind {
-            ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) if n.init.is_none() => {
-                let error =
-                    errors::ADestructuringDeclarationMustHaveAnInitializer { span: n.name.span };
-                self.push_error(Box::new(error));
+        if flags.contains(ast::NodeFlags::AMBIENT) {
+            // check_ambient_initializer
+        } else {
+            if flags.contains(ast::NodeFlags::CONST) && n.init.is_none() {
+                let span = n.name.span;
+                self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
+                return;
             }
-            _ => {}
+
+            match n.name.kind {
+                ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_)
+                    if n.init.is_none() =>
+                {
+                    let error = errors::ADestructuringDeclarationMustHaveAnInitializer {
+                        span: n.name.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+                _ => {}
+            }
         }
     }
 

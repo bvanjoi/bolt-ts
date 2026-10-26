@@ -700,6 +700,7 @@ impl<'cx> TyChecker<'cx> {
             locals: Default::default(),
             parent_map: Default::default(),
             local_symbols: Default::default(),
+            fallthrough_flow_nodes: Default::default(),
         });
 
         let structure_members_placeholder = ty_arena.alloc(ty::StructuredMembers {

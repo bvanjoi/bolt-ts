@@ -1,0 +1,49 @@
+  × Type 'number' is not assignable to type 'T.I'.
+    ╭─[../../tests/compiler/qualify/index.ts:26:13]
+ 26 │ z
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'T.U.I2'.
+    ╭─[../../tests/compiler/qualify/index.ts:36:13]
+ 36 │ z
+    · ─
+    ╰────
+
+  × Property 'zeep' is missing.
+    ╭─[../../tests/compiler/qualify/index.ts:52:13]
+ 52 │ v2
+    · ──
+    ╰────
+
+  × Type 'Everest.K2.I4' is missing the following properties from type
+  │ 'Everest.K1.I3[]': length, pop, and 27 more.
+    ╭─[../../tests/compiler/qualify/index.ts:54:13]
+ 54 │ v3
+    · ──
+    ╰────
+
+  × Type 'Everest.K2.I4' is not assignable to type '() => Everest.K1.I3'.
+    ╭─[../../tests/compiler/qualify/index.ts:56:13]
+ 56 │ v4
+    · ──
+    ╰────
+
+  × Type 'Everest.K2.I4' is not assignable to type '(k: Everest.K1.I3) =>
+  │ void'.
+    ╭─[../../tests/compiler/qualify/index.ts:58:13]
+ 58 │ v5
+    · ──
+    ╰────
+
+  × Property 'k' is missing.
+    ╭─[../../tests/compiler/qualify/index.ts:60:13]
+ 60 │ v6
+    · ──
+    ╰────
+
+  × Property 'p' is missing.
+    ╭─[../../tests/compiler/qualify/index.ts:70:5]
+ 70 │ x
+    · ─
+    ╰────

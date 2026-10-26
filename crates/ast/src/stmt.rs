@@ -224,6 +224,13 @@ impl<'cx> CaseOrDefaultClause<'cx> {
             CaseOrDefaultClause::Default(c) => c.id,
         }
     }
+
+    pub fn span(&self) -> Span {
+        match self {
+            CaseOrDefaultClause::Case(c) => c.span,
+            CaseOrDefaultClause::Default(c) => c.span,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

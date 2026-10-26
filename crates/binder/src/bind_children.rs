@@ -2098,7 +2098,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     .compiler_options()
                     .no_fallthrough_cases_in_switch()
             {
-                // TODO: fallthrough_flow_node
+                self.fallthrough_flow_nodes
+                    .insert(&n.clauses[i], self.current_flow.unwrap());
             }
             i += 1;
         }

@@ -68,6 +68,7 @@ with_option!(
     (es_module_interop, bool),
     (exact_optional_property_types, bool),
     (preserve_symlinks, bool),
+    (preserve_const_enums, bool),
     (use_define_for_class_fields, bool),
     (use_unknown_in_catch_variables, bool),
     (resolve_json_module, bool),
@@ -159,6 +160,9 @@ impl RawCompilerOptions {
         }
         if self.preserve_symlinks.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::PRESERVE_SYMLINKS);
+        }
+        if self.preserve_const_enums.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::PRESERVE_CONST_ENUMS);
         }
         if self.no_implicit_returns.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_RETURNS);

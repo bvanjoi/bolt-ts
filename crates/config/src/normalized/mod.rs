@@ -55,11 +55,13 @@ bitflags::bitflags! {
         const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 26;
         const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 27;
 
-        const ALWAYS_STRICT                             = 1 << 28;
-        const DECLARATION                               = 1 << 29;
-        const PRESERVE_SYMLINKS                         = 1 << 30;
-        const CHECK_JS                                  = 1 << 31;
-        const DOWNLEVEL_ITERATION                       = 1 << 32;
+        const PRESERVE_SYMLINKS                         = 1 << 28;
+        const PRESERVE_CONST_ENUMS                      = 1 << 29;
+
+        const ALWAYS_STRICT                             = 1 << 30;
+        const DECLARATION                               = 1 << 31;
+        const CHECK_JS                                  = 1 << 32;
+        const DOWNLEVEL_ITERATION                       = 1 << 33;
     }
 }
 
@@ -150,6 +152,12 @@ impl NormalizedCompilerOptions {
     #[inline(always)]
     pub const fn preserve_symlinks(&self) -> bool {
         self.flags.contains(CompilerOptionFlags::PRESERVE_SYMLINKS)
+    }
+
+    #[inline(always)]
+    pub const fn preserve_const_enums(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::PRESERVE_CONST_ENUMS)
     }
 
     #[inline(always)]

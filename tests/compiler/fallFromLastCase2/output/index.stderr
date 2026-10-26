@@ -1,0 +1,11 @@
+  × Fallthrough case in switch.
+    ╭─[../../tests/compiler/fallFromLastCase2/index.ts:14:14]
+ 14 │ 2
+    · ─
+    ╰────
+
+  × Fallthrough case in switch.
+    ╭─[../../tests/compiler/fallFromLastCase2/index.ts:28:9]
+ 28 │ default
+    · ───────
+    ╰────

@@ -474,7 +474,11 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                             if self.is_identifier_that_starts_with_underscore(n.name) {
                                 continue;
                             }
-                            // TODO: unused_import_group
+                            let parent = self.c.parent(declaration).unwrap();
+                            let ast::Node::ImportClause(n) = self.c.p.node(parent) else {
+                                unreachable!()
+                            };
+                            add_unused_import(&mut unused_import_group, n, declaration);
                         }
                         ast::Node::NsImport(n) => {
                             if self.is_identifier_that_starts_with_underscore(n.name) {
@@ -578,7 +582,8 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                 match n {
                     ast::Node::ImportClause(n) if let Some(name) = n.name => name,
                     ast::Node::NsImport(n) => n.name,
-                    _ => unreachable!(),
+                    ast::Node::ImportNamedSpec(n) => n.name,
+                    _ => unreachable!("{n:#?}"),
                 }
             };
             if declaration_count == unused_len {
@@ -594,7 +599,14 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                     todo!()
                 }
             } else {
-                todo!()
+                for unused in unused {
+                    let name = name_of_unused(self, unused);
+                    let error = errors::XIsDeclaredButItsValueIsNeverRead {
+                        span: self.c.p.node(unused).span(),
+                        name: pprint_ident(name, &self.c.atoms),
+                    };
+                    self.push_unused_local_error(unused, Box::new(error), diags);
+                }
             }
         }
 

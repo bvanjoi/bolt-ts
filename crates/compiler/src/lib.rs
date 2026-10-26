@@ -426,22 +426,22 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         .zip(early_resolve_result)
         .zip(bind_list)
         .map(|((x, y), z)| (x, y, z))
-        .map(|(_, early_resolve_result, mut state)| {
+        .map(|(_, early_resolve_result, mut s)| {
             debug_assert!(
-                state
-                    .final_res
+                s.final_res
                     .keys()
                     .all(|node_id| !early_resolve_result.final_res.contains_key(node_id))
             );
-            state.diags.extend(early_resolve_result.diags);
-            state.final_res.extend(early_resolve_result.final_res);
+            s.diags.extend(early_resolve_result.diags);
+            s.final_res.extend(early_resolve_result.final_res);
             ResolveResult {
-                symbols: state.symbols,
-                final_res: state.final_res,
-                diags: state.diags,
-                locals: state.locals,
-                local_symbols: state.local_symbols,
-                parent_map: state.parent_map,
+                symbols: s.symbols,
+                final_res: s.final_res,
+                diags: s.diags,
+                locals: s.locals,
+                local_symbols: s.local_symbols,
+                parent_map: s.parent_map,
+                fallthrough_flow_nodes: s.fallthrough_flow_nodes,
             }
         })
         .collect::<Vec<_>>();

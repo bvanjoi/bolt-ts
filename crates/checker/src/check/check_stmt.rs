@@ -4,6 +4,7 @@ use bolt_ts_binder::ModuleInstanceState;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolName;
+use bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver;
 use bolt_ts_ty::ObjectFlags;
 use bolt_ts_ty::TypeFacts;
 
@@ -136,7 +137,7 @@ impl<'cx> TyChecker<'cx> {
         self.register_potentially_unused_case_block(node.case_block);
 
         for clause in node.case_block.clauses {
-            match clause {
+            let stmts = match clause {
                 Case(n) => {
                     let case_ty = self.check_expression::<false>(n.expr, None);
                     if !self.is_type_equality_comparable_to(expr_ty, case_ty) {
@@ -154,15 +155,31 @@ impl<'cx> TyChecker<'cx> {
                             }),
                         );
                     }
-                    for stmt in n.stmts {
-                        self.check_stmt(stmt);
-                    }
+                    n.stmts
                 }
-                Default(n) => {
-                    for stmt in n.stmts {
-                        self.check_stmt(stmt);
+                Default(n) => n.stmts,
+            };
+            for stmt in stmts {
+                self.check_stmt(stmt);
+            }
+            if self.options().no_fallthrough_cases_in_switch()
+                && let id = clause.id()
+                && let Some(flow) = self
+                    .binder
+                    .get(id.module())
+                    .fallthrough_flow_nodes
+                    .get(&clause)
+                && self.is_reachable_flow_node(flow)
+            {
+                let span = match clause {
+                    Case(n) => n.expr.span(),
+                    Default(n) => {
+                        let lo = n.span.lo();
+                        bolt_ts_span::Span::new(lo, lo + "default".len() as u32, n.span.module())
                     }
-                }
+                };
+                let error = errors::FallthroughCaseInSwitch { span };
+                self.push_error(Box::new(error));
             }
         }
     }
