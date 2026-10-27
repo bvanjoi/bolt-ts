@@ -446,14 +446,8 @@
      · ──
      ╰────
 
-  × Unexpected keyword or identifier.
+  × An identifier or keyword cannot immediately follow a numeric literal.
      ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:151:1]
- 151 │ 09.
-     · ───
-     ╰────
-
-  × Cannot find name 'x'.
-     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:151:4]
- 151 │ x
+ 151 │ 0
      · ─
      ╰────

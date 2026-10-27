@@ -1030,3 +1030,10 @@ pub struct ThisParameterIsNotAllowedWithUseStrictDirective {
     #[label("use strict directive used here")]
     pub use_strict_directive_span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An identifier or keyword cannot immediately follow a numeric literal.")]
+pub struct AnIdentifierOrKeywordCannotImmediatelyFollowANumericLiteral {
+    #[label(primary)]
+    pub span: Span,
+}

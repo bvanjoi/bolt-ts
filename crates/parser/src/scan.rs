@@ -143,8 +143,48 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
         is_octal
     }
 
+    fn check_for_identifier_start_after_numeric_literal(&mut self, start: usize) -> bool {
+        let Some(ch) = self.ch() else {
+            return true;
+        };
+        // TODO: maybe need consider non-ascii identifier start
+        if !is_ascii_identifier_start(ch) {
+            return true;
+        }
+        let Some(parts) = self.scan_identifier_parts() else {
+            unreachable!()
+        };
+        let error = Box::new(
+            errors::AnIdentifierOrKeywordCannotImmediatelyFollowANumericLiteral {
+                span: bolt_ts_span::Span::new(
+                    start as u32,
+                    (start + parts.len()) as u32,
+                    self.module_id,
+                ),
+            },
+        );
+        self.push_error(error);
+        false
+    }
+
     fn scan_number(&mut self) -> Token {
         let start = self.pos;
+        let get_result = |this: &Self, end: usize| {
+            if this.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
+                debug_assert!(this.input[start..end].contains(&b'_'));
+                Cow::Owned(
+                    this.input[start..end]
+                        .iter()
+                        .filter(|&&c| c != b'_')
+                        .copied()
+                        .collect::<Vec<u8>>(),
+                )
+            } else {
+                debug_assert!(!this.input[start..end].contains(&b'_'));
+                Cow::Borrowed(&this.input[start..end])
+            }
+        };
+
         if self.input[self.pos] == b'0' {
             self.pos += 1;
             if self.ch() == Some(b'_') {
@@ -178,12 +218,22 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
         };
         let contain_dot = self.ch() == Some(b'.');
         if contain_dot {
+            let dot_pos = self.pos;
             self.pos += 1;
             self.scan_number_fragment();
-            Some(())
-        } else {
-            None
-        };
+            if dot_pos + 1 == self.pos
+                && !self.check_for_identifier_start_after_numeric_literal(start)
+            {
+                let num = get_result(self, dot_pos);
+                let s = unsafe { std::str::from_utf8_unchecked(&num) };
+                let num = bolt_ts_scanner::parse_integer::<10>(s);
+                self.token_value = Some(TokenValue::Number { value: num });
+                return Token::new(
+                    TokenKind::Number,
+                    Span::new(start as u32, dot_pos as u32, self.module_id),
+                );
+            }
+        }
         let mut end = self.pos;
         let contain_e = self.ch().is_some_and(|c| matches!(c, b'e' | b'E'));
         if contain_e {
@@ -208,20 +258,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             }
         }
 
-        let result = if self.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
-            debug_assert!(self.input[start..end].contains(&b'_'));
-            Cow::Owned(
-                self.input[start..end]
-                    .iter()
-                    .filter(|&&c| c != b'_')
-                    .copied()
-                    .collect::<Vec<u8>>(),
-            )
-        } else {
-            debug_assert!(!self.input[start..end].contains(&b'_'));
-            Cow::Borrowed(&self.input[start..end])
-        };
-
+        let result = get_result(self, end);
         let kind = if self.ch() == Some(b'n') {
             self.pos += 1;
             let s = unsafe { std::str::from_utf8_unchecked(&result) };
