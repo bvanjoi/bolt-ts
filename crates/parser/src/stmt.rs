@@ -3,6 +3,7 @@ use bolt_ts_ast::{NodeFlags, VarDecls};
 use bolt_ts_ast_factory::ASTFactory;
 
 use super::ast;
+use super::const_variant::is_js_like_variant;
 use super::const_variant::is_ts_like_variant;
 use super::errors;
 use super::keyword;
@@ -817,10 +818,20 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             }
         }
         self.check_module_element_context(|this| {
-            let error = errors::AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
-                span: this.token.span,
+            let error: bolt_ts_errors::BoxedDiag = if is_js_like_variant(VARIANT) {
+                Box::new(
+                    errors::AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfAModule {
+                        span: this.token.span,
+                    },
+                )
+            } else {
+                Box::new(
+                    errors::AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
+                        span: this.token.span,
+                    },
+                )
             };
-            this.push_error(Box::new(error));
+            this.push_error(error);
         });
         let start = self.token.start();
         self.next_token(); // consume `import`

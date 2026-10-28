@@ -1,0 +1,18 @@
+  × Cannot find name 'module'.
+    ╭─[../../tests/compiler/moduleExports1/index.ts:19:6]
+ 19 │ module
+    · ──────
+    ╰────
+
+  × Cannot find name 'module'.
+    ╭─[../../tests/compiler/moduleExports1/index.ts:19:22]
+ 19 │ module
+    · ──────
+    ╰────
+
+  × Property 'address' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/moduleExports1/index.ts:8:10]
+ 8 │ address
+   · ───────
+   ╰────

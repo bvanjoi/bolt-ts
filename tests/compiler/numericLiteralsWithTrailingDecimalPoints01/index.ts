@@ -4,6 +4,10 @@
 //@compiler-options: strict=false
 //@compiler-options: lib=[es5]
 
+1.e2
+1.e+2
+1.e-2
+
 1..toString();
 1.0.toString();
 1.toString();

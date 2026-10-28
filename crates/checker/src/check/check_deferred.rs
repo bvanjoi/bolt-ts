@@ -55,7 +55,7 @@ impl<'cx> TyChecker<'cx> {
                 ast::Node::ClassExpr(n) => n.elems.list,
                 _ => unreachable!(),
             };
-            let ctor = ast::r#trait::find_constructor_declaration(&elements);
+            let ctor = ast::r#trait::find_constructor_declaration(elements);
             for elem in elements {
                 if elem
                     .kind

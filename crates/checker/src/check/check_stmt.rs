@@ -168,7 +168,7 @@ impl<'cx> TyChecker<'cx> {
                     .binder
                     .get(id.module())
                     .fallthrough_flow_nodes
-                    .get(&clause)
+                    .get(clause)
                 && self.is_reachable_flow_node(flow)
             {
                 let span = match clause {

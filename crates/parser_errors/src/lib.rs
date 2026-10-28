@@ -1037,3 +1037,10 @@ pub struct AnIdentifierOrKeywordCannotImmediatelyFollowANumericLiteral {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An import declaration can only be used at the top level of a module.")]
+pub struct AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfAModule {
+    #[label(primary)]
+    pub span: Span,
+}

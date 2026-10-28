@@ -2194,12 +2194,8 @@ impl<'cx> TyChecker<'cx> {
         });
         let container = self.p.node(container_id);
         if container.is_fn_like() && !self.is_in_parameter_initializer_before_containing_fn(node) {
-            let mut this_ty = if let Some(this_ty) = self.get_this_ty_of_decl(container_id) {
-                Some(this_ty)
-            } else {
-                // TODO: in_js then "getTypeForThisExpressionFromJSDoc(container)"
-                None
-            };
+            // TODO: in_js then "getTypeForThisExpressionFromJSDoc(container)"
+            let mut this_ty = self.get_this_ty_of_decl(container_id);
 
             if this_ty.is_none() {
                 // TODO: get_class_name_from_prototype_method

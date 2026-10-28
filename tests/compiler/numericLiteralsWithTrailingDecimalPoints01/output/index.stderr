@@ -1,23 +1,23 @@
   × An identifier or keyword cannot immediately follow a numeric literal.
-   ╭─[../../tests/compiler/numericLiteralsWithTrailingDecimalPoints01/index.ts:9:1]
- 9 │ 1.toStri
-   · ────────
-   ╰────
+    ╭─[../../tests/compiler/numericLiteralsWithTrailingDecimalPoints01/index.ts:13:3]
+ 13 │ toString
+    · ────────
+    ╰────
 
   × An identifier or keyword cannot immediately follow a numeric literal.
-    ╭─[../../tests/compiler/numericLiteralsWithTrailingDecimalPoints01/index.ts:17:13]
- 17 │ 2.toStri
+    ╭─[../../tests/compiler/numericLiteralsWithTrailingDecimalPoints01/index.ts:21:15]
+ 21 │ toString
     · ────────
     ╰────
 
   × This expression is not callable.
-   ╭─[../../tests/compiler/numericLiteralsWithTrailingDecimalPoints01/index.ts:9:1]
- 9 │ 1
-   · ─
-   ╰────
+    ╭─[../../tests/compiler/numericLiteralsWithTrailingDecimalPoints01/index.ts:13:1]
+ 13 │ 1
+    · ─
+    ╰────
 
   × This expression is not callable.
-    ╭─[../../tests/compiler/numericLiteralsWithTrailingDecimalPoints01/index.ts:17:13]
- 17 │ 2
+    ╭─[../../tests/compiler/numericLiteralsWithTrailingDecimalPoints01/index.ts:21:13]
+ 21 │ 2
     · ─
     ╰────

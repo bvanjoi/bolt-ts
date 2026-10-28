@@ -447,7 +447,7 @@
      ╰────
 
   × An identifier or keyword cannot immediately follow a numeric literal.
-     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:151:1]
- 151 │ 0
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:151:4]
+ 151 │ x
      · ─
      ╰────

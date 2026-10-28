@@ -217,21 +217,13 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             self.scan_number_fragment()
         };
         let contain_dot = self.ch() == Some(b'.');
+        let mut no_decimal_fragment = None;
         if contain_dot {
             let dot_pos = self.pos;
             self.pos += 1;
             self.scan_number_fragment();
-            if dot_pos + 1 == self.pos
-                && !self.check_for_identifier_start_after_numeric_literal(start)
-            {
-                let num = get_result(self, dot_pos);
-                let s = unsafe { std::str::from_utf8_unchecked(&num) };
-                let num = bolt_ts_scanner::parse_integer::<10>(s);
-                self.token_value = Some(TokenValue::Number { value: num });
-                return Token::new(
-                    TokenKind::Number,
-                    Span::new(start as u32, dot_pos as u32, self.module_id),
-                );
+            if dot_pos + 1 == self.pos {
+                no_decimal_fragment = Some(dot_pos);
             }
         }
         let mut end = self.pos;
@@ -256,6 +248,20 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                 // `e{xxx}`
                 end = self.pos;
             }
+        }
+
+        if let Some(dot_pos) = no_decimal_fragment
+            && !self.check_for_identifier_start_after_numeric_literal(dot_pos + 1)
+        {
+            debug_assert!(contain_dot);
+            let num = get_result(self, dot_pos);
+            let s = unsafe { std::str::from_utf8_unchecked(&num) };
+            let num = bolt_ts_scanner::parse_integer::<10>(s);
+            self.token_value = Some(TokenValue::Number { value: num });
+            return Token::new(
+                TokenKind::Number,
+                Span::new(start as u32, dot_pos as u32, self.module_id),
+            );
         }
 
         let result = get_result(self, end);
@@ -372,7 +378,8 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             } else if self.ch_unchecked() < 128 {
                 break;
             } else if let Some((ch, offset)) = self.next_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>() {
-                if Self::is_non_ascii_space(ch) {
+                // TODO: `IS_ES5_TARGET`
+                if !is_identifier_part::<false>(ch) {
                     break;
                 } else {
                     self.pos += offset;
