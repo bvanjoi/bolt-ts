@@ -1,3 +1,15 @@
+  × Variable 'd' is used before being assigned.
+    ╭─[../../tests/compiler/subtypingTransitivity/index.ts:23:1]
+ 23 │ d
+    · ─
+    ╰────
+
+  × Variable 'd' is used before being assigned.
+    ╭─[../../tests/compiler/subtypingTransitivity/index.ts:25:5]
+ 25 │ d
+    · ─
+    ╰────
+
   × Property 'x' has no initializer and is not definitely assigned in the
   │ constructor.
    ╭─[../../tests/compiler/subtypingTransitivity/index.ts:6:5]
@@ -16,17 +28,5 @@
   │ constructor.
     ╭─[../../tests/compiler/subtypingTransitivity/index.ts:15:12]
  15 │ x
-    · ─
-    ╰────
-
-  × Variable 'd' is used before being assigned.
-    ╭─[../../tests/compiler/subtypingTransitivity/index.ts:23:1]
- 23 │ d
-    · ─
-    ╰────
-
-  × Variable 'd' is used before being assigned.
-    ╭─[../../tests/compiler/subtypingTransitivity/index.ts:25:5]
- 25 │ d
     · ─
     ╰────

@@ -1,0 +1,48 @@
+  × Argument of type 'string' is not assignable to parameter of type 'never'.
+    ╭─[../../tests/compiler/conditionalTypeAssignabilityWhenDeferred/index.ts:33:20]
+ 33 │ y
+    · ─
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'never'.
+    ╭─[../../tests/compiler/conditionalTypeAssignabilityWhenDeferred/index.ts:35:21]
+ 35 │ y
+    · ─
+    ╰────
+
+  × Type '{ x: T; y: T; }' is not assignable to type 'cond'.
+    ╭─[../../tests/compiler/conditionalTypeAssignabilityWhenDeferred/index.ts:46:3]
+ 46 │ t2
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'Foo<T>'.
+    ╭─[../../tests/compiler/conditionalTypeAssignabilityWhenDeferred/index.ts:54:3]
+ 54 │ x
+    · ─
+    ╰────
+
+  × Type '{ a: number; b: number; }' is not assignable to type 'cond'.
+    ╭─[../../tests/compiler/conditionalTypeAssignabilityWhenDeferred/index.ts:72:9]
+ 72 │ o2
+    · ──
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type
+  │ 'Unwrap<Foo2["prop"]>'.
+     ╭─[../../tests/compiler/conditionalTypeAssignabilityWhenDeferred/index.ts:105:23]
+ 105 │ "hi"
+     · ────
+     ╰────
+
+  × Type 'Q' is not assignable to type 'InferBecauseWhyNot<Q>'.
+     ╭─[../../tests/compiler/conditionalTypeAssignabilityWhenDeferred/index.ts:117:10]
+ 117 │ x
+     · ─
+     ╰────
+
+  × Type 'Q' is not assignable to type 'InferBecauseWhyNotDistributive<Q>'.
+     ╭─[../../tests/compiler/conditionalTypeAssignabilityWhenDeferred/index.ts:128:10]
+ 128 │ x
+     · ─
+     ╰────

@@ -1101,7 +1101,11 @@ impl<'cx> TyChecker<'cx> {
         allow_async_iterable: bool,
     ) {
         if allow_async_iterable {
-            todo!()
+            let error = errors::TypeXMustHaveASymbolAsyncIteratorMethodThatReturnsAnAsyncIterator {
+                span: self.p.node(error_node).span(),
+                ty: self.print_ty(ty, None).to_string(),
+            };
+            self.push_error(Box::new(error));
         } else {
             let error = errors::TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
                 span: self.p.node(error_node).span(),

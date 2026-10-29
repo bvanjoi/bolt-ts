@@ -12,8 +12,8 @@ isNotNull(x) {
 function title(str) {
   return str.length > 0 ? 'Dear ' + str : 'Dear nobody';
 }
-isNotNull(x.y.z) ? title(x.y.z) : null;
-// should not error
+isNotNull(x.y.z) ? title(x.y.z) : null;// should not error
+
 if (isNotNull(x.y.z)) {
   // TODO: let a: {z: string} = x.y; // should not error?
   var a = x.y;

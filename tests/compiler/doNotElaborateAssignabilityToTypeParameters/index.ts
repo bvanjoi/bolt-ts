@@ -6,7 +6,7 @@
 async function foo<T>(x: T): Promise<T> {
   let yaddable = await getXOrYadda(x);
   return yaddable;
-  //~^ ERROR: Type 'Yadda | Awaited' is not assignable to type 'T'.
+  //~^ ERROR: Type 'Yadda | Awaited<T>' is not assignable to type 'T'.
 }
 
 interface Yadda {

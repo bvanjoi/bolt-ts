@@ -1,0 +1,5 @@
+  × Namespace 'X' has no exported member 'Y'.
+   ╭─[../../tests/compiler/moduleImport/index.ts:6:17]
+ 6 │ Y
+   · ─
+   ╰────

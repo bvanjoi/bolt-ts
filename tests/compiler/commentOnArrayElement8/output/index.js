@@ -1,2 +1,1 @@
-var array = [1]/* comment */
-;
+var array = [1]/* comment */ ;

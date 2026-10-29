@@ -1178,6 +1178,18 @@ pub struct TypeXIsNotAnArrayType {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
+    #[label = "Did you forget to use 'await'?"]
+    pub did_you_forget_to_use_await: Option<Span>,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Type '{ty}' is not an array type or a string type.")]
+pub struct TypeXIsNotAnArrayTypeOrAStringType {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    #[label = "Did you forget to use 'await'?"]
+    pub did_you_forget_to_use_await: Option<Span>,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
@@ -1517,7 +1529,7 @@ pub struct AnExportAssignmentCannotBeUsedInAModuleWithOtherExportedElements {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-#[error("Get and set accessors in a class must both be abstract or non-abstract.")]
+#[error("Accessors must both be abstract or non-abstract.")]
 pub struct AccessorsMustBothBeAbstractOrNonAbstract {
     #[label(primary)]
     pub getter_span: Span,
@@ -1705,6 +1717,16 @@ pub struct ConstructorOfClassXIsPrivateOrProtectedAndOnlyAccessibleWithinTheClas
     pub span: Span,
     pub class: String,
     pub visible: &'static str,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Type '{ty}' must have a '[Symbol.asyncIterator]()' method that returns an async iterator."
+)]
+pub struct TypeXMustHaveASymbolAsyncIteratorMethodThatReturnsAnAsyncIterator {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
@@ -2312,6 +2334,51 @@ pub struct OnlyAVoidFunctionCanBeCalledWithTheNewKeyword {
     "A function that is called with the 'new' keyword cannot have a 'this' type that is 'void'."
 )]
 pub struct AFunctionThatIsCalledWithTheNewKeywordCannotHaveAThisTypeThatIsVoid {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type '{ty}' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher."
+)]
+pub struct TypeXCanOnlyBeIteratedThroughWhenUsingTheDownlevelIterationFlagOrWithATargetOfEs2015OrHigher
+{
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    #[label = "Did you forget to use 'await'?"]
+    pub did_you_forget_to_use_await: Option<Span>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type '{ty}' is not an array type or a string type or does not have a '[Symbol.iterator]()' method that returns an iterator."
+)]
+pub struct TypeXIsNotAnArrayTypeOrAStringTypeOrDoesNotHaveASymbolIteratorMethodThatReturnsAnIterator
+{
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    #[label = "Did you forget to use 'await'?"]
+    pub did_you_forget_to_use_await: Option<Span>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type '{ty}' is not an array type or does not have a '[Symbol.iterator]()' method that returns an iterator."
+)]
+pub struct TypeXIsNotAnArrayTypeOrDoesNotHaveASymbolIteratorMethodThatReturnsAnIterator {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    #[label = "Did you forget to use 'await'?"]
+    pub did_you_forget_to_use_await: Option<Span>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Fallthrough case in switch.")]
+pub struct FallthroughCaseInSwitch {
     #[label(primary)]
     pub span: Span,
 }

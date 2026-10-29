@@ -55,7 +55,8 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             ParseContext::ALLOW_BREAK
                 .union(ParseContext::ALLOW_CONTINUE)
                 .union(ParseContext::MODULE_BLOCK)
-                .union(ParseContext::TOP_LEVEL),
+                .union(ParseContext::TOP_LEVEL)
+                .union(ParseContext::MODULE_BLOCK_TOP_LEVEL),
             |this| {
                 let context = if flags.contains(SignatureFlags::ASYNC) {
                     ParseContext::FN_BLOCK.union(ParseContext::ASYNC)
@@ -108,7 +109,9 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let open_brace_parsed = self.expect(LBrace);
         let saved_external_module_indicator = self.external_module_indicator;
         let stmts = self.do_outside_of_parse_context(
-            ParseContext::TOP_LEVEL.union(ParseContext::DISALLOW_BLOCK_DECLARATION),
+            ParseContext::TOP_LEVEL
+                .union(ParseContext::DISALLOW_BLOCK_DECLARATION)
+                .union(ParseContext::MODULE_BLOCK_TOP_LEVEL),
             |this| {
                 this.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
                     this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)

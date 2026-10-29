@@ -16,18 +16,18 @@ function f1<T extends object>(x: IsArray<T>) {
 function f2<T extends unknown[]>(x: IsArray<T>) {
     let t: true = x;
     let f: false = x;  // Error
-    //~^ ERROR: Type 'IsArray' is not assignable to type 'false'.
+    //~^ ERROR: Type 'IsArray<T>' is not assignable to type 'false'.
 }
 
 function f3<T extends string[]>(x: IsArray<T>) {
     let t: true = x;
     let f: false = x;  // Error
-    //~^ ERROR: Type 'IsArray' is not assignable to type 'false'.
+    //~^ ERROR: Type 'IsArray<T>' is not assignable to type 'false'.
 }
 
 function f4<T extends Function>(x: IsArray<T>) {
     let t: true = x;   // Error
-    //~^ ERROR: Type 'IsArray' is not assignable to type 'true'.
+    //~^ ERROR: Type 'IsArray<T>' is not assignable to type 'true'.
     let f: false = x;
 }
 

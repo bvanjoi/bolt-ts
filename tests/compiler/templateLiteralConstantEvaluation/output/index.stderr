@@ -1,11 +1,11 @@
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/templateLiteralConstantEvaluation/index.ts:15:5]
- 15 │ s
+    ╭─[../../tests/compiler/templateLiteralConstantEvaluation/index.ts:16:5]
+ 16 │ s
     · ─
     ╰────
 
   × Type 'number' is not assignable to type '"" | "true"'.
-    ╭─[../../tests/compiler/templateLiteralConstantEvaluation/index.ts:29:7]
- 29 │ e0
+    ╭─[../../tests/compiler/templateLiteralConstantEvaluation/index.ts:30:7]
+ 30 │ e0
     · ──
     ╰────

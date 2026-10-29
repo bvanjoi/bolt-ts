@@ -97,7 +97,7 @@ fn check_for_test_default_lib_file_count(target: bolt_ts_config::RawTarget) -> u
 fn check_for_test_default_lib_file_count_list() {
     use bolt_ts_config::RawTarget::*;
     let es5 = check_for_test_default_lib_file_count(ES5);
-    expect_test::expect!["3"].assert_eq(&es5.to_string());
+    expect_test::expect!["18"].assert_eq(&es5.to_string());
     let es2015 = check_for_test_default_lib_file_count(ES2015);
     expect_test::expect!["19"].assert_eq(&es2015.to_string());
     let es2016 = check_for_test_default_lib_file_count(ES2016);

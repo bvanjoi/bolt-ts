@@ -850,6 +850,13 @@ pub struct TypeParametersCannotAppearOnAConstructorDeclaration {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An ambient module declaration is only allowed at the top level in a file.")]
+pub struct AnAmbientModuleDeclarationIsOnlyAllowedAtTheTopLevelInAFile {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A namespace declaration is only allowed at the top level of a namespace or module.")]
 pub struct ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule {
     #[label(primary)]
@@ -1022,4 +1029,18 @@ pub struct ThisParameterIsNotAllowedWithUseStrictDirective {
     pub span: Span,
     #[label("use strict directive used here")]
     pub use_strict_directive_span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An identifier or keyword cannot immediately follow a numeric literal.")]
+pub struct AnIdentifierOrKeywordCannotImmediatelyFollowANumericLiteral {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An import declaration can only be used at the top level of a module.")]
+pub struct AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfAModule {
+    #[label(primary)]
+    pub span: Span,
 }

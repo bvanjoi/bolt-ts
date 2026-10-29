@@ -50,6 +50,7 @@ with_option!(
     (strict_bind_call_apply, bool),
     (strict_property_initialization, bool),
     (no_emit, bool),
+    (emit_declaration_only, bool),
     (no_lib, bool),
     (no_implicit_any, bool),
     (no_implicit_this, bool),
@@ -67,12 +68,14 @@ with_option!(
     (es_module_interop, bool),
     (exact_optional_property_types, bool),
     (preserve_symlinks, bool),
+    (preserve_const_enums, bool),
     (use_define_for_class_fields, bool),
     (use_unknown_in_catch_variables, bool),
     (resolve_json_module, bool),
     (resolve_package_json_exports, bool),
     (resolve_package_json_imports, bool),
     (remove_comments, bool),
+    (downlevel_iteration, bool),
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),
@@ -158,6 +161,9 @@ impl RawCompilerOptions {
         if self.preserve_symlinks.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::PRESERVE_SYMLINKS);
         }
+        if self.preserve_const_enums.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::PRESERVE_CONST_ENUMS);
+        }
         if self.no_implicit_returns.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_RETURNS);
         }
@@ -172,6 +178,12 @@ impl RawCompilerOptions {
         }
         if self.remove_comments.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::REMOVE_COMMENTS);
+        }
+        if self.downlevel_iteration.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::DOWNLEVEL_ITERATION);
+        }
+        if self.emit_declaration_only.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::EMIT_DECLARATION_ONLY);
         }
 
         match self.use_define_for_class_fields {

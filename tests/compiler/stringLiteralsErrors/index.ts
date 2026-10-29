@@ -1,6 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/stringLiteralsErrors.ts`, Apache-2.0 License
 
-// @target: ES2015
+//@compiler-options: target=es2015
 
 // Srtings missing line terminator
 var es1 = "line 1     //~ ERROR: Unterminated string literal.

@@ -11,7 +11,7 @@ function f2(x) {
   };
 }
 var x3 = f1().then(f2, (e) => {
-  throw e
+  throw e;
 }).then((x) => ({
   __t3: x.__t2 + 'bar'  
 }));

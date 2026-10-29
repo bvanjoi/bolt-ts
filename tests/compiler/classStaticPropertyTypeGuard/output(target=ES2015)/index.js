@@ -6,8 +6,8 @@ class A {
   static _a;
   get a() {
     if (A._a) {
-      return A._a;
-    // is possibly null or undefined.
+      return A._a;// is possibly null or undefined.
+      
     }
     
     return A._a = 'helloworld';

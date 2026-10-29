@@ -1,3 +1,9 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/readonlyInDeclarationFile/index.ts:61:12]
+ 61 │ x
+    · ─
+    ╰────
+
   × Property 'a1' has no initializer and is not definitely assigned in the
   │ constructor.
     ╭─[../../tests/compiler/readonlyInDeclarationFile/index.ts:14:22]
@@ -17,10 +23,4 @@
     ╭─[../../tests/compiler/readonlyInDeclarationFile/index.ts:18:21]
  18 │ a3
     · ──
-    ╰────
-
-  × Variable 'x' is used before being assigned.
-    ╭─[../../tests/compiler/readonlyInDeclarationFile/index.ts:61:12]
- 61 │ x
-    · ─
     ╰────

@@ -4,6 +4,7 @@ use bolt_ts_binder::ModuleInstanceState;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolName;
+use bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver;
 use bolt_ts_ty::ObjectFlags;
 use bolt_ts_ty::TypeFacts;
 
@@ -73,11 +74,16 @@ impl<'cx> TyChecker<'cx> {
             Continue(_) => {}
             Try(n) => self.check_try_stmt(n),
             While(n) => self.check_while_stmt(n),
-            Do(_) => {}
+            Do(n) => self.check_do_while_stmt(n),
             Debugger(_) => {}
             Switch(n) => self.check_switch_stmt(n),
             Labeled(n) => self.check_stmt(n.stmt),
         };
+    }
+
+    fn check_do_while_stmt(&mut self, node: &'cx ast::DoWhileStmt<'cx>) {
+        self.check_stmt(node.stmt);
+        self.check_truthiness_expr(node.expr, None);
     }
 
     fn check_export_assignment(&mut self, node: &'cx ast::ExportAssign<'cx>) {
@@ -131,7 +137,7 @@ impl<'cx> TyChecker<'cx> {
         self.register_potentially_unused_case_block(node.case_block);
 
         for clause in node.case_block.clauses {
-            match clause {
+            let stmts = match clause {
                 Case(n) => {
                     let case_ty = self.check_expression::<false>(n.expr, None);
                     if !self.is_type_equality_comparable_to(expr_ty, case_ty) {
@@ -149,15 +155,31 @@ impl<'cx> TyChecker<'cx> {
                             }),
                         );
                     }
-                    for stmt in n.stmts {
-                        self.check_stmt(stmt);
-                    }
+                    n.stmts
                 }
-                Default(n) => {
-                    for stmt in n.stmts {
-                        self.check_stmt(stmt);
+                Default(n) => n.stmts,
+            };
+            for stmt in stmts {
+                self.check_stmt(stmt);
+            }
+            if self.options().no_fallthrough_cases_in_switch()
+                && let id = clause.id()
+                && let Some(flow) = self
+                    .binder
+                    .get(id.module())
+                    .fallthrough_flow_nodes
+                    .get(clause)
+                && self.is_reachable_flow_node(flow)
+            {
+                let span = match clause {
+                    Case(n) => n.expr.span(),
+                    Default(n) => {
+                        let lo = n.span.lo();
+                        bolt_ts_span::Span::new(lo, lo + "default".len() as u32, n.span.module())
                     }
-                }
+                };
+                let error = errors::FallthroughCaseInSwitch { span };
+                self.push_error(Box::new(error));
             }
         }
     }
@@ -1049,7 +1071,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_class_decl(&mut self, n: &'cx ast::ClassDecl<'cx>) {
         self.check_class_like_decl(n);
         self.check_class_elements(n.elems);
-        self.check_property_initializer(n);
+        self.mark_check_property_initializer_deferred(n);
         self.register_potentially_unused_class_declaration(n);
     }
 

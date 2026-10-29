@@ -1,0 +1,159 @@
+  × A namespace declaration is only allowed at the top level of a namespace or
+  │ module.
+   ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:6:15]
+ 6 │ M
+   · ─
+   ╰────
+
+  × An export declaration can only be used at the top level of a namespace or
+  │ module.
+   ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:8:12]
+ 8 │ namespace
+   · ─────────
+   ╰────
+
+  × A namespace declaration is only allowed at the top level of a namespace or
+  │ module.
+   ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:8:22]
+ 8 │ N
+   · ─
+   ╰────
+
+  × A namespace declaration is only allowed at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:14:15]
+ 14 │ Q
+    · ─
+    ╰────
+
+  × An ambient module declaration is only allowed at the top level in a file.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:17:20]
+ 17 │ "ambient"
+    · ─────────
+    ╰────
+
+  × An export assignment must be at the top level of a file or module
+  │ declaration.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:22:12]
+ 22 │ =
+    · ─
+    ╰────
+
+  × An export declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:28:12]
+ 28 │ *
+    · ─
+    ╰────
+
+  × An export declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:31:12]
+ 31 │ {
+    · ─
+    ╰────
+
+  × An export declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:34:12]
+ 34 │ {
+    · ─
+    ╰────
+
+  × A default export must be at the top level of a file or module declaration.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:37:12]
+ 37 │ default
+    · ───────
+    ╰────
+
+  × A default export must be at the top level of a file or module declaration.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:39:20]
+ 39 │ class
+    · ─────
+    ╰────
+
+  × An export declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:41:12]
+ 41 │ function
+    · ────────
+    ╰────
+
+  × An import declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:43:5]
+ 43 │ import
+    · ──────
+    ╰────
+
+  × An import declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:45:5]
+ 45 │ import
+    · ──────
+    ╰────
+
+  × An import declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:48:5]
+ 48 │ import
+    · ──────
+    ╰────
+
+  × An import declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:50:5]
+ 50 │ import
+    · ──────
+    ╰────
+
+  × An import declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:52:5]
+ 52 │ import
+    · ──────
+    ╰────
+
+  × An import declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:54:5]
+ 54 │ import
+    · ──────
+    ╰────
+
+  × Export assignment cannot be used when targeting ECMAScript modules.
+  │ Consider using 'export default' or another module format instead.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:22:5]
+ 22 │ export = M;
+    · ───────────
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:28:19]
+ 28 │ "ambient"
+    · ─────────
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:34:30]
+ 34 │ "ambient"
+    · ─────────
+    ╰────
+
+  × Import declarations in a namespace cannot reference a module.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:45:25]
+ 45 │ "foo"
+    · ─────
+    ╰────
+
+  × Ambient modules cannot be nested in other modules or namespaces.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:17:20]
+ 17 │ "ambient"
+    · ─────────
+    ╰────
+
+  × Export declaration conflicts with exported declaration of 'foo'.
+    ╭─[../../tests/compiler/moduleElementsInWrongContext2/index.ts:31:14]
+ 31 │ foo
+    · ───
+    ╰────

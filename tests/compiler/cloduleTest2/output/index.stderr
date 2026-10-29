@@ -1,0 +1,61 @@
+  × Expected 1 arguments, but got 0.
+   ╭─[../../tests/compiler/cloduleTest2/index.ts:9:17]
+ 9 │ m3d
+   · ───
+   ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/cloduleTest2/index.ts:16:17]
+ 16 │ m3d
+    · ───
+    ╰────
+
+  × Property 'bar' does not exist on type 'm3d'.
+    ╭─[../../tests/compiler/cloduleTest2/index.ts:25:7]
+ 25 │ bar
+    · ───
+    ╰────
+
+Advice: 
+  ☞ Did you mean to access the static member 'm3d.bar' instead?
+    ╭─[../../tests/compiler/cloduleTest2/index.ts:25:7]
+ 25 │ bar
+    · ───
+    ╰────
+
+  × Property 'y' does not exist on type 'm3d'.
+    ╭─[../../tests/compiler/cloduleTest2/index.ts:27:7]
+ 27 │ y
+    · ─
+    ╰────
+
+  × Property 'bar' does not exist on type 'm3d'.
+    ╭─[../../tests/compiler/cloduleTest2/index.ts:36:7]
+ 36 │ bar
+    · ───
+    ╰────
+
+Advice: 
+  ☞ Did you mean to access the static member 'm3d.bar' instead?
+    ╭─[../../tests/compiler/cloduleTest2/index.ts:36:7]
+ 36 │ bar
+    · ───
+    ╰────
+
+  × Property 'y' does not exist on type 'm3d'.
+    ╭─[../../tests/compiler/cloduleTest2/index.ts:38:7]
+ 38 │ y
+    · ─
+    ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/cloduleTest2/index.ts:44:13]
+ 44 │ m3d
+    · ───
+    ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/cloduleTest2/index.ts:48:14]
+ 48 │ m4d
+    · ───
+    ╰────

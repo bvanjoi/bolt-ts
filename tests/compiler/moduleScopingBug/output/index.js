@@ -5,18 +5,18 @@ var M = {};
 
   var outer;
   
-  function f() // Ok
-  {
+  function f()// Ok
+   {
     var inner = outer;
   }
   
   class C {
-    constructor() // Ok
-    {var inner = outer;}
+    constructor()// Ok
+     {var inner = outer;}
   }
   
-  var X // Error: outer not visible
-  = {};
+  var X// Error: outer not visible
+   = {};
   (function (X) {
   
     var inner = outer;

@@ -1,0 +1,11 @@
+  × Type 'null' is not assignable to type 'require.I'.
+    ╭─[../../tests/compiler/collisionExportsRequireAndUninstantiatedModule/index.ts:11:12]
+ 11 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'exports.I'.
+    ╭─[../../tests/compiler/collisionExportsRequireAndUninstantiatedModule/index.ts:19:12]
+ 19 │ null
+    · ────
+    ╰────

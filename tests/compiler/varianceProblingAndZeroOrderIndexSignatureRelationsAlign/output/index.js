@@ -42,7 +42,7 @@ class Type {
 }
 var tmp1 = null;
 function tmp2(n) {}
-tmp2(tmp1);
-// uncommenting this line removes a type error from a completely unrelated line ??
+tmp2(tmp1);// uncommenting this line removes a type error from a completely unrelated line ??
+
 class Server {}
 export class MyServer extends Server {}

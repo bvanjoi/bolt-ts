@@ -143,8 +143,48 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
         is_octal
     }
 
+    fn check_for_identifier_start_after_numeric_literal(&mut self, start: usize) -> bool {
+        let Some(ch) = self.ch() else {
+            return true;
+        };
+        // TODO: maybe need consider non-ascii identifier start
+        if !is_ascii_identifier_start(ch) {
+            return true;
+        }
+        let Some(parts) = self.scan_identifier_parts() else {
+            unreachable!()
+        };
+        let error = Box::new(
+            errors::AnIdentifierOrKeywordCannotImmediatelyFollowANumericLiteral {
+                span: bolt_ts_span::Span::new(
+                    start as u32,
+                    (start + parts.len()) as u32,
+                    self.module_id,
+                ),
+            },
+        );
+        self.push_error(error);
+        false
+    }
+
     fn scan_number(&mut self) -> Token {
         let start = self.pos;
+        let get_result = |this: &Self, end: usize| {
+            if this.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
+                debug_assert!(this.input[start..end].contains(&b'_'));
+                Cow::Owned(
+                    this.input[start..end]
+                        .iter()
+                        .filter(|&&c| c != b'_')
+                        .copied()
+                        .collect::<Vec<u8>>(),
+                )
+            } else {
+                debug_assert!(!this.input[start..end].contains(&b'_'));
+                Cow::Borrowed(&this.input[start..end])
+            }
+        };
+
         if self.input[self.pos] == b'0' {
             self.pos += 1;
             if self.ch() == Some(b'_') {
@@ -177,13 +217,15 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             self.scan_number_fragment()
         };
         let contain_dot = self.ch() == Some(b'.');
+        let mut no_decimal_fragment = None;
         if contain_dot {
+            let dot_pos = self.pos;
             self.pos += 1;
             self.scan_number_fragment();
-            Some(())
-        } else {
-            None
-        };
+            if dot_pos + 1 == self.pos {
+                no_decimal_fragment = Some(dot_pos);
+            }
+        }
         let mut end = self.pos;
         let contain_e = self.ch().is_some_and(|c| matches!(c, b'e' | b'E'));
         if contain_e {
@@ -208,20 +250,21 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             }
         }
 
-        let result = if self.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
-            debug_assert!(self.input[start..end].contains(&b'_'));
-            Cow::Owned(
-                self.input[start..end]
-                    .iter()
-                    .filter(|&&c| c != b'_')
-                    .copied()
-                    .collect::<Vec<u8>>(),
-            )
-        } else {
-            debug_assert!(!self.input[start..end].contains(&b'_'));
-            Cow::Borrowed(&self.input[start..end])
-        };
+        if let Some(dot_pos) = no_decimal_fragment
+            && !self.check_for_identifier_start_after_numeric_literal(dot_pos + 1)
+        {
+            debug_assert!(contain_dot);
+            let num = get_result(self, dot_pos);
+            let s = unsafe { std::str::from_utf8_unchecked(&num) };
+            let num = bolt_ts_scanner::parse_integer::<10>(s);
+            self.token_value = Some(TokenValue::Number { value: num });
+            return Token::new(
+                TokenKind::Number,
+                Span::new(start as u32, dot_pos as u32, self.module_id),
+            );
+        }
 
+        let result = get_result(self, end);
         let kind = if self.ch() == Some(b'n') {
             self.pos += 1;
             let s = unsafe { std::str::from_utf8_unchecked(&result) };
@@ -335,7 +378,8 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             } else if self.ch_unchecked() < 128 {
                 break;
             } else if let Some((ch, offset)) = self.next_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>() {
-                if Self::is_non_ascii_space(ch) {
+                // TODO: `IS_ES5_TARGET`
+                if !is_identifier_part::<false>(ch) {
                     break;
                 } else {
                     self.pos += offset;
@@ -478,21 +522,40 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             return;
         }
         self.full_start_pos = self.pos;
+        // `comment_start_pos` use to record each start position of these comments,
+        // for example, when scan next token after `var`:
+        // ```
+        // var   /** a */ /** b */  a = 1;
+        //    |-> `full_start_pos` and `full_comment_start_pos` is init here
+        //               |-> `full_comment_start_pos` will update here but `full_start_pos` will not update
+        // ```
+        let mut full_comment_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
         let mut leading_comments = Vec::new();
         let mut trailing_comments = Vec::new();
         let mut start;
-        let is_leading_comment = |pos: usize| pos == 0 || self.input[pos - 1].is_ascii_whitespace();
-        let mut push_comment = |start: usize, pos: usize, comment_kind: CommentKind| {
-            if is_preserve_comment(VARIANT) {
-                let comment = Comment::new(start as u32, pos as u32, comment_kind);
-                if is_leading_comment(start) {
-                    leading_comments.push(comment);
-                } else {
-                    trailing_comments.push(comment);
-                }
+        let is_leading_comment = |this: &Self, full_comment_start_pos: usize| {
+            if full_comment_start_pos == 0
+                || this.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
+            {
+                true
+            } else {
+                this.input[full_comment_start_pos - 1].is_ascii_whitespace()
             }
         };
+        let mut push_comment =
+            |this: &Self, start: usize, pos: usize, comment_kind: CommentKind| {
+                debug_assert!(full_comment_start_pos <= start);
+                if is_preserve_comment(VARIANT) {
+                    let comment = Comment::new(start as u32, pos as u32, comment_kind);
+                    if is_leading_comment(this, full_comment_start_pos) {
+                        leading_comments.push(comment);
+                    } else {
+                        trailing_comments.push(comment);
+                    }
+                    full_comment_start_pos = pos;
+                }
+            };
         loop {
             start = self.pos;
             if self.pos == self.end() {
@@ -535,7 +598,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 self.pos += 1;
                             }
                         }
-                        push_comment(start, self.pos, CommentKind::SingleLine);
+                        push_comment(self, start, self.pos, CommentKind::SingleLine);
                         continue;
                     } else if self.next_ch() == Some(b'*') {
                         // `/*`
@@ -548,7 +611,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 self.pos += 1;
                             }
                         }
-                        push_comment(start, self.pos, CommentKind::MultiLine);
+                        push_comment(self, start, self.pos, CommentKind::MultiLine);
                         continue;
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
@@ -1021,21 +1084,40 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                     }
                 }
             };
+
             if is_preserve_comment(VARIANT) {
+                if self.full_start_pos != 0 {
+                    let last = self.leading_trailing_comments.last();
+                    match (last, trailing_comments.is_empty()) {
+                        (None, true) => {
+                            self.leading_trailing_comments.mark_no_comments(0);
+                        }
+                        (None, false) => {
+                            for comment in trailing_comments {
+                                self.leading_trailing_comments
+                                    .add_trailing_comment(0, comment);
+                            }
+                        }
+                        (Some(_), true) => {}
+                        (Some((&prev_token_pos, _)), false) => {
+                            for comment in trailing_comments {
+                                self.leading_trailing_comments
+                                    .add_trailing_comment(prev_token_pos, comment);
+                            }
+                        }
+                    }
+                }
                 let pos = token.start();
-                if leading_comments.is_empty() && trailing_comments.is_empty() {
+                if leading_comments.is_empty() {
                     self.leading_trailing_comments.mark_no_comments(pos);
                 } else {
                     for comment in leading_comments {
                         self.leading_trailing_comments
                             .add_leading_comment(pos, comment);
                     }
-                    for comment in trailing_comments {
-                        self.leading_trailing_comments
-                            .add_trailing_comment(pos, comment);
-                    }
                 }
             }
+
             self.token = token;
             break;
         }

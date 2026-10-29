@@ -1,0 +1,20 @@
+  × Type 'IArguments' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+   ╭─[../../tests/compiler/argumentsObjectIterator03_ES5/index.ts:7:9]
+ 7 │ [x, y, z]
+   · ─────────
+   ╰────
+
+  × Type 'IArguments' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+   ╭─[../../tests/compiler/argumentsObjectIterator03_ES5/index.ts:7:9]
+ 7 │ [x, y, z]
+   · ─────────
+   ╰────
+
+  × Type 'IArguments' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+   ╭─[../../tests/compiler/argumentsObjectIterator03_ES5/index.ts:7:9]
+ 7 │ [x, y, z]
+   · ─────────
+   ╰────

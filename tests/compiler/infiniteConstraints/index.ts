@@ -7,7 +7,7 @@
 
 type T1<B extends { [K in keyof B]: Extract<B[Exclude<keyof B, K>], { val: string }>["val"] }> = B;
 type T2<B extends { [K in keyof B]: B[Exclude<keyof B, K>]["val"] }> = B;
-//~^ ERROR: Type '"val"' cannot be used to index type 'B[Exclude]'.
+//~^ ERROR: Type '"val"' cannot be used to index type 'B[Exclude<keyof B, K>]'.
 
 // Repros from #22950
 

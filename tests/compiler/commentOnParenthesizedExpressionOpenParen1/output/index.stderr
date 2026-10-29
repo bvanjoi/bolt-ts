@@ -1,0 +1,5 @@
+  × Variable 'f' is used before being assigned.
+   ╭─[../../tests/compiler/commentOnParenthesizedExpressionOpenParen1/index.ts:7:27]
+ 7 │ f
+   · ─
+   ╰────

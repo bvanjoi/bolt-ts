@@ -1,35 +1,35 @@
   × Cannot find name 'bar'.
-   ╭─[../../tests/compiler/functionCall2/index.ts:5:3]
- 5 │ bar
+   ╭─[../../tests/compiler/functionCall2/index.ts:9:3]
+ 9 │ bar
    · ───
    ╰────
 
   × Cannot find name 'bar'.
-    ╭─[../../tests/compiler/functionCall2/index.ts:10:3]
- 10 │ bar
+    ╭─[../../tests/compiler/functionCall2/index.ts:14:3]
+ 14 │ bar
     · ───
     ╰────
 
   × Cannot find name 'far'.
-    ╭─[../../tests/compiler/functionCall2/index.ts:16:3]
- 16 │ far
+    ╭─[../../tests/compiler/functionCall2/index.ts:20:3]
+ 20 │ far
     · ───
     ╰────
 
   × Cannot find name 'far'.
-    ╭─[../../tests/compiler/functionCall2/index.ts:21:3]
- 21 │ far
+    ╭─[../../tests/compiler/functionCall2/index.ts:25:3]
+ 25 │ far
     · ───
     ╰────
 
   × Cannot find name 'ttt'.
-    ╭─[../../tests/compiler/functionCall2/index.ts:27:3]
- 27 │ ttt
+    ╭─[../../tests/compiler/functionCall2/index.ts:31:3]
+ 31 │ ttt
     · ───
     ╰────
 
   × Cannot find name 'ttt'.
-    ╭─[../../tests/compiler/functionCall2/index.ts:32:3]
- 32 │ ttt
+    ╭─[../../tests/compiler/functionCall2/index.ts:36:3]
+ 36 │ ttt
     · ───
     ╰────

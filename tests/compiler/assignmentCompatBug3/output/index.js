@@ -4,17 +4,17 @@ function makePoint(x, y) {
   return {
       get x() {
       return x;
-    },
-    // shouldn't be "void"
+    },// shouldn't be "void"
+    
     get y() {
       return y;
-    },
-    // shouldn't be "void"
+    },// shouldn't be "void"
+    
     //x: "yo",
     //y: "boo",
     dist: function () {
-      return Math.sqrt(x * x + y * y);
-    // shouldn't be picking up "x" and "y" from the object lit
+      return Math.sqrt(x * x + y * y);// shouldn't be picking up "x" and "y" from the object lit
+      
     }    
   };
 }

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use super::common::FailMode;
@@ -44,6 +45,17 @@ impl RunnerCtx<'_> {
 }
 
 impl TestCx<'_> {
+    fn get_expected_errors_from_file(
+        &self,
+        file: &Path,
+        test_props_key: &TestPropsKey,
+    ) -> Vec<errors::Error> {
+        match test_props_key {
+            TestPropsKey::Base => errors::load_errors(file, None),
+            TestPropsKey::Custom(revision) => errors::load_errors(file, Some(revision)),
+        }
+    }
+
     fn run_test(&self, runner: impl FnOnce(RunnerCtx) -> Result<(), Vec<errors::Error>> + Copy) {
         match self.props {
             TestProps::Single(props) => {
@@ -63,10 +75,6 @@ impl TestCx<'_> {
         test_props_key: &TestPropsKey,
         test_props_attrs: &TestPropsAttrs,
     ) {
-        let expected_errors = match test_props_key {
-            TestPropsKey::Base => errors::load_errors(self.test_file, None),
-            TestPropsKey::Custom(revision) => errors::load_errors(self.test_file, Some(revision)),
-        };
         let panic = |msg: String| panic!("{msg} in {}", self.test_file.display());
         let ctx = RunnerCtx {
             compiler_options: test_props_attrs.compiler_options(),
@@ -75,6 +83,8 @@ impl TestCx<'_> {
         };
         match runner(ctx) {
             Ok(_success) => {
+                let expected_errors =
+                    self.get_expected_errors_from_file(self.test_file, test_props_key);
                 if !expected_errors.is_empty() {
                     panic("it actually had some expected errors".to_string());
                 }
@@ -84,6 +94,14 @@ impl TestCx<'_> {
                 assert!(test_props_attrs.fail_mode().is_none());
             }
             Err(errors) => {
+                let files = errors
+                    .iter()
+                    .map(|e| e.file.as_ref())
+                    .collect::<HashSet<_>>();
+                let expected_errors = files
+                    .iter()
+                    .flat_map(|file| self.get_expected_errors_from_file(file, test_props_key))
+                    .collect::<Vec<_>>();
                 assert!(
                     test_props_attrs.pass_mode().is_none(),
                     r#"
@@ -123,7 +141,6 @@ impl TestCx<'_> {
         expected_errors: &[errors::Error],
         actual_errors: &[errors::Error],
     ) {
-        let file_name = format!("{}", self.test_file.display()).replace('\\', "/");
         let expect_help = expected_errors
             .iter()
             .any(|ee| ee.kind == Some(errors::ErrorKind::Help));
@@ -134,6 +151,7 @@ impl TestCx<'_> {
         let mut unexpected = Vec::new();
         let mut found = vec![false; expected_errors.len()];
         for actual_error in actual_errors {
+            let file_name = format!("{}", actual_error.file.display()).replace('\\', "/");
             let opt_index =
                 expected_errors
                     .iter()
@@ -176,6 +194,7 @@ impl TestCx<'_> {
         // anything not yet found is a problem
         for (index, expected_error) in expected_errors.iter().enumerate() {
             if !found[index] {
+                let file_name = format!("{}", expected_error.file.display()).replace('\\', "/");
                 self.error(&format!(
                     "{}:{}: expected {} not found: {}",
                     file_name,

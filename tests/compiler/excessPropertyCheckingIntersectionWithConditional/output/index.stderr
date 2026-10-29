@@ -1,4 +1,5 @@
-  × Type '{ a: string; x: K; }' is not assignable to type 'Foo & { x: K; }'.
+  × Type '{ a: string; x: K; }' is not assignable to type 'Foo<K> & { x:
+  │ K; }'.
    ╭─[../../tests/compiler/excessPropertyCheckingIntersectionWithConditional/index.ts:9:10]
  9 │ { a: '1', x: x }
    · ────────────────

@@ -5,6 +5,7 @@ mod bind_container;
 mod bind_for_in_for_of;
 mod bind_ret_or_throw;
 mod bind_worker;
+mod check_strict_mode;
 mod container_flags;
 mod create;
 
@@ -49,6 +50,7 @@ pub struct ResolveResult {
     pub locals: FxHashMap<ast::NodeID, SymbolTable>,
     pub local_symbols: FxHashMap<u32, SymbolID>,
     pub parent_map: ParentMap,
+    pub fallthrough_flow_nodes: FallthroughFlowNode,
 }
 
 pub struct Binder {
@@ -114,6 +116,19 @@ impl Binder {
     }
 }
 
+// TODO: use `NodeId::index` is enough
+#[derive(Debug, Default)]
+pub struct FallthroughFlowNode(FxHashMap<ast::NodeID, FlowID>);
+impl<'cx> FallthroughFlowNode {
+    fn insert(&mut self, n: &ast::CaseOrDefaultClause<'cx>, flow: FlowID) {
+        let prev = self.0.insert(n.id(), flow);
+        debug_assert!(prev.is_none());
+    }
+    pub fn get(&self, n: &ast::CaseOrDefaultClause<'cx>) -> Option<FlowID> {
+        self.0.get(&n.id()).copied()
+    }
+}
+
 struct BinderState<'cx, 'atoms, 'parser> {
     p: &'parser mut ParseResultForGraph<'cx>,
     parent_map: ParentMap,
@@ -124,6 +139,7 @@ struct BinderState<'cx, 'atoms, 'parser> {
     compiler_options: &'atoms NormalizedTsConfig,
     // TODO: use `NodeId::index` is enough
     locals: FxHashMap<ast::NodeID, SymbolTable>,
+    fallthrough_flow_nodes: FallthroughFlowNode,
 
     container: Option<ast::NodeID>,
     this_parent_container: Option<ast::NodeID>,
@@ -194,6 +210,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             diags: Vec::new(),
 
             flow_nodes,
+            fallthrough_flow_nodes: FallthroughFlowNode(FxHashMap::default()),
             flow_in_nodes,
 
             in_strict_mode,
@@ -246,19 +263,21 @@ pub struct BinderResult<'cx> {
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub flow_nodes: FlowNodes<'cx>,
     pub flow_in_nodes: FlowInNodes,
+    pub fallthrough_flow_nodes: FallthroughFlowNode,
 }
 
 impl<'cx> BinderResult<'cx> {
-    fn new(state: BinderState<'cx, '_, '_>) -> Self {
+    fn new(s: BinderState<'cx, '_, '_>) -> Self {
         Self {
-            diags: state.diags,
-            symbols: state.symbols,
-            local_symbols: state.local_symbols,
-            locals: state.locals,
-            final_res: state.final_res,
-            flow_nodes: state.flow_nodes,
-            flow_in_nodes: state.flow_in_nodes,
-            parent_map: state.parent_map,
+            diags: s.diags,
+            symbols: s.symbols,
+            local_symbols: s.local_symbols,
+            locals: s.locals,
+            final_res: s.final_res,
+            flow_nodes: s.flow_nodes,
+            flow_in_nodes: s.flow_in_nodes,
+            parent_map: s.parent_map,
+            fallthrough_flow_nodes: s.fallthrough_flow_nodes,
         }
     }
 }
@@ -319,7 +338,6 @@ pub fn prop_name_opt(name: &ast::PropNameKind) -> Option<SymbolName> {
         ast::PropNameKind::Computed(c) => {
             use bolt_ts_ast::ExprKind::*;
             match c.expr.kind {
-                Ident(n) => Some(SymbolName::Atom(n.name)),
                 StringLit(n) => Some(SymbolName::Atom(n.val)),
                 NumLit(n) => Some(SymbolName::EleNum(n.val.into())),
                 _ => {

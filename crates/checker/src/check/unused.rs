@@ -385,8 +385,9 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
     }
 
     fn check_unused_locals_and_parameters(&self, locals: &SymbolTable, diags: &mut Vec<BoxedDiag>) {
-        let mut unused_variable_group = fx_indexmap_with_capacity(0);
+        let mut unused_import_group = fx_indexmap_with_capacity(0);
         let mut unused_destructure_group = fx_indexmap_with_capacity(0);
+        let mut unused_variable_group = fx_indexmap_with_capacity(0);
 
         let add_unused_variable =
             |group: &mut FxIndexMap<ast::NodeID, Vec<&'cx ast::VarDecl<'cx>>>,
@@ -402,6 +403,11 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                 ast::Node::ObjectBindingElem(_) | ast::Node::ArrayBinding(_)
             ));
             group.entry(parent).or_default().push(current);
+        };
+        let add_unused_import = |group: &mut FxIndexMap<ast::NodeID, Vec<ast::NodeID>>,
+                                 parent: &'cx ast::ImportClause<'cx>,
+                                 current: ast::NodeID| {
+            group.entry(parent.id).or_default().push(current);
         };
 
         let try_get_root_parameter_declaration =
@@ -462,19 +468,27 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                             }) {
                                 continue;
                             }
-                            // TODO: unused_import_group
+                            add_unused_import(&mut unused_import_group, n, n.id);
                         }
                         ast::Node::ImportNamedSpec(n) => {
                             if self.is_identifier_that_starts_with_underscore(n.name) {
                                 continue;
                             }
-                            // TODO: unused_import_group
+                            let parent = self.c.parent(declaration).unwrap();
+                            let ast::Node::ImportClause(n) = self.c.p.node(parent) else {
+                                unreachable!()
+                            };
+                            add_unused_import(&mut unused_import_group, n, declaration);
                         }
                         ast::Node::NsImport(n) => {
                             if self.is_identifier_that_starts_with_underscore(n.name) {
                                 continue;
                             }
-                            // TODO: unused_import_group
+                            let parent = self.c.parent(declaration).unwrap();
+                            let ast::Node::ImportClause(n) = self.c.p.node(parent) else {
+                                unreachable!()
+                            };
+                            add_unused_import(&mut unused_import_group, n, declaration);
                         }
                         ast::Node::VarDecl(n) => {
                             let parent = self.c.parent(declaration).unwrap();
@@ -555,6 +569,43 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        for (import_clause, unused) in unused_import_group {
+            let import_clause = self.c.p.node(import_clause).expect_import_clause();
+            let declaration_count = import_clause.declaration_count();
+            let unused_len = unused.len();
+            let name_of_unused = |this: &Self, unused: ast::NodeID| {
+                let n = this.c.p.node(unused);
+                match n {
+                    ast::Node::ImportClause(n) if let Some(name) = n.name => name,
+                    ast::Node::NsImport(n) => n.name,
+                    ast::Node::ImportNamedSpec(n) => n.name,
+                    _ => unreachable!("{n:#?}"),
+                }
+            };
+            if declaration_count == unused_len {
+                if unused_len == 1 {
+                    let unused = unused[0];
+                    let name = name_of_unused(self, unused);
+                    let error = errors::XIsDeclaredButItsValueIsNeverRead {
+                        span: self.c.p.node(unused).span(),
+                        name: pprint_ident(name, &self.c.atoms),
+                    };
+                    self.push_unused_local_error(unused, Box::new(error), diags);
+                } else {
+                    todo!()
+                }
+            } else {
+                for unused in unused {
+                    let name = name_of_unused(self, unused);
+                    let error = errors::XIsDeclaredButItsValueIsNeverRead {
+                        span: self.c.p.node(unused).span(),
+                        name: pprint_ident(name, &self.c.atoms),
+                    };
+                    self.push_unused_local_error(unused, Box::new(error), diags);
                 }
             }
         }

@@ -1,0 +1,6 @@
+  × Property 'numExclusive' does not exist on type 'NumClass<number> |
+  │ StrClass<string>'.
+    ╭─[../../tests/compiler/quickinfoTypeAtReturnPositionsInaccurate/index.ts:37:15]
+ 37 │ numExclusive
+    · ────────────
+    ╰────

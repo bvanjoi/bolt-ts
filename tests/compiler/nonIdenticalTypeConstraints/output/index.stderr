@@ -1,3 +1,39 @@
+  × All declarations of 'Foo' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:13:7]
+ 13 │ Foo
+    · ───
+    ╰────
+
+  × All declarations of 'Foo' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:18:11]
+ 18 │ Foo
+    · ───
+    ╰────
+
+  × All declarations of 'Qux' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:22:11]
+ 22 │ Qux
+    · ───
+    ╰────
+
+  × All declarations of 'Qux' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:26:7]
+ 26 │ Qux
+    · ───
+    ╰────
+
+  × All declarations of 'Quux' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:47:7]
+ 47 │ Quux
+    · ────
+    ╰────
+
+  × All declarations of 'Quux' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:52:11]
+ 52 │ Quux
+    · ────
+    ╰────
+
   × Property 'a' has no initializer and is not definitely assigned in the
   │ constructor.
    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:5:5]
@@ -26,30 +62,6 @@
     · ─
     ╰────
 
-  × All declarations of 'Foo' must have identical type parameters.
-    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:13:7]
- 13 │ Foo
-    · ───
-    ╰────
-
-  × All declarations of 'Foo' must have identical type parameters.
-    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:18:11]
- 18 │ Foo
-    · ───
-    ╰────
-
-  × All declarations of 'Qux' must have identical type parameters.
-    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:22:11]
- 22 │ Qux
-    · ───
-    ╰────
-
-  × All declarations of 'Qux' must have identical type parameters.
-    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:26:7]
- 26 │ Qux
-    · ───
-    ╰────
-
   × Property 'n' has no initializer and is not definitely assigned in the
   │ constructor.
     ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:28:5]
@@ -76,16 +88,4 @@
     ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:49:5]
  49 │ n
     · ─
-    ╰────
-
-  × All declarations of 'Quux' must have identical type parameters.
-    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:47:7]
- 47 │ Quux
-    · ────
-    ╰────
-
-  × All declarations of 'Quux' must have identical type parameters.
-    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:52:11]
- 52 │ Quux
-    · ────
     ╰────
