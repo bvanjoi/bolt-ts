@@ -340,6 +340,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 DeclareSymbolProperty::empty(),
             );
         }
+
+        if self.in_strict_mode && !self.p.node_flags(n.id).contains(ast::NodeFlags::AMBIENT) {
+            self.check_strict_mode_eval_or_arguments_for_binding(n.id, &n.name);
+        }
     }
 
     pub(super) fn bind_worker(&mut self, node: ast::NodeID) {

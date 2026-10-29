@@ -1104,9 +1104,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
 
     pub(super) fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
         let binding = self.parse_ident_or_pat();
-        if self.in_strict_mode && !self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
-            self.check_strict_mode_eval_or_arguments_for_binding(binding);
-        }
         // if (getFullWidth(name) === 0 && !some(modifiers) && isModifierKind(token())) {
         //     // in cases like
         //     // 'use strict'
@@ -1212,35 +1209,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         };
         let elem = self.alloc(ast::ArrayBindingElem { kind });
         Ok(elem)
-    }
-
-    pub(super) fn check_strict_mode_eval_or_arguments_for_binding(
-        &mut self,
-        binding: &ast::Binding,
-    ) {
-        debug_assert!(self.in_strict_mode);
-        match binding.kind {
-            ast::BindingKind::Ident(n) => self.check_strict_mode_eval_or_arguments(n),
-            ast::BindingKind::ObjectPat(n) => {
-                for elem in n.elems {
-                    match elem.name {
-                        ast::ObjectBindingName::Shorthand(n) => {
-                            self.check_strict_mode_eval_or_arguments(n)
-                        }
-                        ast::ObjectBindingName::Prop { name, .. } => {
-                            self.check_strict_mode_eval_or_arguments_for_binding(name);
-                        }
-                    }
-                }
-            }
-            ast::BindingKind::ArrayPat(n) => {
-                for elem in n.elems {
-                    if let ast::ArrayBindingElemKind::Binding(n) = elem.kind {
-                        self.check_strict_mode_eval_or_arguments_for_binding(n.name);
-                    }
-                }
-            }
-        }
     }
 
     // TODO: move to binder because we need to know is this file has module augmentation

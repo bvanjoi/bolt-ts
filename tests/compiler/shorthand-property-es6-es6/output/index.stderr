@@ -1,0 +1,5 @@
+  × Cannot find module './foo' or its corresponding type declarations.
+   ╭─[../../tests/compiler/shorthand-property-es6-es6/test.ts:1:19]
+ 1 │ './foo'
+   · ───────
+   ╰────

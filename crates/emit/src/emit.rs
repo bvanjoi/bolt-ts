@@ -181,7 +181,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     }
 
     fn dts(&mut self) -> Option<&mut Emitter> {
-        if self.target == EmitTarget::all() {
+        if self.target.contains(EmitTarget::DECLARATION) {
             Some(&mut self.dts)
         } else {
             None
@@ -217,7 +217,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             decls,
             |this, decl| this.emit_var_decl(decl),
             |this, _| {
-                this.emit_token(TokenKind::Comma);
+                this.js_emit_token(TokenKind::Comma);
+                this.step_comment();
                 this.js.content.p_whitespace();
             },
         );
@@ -225,43 +226,52 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
 
     fn emit_as_string(&mut self, val: Atom) {
         let s = self.atoms().get(val);
-        self.emit_token_value(TokenKind::String, s);
+        self.js_emit_token_value(TokenKind::String, s);
+        self.step_comment();
     }
 
     fn emit_params(&mut self, params: ast::ParamsDecl<'cx>) {
-        self.emit_token(TokenKind::LParen);
+        self.js_emit_token(TokenKind::LParen);
+        self.step_comment();
         self.emit_list(
             params,
             |this, item| this.emit_param_decl(item),
             |this, _| {
-                this.emit_token(TokenKind::Comma);
+                this.js_emit_token(TokenKind::Comma);
+                this.step_comment();
                 this.js.content.p_whitespace();
             },
         );
-        self.emit_token(TokenKind::RParen);
+        self.js_emit_token(TokenKind::RParen);
+        self.step_comment();
     }
 
     fn emit_args(&mut self, args: ast::Exprs<'cx>) {
-        self.emit_token(TokenKind::LParen);
+        self.js_emit_token(TokenKind::LParen);
+        self.step_comment();
         self.emit_list(
             args,
             |this, arg| this.emit_expr(arg),
             |this, _| {
-                this.emit_token(TokenKind::Comma);
+                this.js_emit_token(TokenKind::Comma);
+                this.step_comment();
                 this.js.content.p_whitespace();
             },
         );
-        self.emit_token(TokenKind::RParen);
+        self.js_emit_token(TokenKind::RParen);
+        self.step_comment();
     }
 
     fn emit_export_modifier_if_root(&mut self, modifiers: Option<&'cx ast::Modifiers<'cx>>) {
         if let Some(ms) = modifiers {
             if self.scope == ScopeID::root() && ms.flags.contains(ast::ModifierFlags::EXPORT) {
-                self.emit_token(TokenKind::Export);
+                self.js_emit_token(TokenKind::Export);
+                self.step_comment();
                 self.js.print().p_whitespace();
             }
             if self.scope == ScopeID::root() && ms.flags.contains(ast::ModifierFlags::DEFAULT) {
-                self.emit_token(TokenKind::Default);
+                self.js_emit_token(TokenKind::Default);
+                self.step_comment();
                 self.js.print().p_whitespace();
             }
         }
@@ -271,13 +281,15 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if let Some(ms) = modifiers
             && ms.flags.contains(ast::ModifierFlags::STATIC)
         {
-            self.emit_token(TokenKind::Static);
+            self.js_emit_token(TokenKind::Static);
+            self.step_comment();
             self.js.print().p_whitespace();
         }
     }
 
     fn emit_class_extends_clause_js(&mut self, extends: &'cx ast::ClassExtendsClause<'cx>) {
-        self.emit_token(TokenKind::Extends);
+        self.js_emit_token(TokenKind::Extends);
+        self.step_comment();
         self.js.print().p_whitespace();
         self.emit_expr_with_ty_args(extends.expr_with_ty_args);
         self.js.print().p_whitespace();
@@ -291,30 +303,40 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     ) {
         let name = decl_name.name;
         if self.ns_names.insert((self.scope, name)) {
-            self.emit_token(TokenKind::Var);
+            self.js_emit_token(TokenKind::Var);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_ident(decl_name);
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::Eq);
+            self.js_emit_token(TokenKind::Eq);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::LBrace);
-            self.emit_token(TokenKind::RBrace);
-            self.emit_token(TokenKind::Semi);
+            self.js_emit_token(TokenKind::LBrace);
+            self.step_comment();
+            self.js_emit_token(TokenKind::RBrace);
+            self.step_comment();
+            self.js_emit_token(TokenKind::Semi);
+            self.step_comment();
         }
 
         self.js.print().p_newline();
 
-        self.emit_token(TokenKind::LParen);
-        self.emit_token(TokenKind::Function);
+        self.js_emit_token(TokenKind::LParen);
+        self.step_comment();
+        self.js_emit_token(TokenKind::Function);
+        self.step_comment();
         self.js.print().p_whitespace();
-        self.emit_token(TokenKind::LParen);
+        self.js_emit_token(TokenKind::LParen);
+        self.step_comment();
 
         self.js.print().p(param_name);
-        self.emit_token(TokenKind::RParen);
+        self.js_emit_token(TokenKind::RParen);
+        self.step_comment();
         self.js.print().p_whitespace();
 
         // emit block
-        self.emit_token(TokenKind::LBrace);
+        self.js_emit_token(TokenKind::LBrace);
+        self.step_comment();
         self.js.print().p_newline();
         self.js.print().indent += self.js.options.indent;
         let old = self.scope;
@@ -325,13 +347,18 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         self.scope = old;
         self.js.print().indent -= self.js.options.indent;
         self.js.print().p_newline();
-        self.emit_token(TokenKind::RBrace);
+        self.js_emit_token(TokenKind::RBrace);
+        self.step_comment();
 
-        self.emit_token(TokenKind::RParen);
-        self.emit_token(TokenKind::LParen);
+        self.js_emit_token(TokenKind::RParen);
+        self.step_comment();
+        self.js_emit_token(TokenKind::LParen);
+        self.step_comment();
         self.emit_ident(decl_name);
-        self.emit_token(TokenKind::RParen);
-        self.emit_token(TokenKind::Semi);
+        self.js_emit_token(TokenKind::RParen);
+        self.step_comment();
+        self.js_emit_token(TokenKind::Semi);
+        self.step_comment();
     }
 
     fn sub_names_of_binding(&self, binding: &'cx ast::Binding<'cx>) -> Vec<Atom> {
@@ -380,10 +407,12 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     {
                         for item in v.list {
                             self.js.content.p(param_name);
-                            self.emit_token(TokenKind::Dot);
+                            self.js_emit_token(TokenKind::Dot);
+                            self.step_comment();
                             self.emit_binding(item.name);
                             self.js.content.p_whitespace();
-                            self.emit_token(TokenKind::Eq);
+                            self.js_emit_token(TokenKind::Eq);
+                            self.step_comment();
                             self.js.content.p_whitespace();
                             self.emit_binding(item.name);
                             self.js.content.p_newline();
@@ -425,13 +454,16 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 && !ms.flags.contains(ast::ModifierFlags::AMBIENT)
             {
                 self.js.content.p(param_name);
-                self.emit_token(TokenKind::Dot);
+                self.js_emit_token(TokenKind::Dot);
+                self.step_comment();
                 self.emit_ident(name);
                 self.js.content.p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.content.p_whitespace();
                 self.emit_ident(name);
-                self.emit_token(TokenKind::Semi);
+                self.js_emit_token(TokenKind::Semi);
+                self.step_comment();
                 self.js.content.p_newline();
             }
         }
@@ -498,7 +530,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     }
 
     fn emit_params_without_this(&mut self, params: ast::ParamsDecl<'cx>) {
-        self.emit_token(TokenKind::LParen);
+        self.js_emit_token(TokenKind::LParen);
+        self.step_comment();
         let mut params = params;
         if let Some((first, rest)) = params.split_first()
             && self.is_this_param(first)
@@ -511,17 +544,20 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             params,
             |this, item| this.emit_param_decl(item),
             |this, _| {
-                this.emit_token(TokenKind::Comma);
+                this.js_emit_token(TokenKind::Comma);
+                this.step_comment();
                 this.js.content.p_whitespace();
             },
         );
-        self.emit_token(TokenKind::RParen);
+        self.js_emit_token(TokenKind::RParen);
+        self.step_comment();
     }
 
     // dts gets the old `emit_parameters` form (with parens/commas when
     // `dts_parens`) or the bare walk form (without).
     fn emit_fn_params(&mut self, params: ast::ParamsDecl<'cx>, dts_parens: bool) {
-        self.emit_token(TokenKind::LParen);
+        self.js_emit_token(TokenKind::LParen);
+        self.step_comment();
         if dts_parens && let Some(dts) = self.dts() {
             dts.print().p_token(TokenKind::LParen);
         }
@@ -539,7 +575,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         let mut js_first = true;
         for param in params {
             if !js_first {
-                self.emit_token(TokenKind::Comma);
+                self.js_emit_token(TokenKind::Comma);
+                self.step_comment();
                 self.js.content.p_whitespace();
             }
             if dts_parens && !dts_first {
@@ -554,7 +591,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             js_first = false;
             dts_first = false;
         }
-        self.emit_token(TokenKind::RParen);
+        self.js_emit_token(TokenKind::RParen);
+        self.step_comment();
         if dts_parens && let Some(dts) = self.dts() {
             dts.print().p_token(TokenKind::RParen);
         }
@@ -562,7 +600,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
 
     fn emit_class_body(&mut self, elems: &'cx ast::ClassElems<'cx>, dts_braces: bool) {
         let has_items = elems.list.iter().any(|e| !self.class_elem_is_empty(e));
-        self.emit_token(TokenKind::LBrace);
+        self.js_emit_token(TokenKind::LBrace);
+        self.step_comment();
         let dts_on = self.target == EmitTarget::all();
         if dts_on
             && dts_braces
@@ -637,7 +676,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 dts.print().p_newline();
             }
         }
-        self.emit_token(TokenKind::RBrace);
+        self.js_emit_token(TokenKind::RBrace);
+        self.step_comment();
         if dts_on
             && dts_braces
             && let Some(dts) = self.dts()
@@ -664,7 +704,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     fn emit_for_init(&mut self, init: ast::ForInitKind<'cx>) {
         match init {
             ast::ForInitKind::Var(decls) => {
-                self.emit_token(TokenKind::Var);
+                self.js_emit_token(TokenKind::Var);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_var_decls(decls);
             }
@@ -686,7 +727,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             Shorthand(n) => self.emit_object_shorthand_member(n),
             Method(n) => self.emit_object_method_member(n),
             SpreadAssignment(n) => {
-                self.emit_token(TokenKind::DotDotDot);
+                self.js_emit_token(TokenKind::DotDotDot);
+                self.step_comment();
                 self.emit_expr(n.expr);
             }
             Getter(n) => self.emit_getter_decl(n),
@@ -700,22 +742,29 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             Ident(n) => self.emit_ident(n),
             Ns(n) => self.emit_jsx_ns_name(n),
             PropAccess(n) => self.emit_prop_access_expr(n),
-            This(_) => self.emit_token(TokenKind::This),
+            This(_) => {
+                self.js_emit_token(TokenKind::This);
+                self.step_comment();
+            }
         }
     }
 
     fn emit_jsx_attr(&mut self, node: &'cx ast::JsxAttr<'cx>) {
         match node {
             ast::JsxAttr::Spread(n) => {
-                self.emit_token(TokenKind::LBrace);
-                self.emit_token(TokenKind::DotDotDot);
+                self.js_emit_token(TokenKind::LBrace);
+                self.step_comment();
+                self.js_emit_token(TokenKind::DotDotDot);
+                self.step_comment();
                 self.emit_expr(n.expr);
-                self.emit_token(TokenKind::RBrace);
+                self.js_emit_token(TokenKind::RBrace);
+                self.step_comment();
             }
             ast::JsxAttr::Named(n) => {
                 self.emit_jsx_attr_name(n.name.clone());
                 if let Some(v) = n.init {
-                    self.emit_token(TokenKind::Eq);
+                    self.js_emit_token(TokenKind::Eq);
+                    self.step_comment();
                     self.emit_jsx_attr_value(v);
                 }
             }
@@ -839,11 +888,11 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         }
     }
 
-    fn emit_token(&mut self, token: TokenKind) {
-        self.emit_token_value(token, token.as_str());
+    fn js_emit_token(&mut self, token: TokenKind) {
+        self.js_emit_token_value(token, token.as_str());
     }
 
-    fn emit_token_value(&mut self, token: TokenKind, val: &str) {
+    fn js_emit_token_value(&mut self, token: TokenKind, val: &str) {
         if self.resolver.config().compiler_options().remove_comments() {
             print_token_value(&mut self.js, token, val);
             return;
@@ -884,6 +933,9 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 print_token_value(&mut self.js, token, val);
             }
         }
+    }
+
+    fn step_comment(&mut self) {
         self.comment_idx += 1;
     }
 
@@ -983,7 +1035,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         }
     }
 
-    fn emit_declare_if_needed(&mut self) {
+    fn dts_emit_declare_if_needed(&mut self) {
         if self.flags.contains(EmitDeclarationFlags::NEED_DECLARE) {
             self.dts.print().p_token(TokenKind::Declare);
             self.dts.print().p_whitespace();
@@ -1139,6 +1191,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
         }
     }
+
     fn emit_var_stmt(&mut self, node: &'cx ast::VarStmt<'cx>) {
         if self.target == EmitTarget::JS {
             if node
@@ -1147,14 +1200,16 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             {
                 return;
             }
-            self.emit_token(TokenKind::Var);
+            self.js_emit_token(TokenKind::Var);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_var_decls(node.list);
             if next_adjacent_token_on_this_line_is_semi(
                 self.origin.as_bytes(),
                 node.span.hi() as usize - 1,
             ) {
-                self.emit_token(TokenKind::Semi);
+                self.js_emit_token(TokenKind::Semi);
+                self.step_comment();
             } else {
                 self.js.print().p_token(TokenKind::Semi);
             }
@@ -1169,7 +1224,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
 
             self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
 
-            self.emit_declare_if_needed();
+            self.dts_emit_declare_if_needed();
 
             let node_flags = self.resolver.node_flags(node.id);
             if node_flags.contains(ast::NodeFlags::CONST) {
@@ -1203,10 +1258,11 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     .all(|n| self.has_name_visible_for_binding(n.name));
             match (js_on, dts_on) {
                 (true, true) => {
-                    self.emit_token(TokenKind::Var);
+                    self.js_emit_token(TokenKind::Var);
+                    self.step_comment();
                     self.js.print().p_whitespace();
                     self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
-                    self.emit_declare_if_needed();
+                    self.dts_emit_declare_if_needed();
                     let node_flags = self.resolver.node_flags(node.id);
                     if node_flags.contains(ast::NodeFlags::CONST) {
                         if let Some(dts) = self.dts() {
@@ -1226,7 +1282,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     }
                     for (idx, item) in node.list.iter().enumerate() {
                         if idx != 0 {
-                            self.emit_token(TokenKind::Comma);
+                            self.js_emit_token(TokenKind::Comma);
+                            self.step_comment();
                             self.js.content.p_whitespace();
                             if let Some(dts) = self.dts() {
                                 dts.print().p_token(TokenKind::Comma);
@@ -1241,7 +1298,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                         self.origin.as_bytes(),
                         node.span.hi() as usize - 1,
                     ) {
-                        self.emit_token(TokenKind::Semi);
+                        self.js_emit_token(TokenKind::Semi);
+                        self.step_comment();
                     } else {
                         self.js.print().p_token(TokenKind::Semi);
                     }
@@ -1257,6 +1315,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
         }
     }
+
     fn emit_var_decl(&mut self, node: &'cx ast::VarDecl<'cx>) {
         if self.target == EmitTarget::JS {
             self.emit_binding(node.name);
@@ -1268,7 +1327,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             if let Some(init) = node.init {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_expr(init);
             }
@@ -1308,7 +1368,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         }
         if self.target.contains(EmitTarget::JS) {
             let content = self.atoms().get(node.name);
-            self.emit_token_value(TokenKind::Ident, content);
+            self.js_emit_token_value(TokenKind::Ident, content);
+            self.step_comment();
         }
     }
 
@@ -1317,16 +1378,19 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_private_ident(node)
         } else {
             let content = self.atoms().get(node.name);
-            self.emit_token_value(TokenKind::PrivateIdent, content);
+            self.js_emit_token_value(TokenKind::PrivateIdent, content);
+            self.step_comment();
         }
     }
     fn emit_num_lit(&mut self, node: &'cx ast::NumLit) {
         if self.target == EmitTarget::JS {
-            self.emit_token_value(TokenKind::Number, &node.val.to_string())
+            self.js_emit_token_value(TokenKind::Number, &node.val.to_string());
+            self.step_comment();
         } else if self.target == EmitTarget::DECLARATION {
             self.dts.print().p(&node.val.to_string());
         } else {
-            self.emit_token_value(TokenKind::Number, &node.val.to_string());
+            self.js_emit_token_value(TokenKind::Number, &node.val.to_string());
+            self.step_comment();
             if let Some(dts) = self.dts() {
                 dts.print().p(&node.val.to_string());
             }
@@ -1352,14 +1416,17 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 NumLit(n) => self.emit_num_lit(n),
                 StringLit { raw, .. } => self.emit_string_lit(raw),
                 Computed(n) => {
-                    self.emit_token(TokenKind::LBracket);
+                    self.js_emit_token(TokenKind::LBracket);
+                    self.step_comment();
                     self.emit_expr(n.expr);
-                    self.emit_token(TokenKind::RBracket);
+                    self.js_emit_token(TokenKind::RBracket);
+                    self.step_comment();
                 }
                 PrivateIdent(n) => self.emit_private_ident(n),
                 BigIntLit(n) => {
                     let content = self.atoms().get(n.val.1);
-                    self.emit_token_value(TokenKind::BigInt, content);
+                    self.js_emit_token_value(TokenKind::BigInt, content);
+                    self.step_comment();
                 }
             }
         } else if self.target == EmitTarget::DECLARATION {
@@ -1381,12 +1448,14 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 NumLit(n) => self.emit_num_lit(n),
                 StringLit { raw, .. } => self.emit_string_lit(raw),
                 Computed(n) => {
-                    self.emit_token(TokenKind::LBracket);
+                    self.js_emit_token(TokenKind::LBracket);
+                    self.step_comment();
                     if let Some(dts) = self.dts() {
                         dts.print().p_token(TokenKind::LBracket);
                     }
                     self.emit_expr(n.expr);
-                    self.emit_token(TokenKind::RBracket);
+                    self.js_emit_token(TokenKind::RBracket);
+                    self.step_comment();
                     if let Some(dts) = self.dts() {
                         dts.print().p_token(TokenKind::RBracket);
                     }
@@ -1396,7 +1465,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 }
                 BigIntLit(n) => {
                     let content = self.atoms().get(n.val.1);
-                    self.emit_token_value(TokenKind::BigInt, content);
+                    self.js_emit_token_value(TokenKind::BigInt, content);
+                    self.step_comment();
                 }
             }
         }
@@ -1404,7 +1474,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     fn emit_object_binding_elem(&mut self, node: &'cx ast::ObjectBindingElem<'cx>) {
         if self.target == EmitTarget::JS {
             if node.dotdotdot.is_some() {
-                self.emit_token(TokenKind::DotDotDot);
+                self.js_emit_token(TokenKind::DotDotDot);
+                self.step_comment();
             }
             match node.name {
                 ast::ObjectBindingName::Shorthand(ident) => {
@@ -1412,14 +1483,16 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 }
                 ast::ObjectBindingName::Prop { prop_name, name } => {
                     self.emit_prop_name(prop_name);
-                    self.emit_token(TokenKind::Colon);
+                    self.js_emit_token(TokenKind::Colon);
+                    self.step_comment();
                     self.js.print().p_whitespace();
                     self.emit_binding(name);
                 }
             }
             if let Some(init) = node.init {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_expr(init);
             }
@@ -1438,7 +1511,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
         } else {
             if node.dotdotdot.is_some() {
-                self.emit_token(TokenKind::DotDotDot);
+                self.js_emit_token(TokenKind::DotDotDot);
+                self.step_comment();
                 if let Some(dts) = self.dts() {
                     dts.print().p_token(TokenKind::DotDotDot);
                 }
@@ -1449,7 +1523,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 }
                 ast::ObjectBindingName::Prop { prop_name, name } => {
                     self.emit_prop_name(prop_name);
-                    self.emit_token(TokenKind::Colon);
+                    self.js_emit_token(TokenKind::Colon);
+                    self.step_comment();
                     if let Some(dts) = self.dts() {
                         dts.print().p_token(TokenKind::Colon);
                     }
@@ -1462,7 +1537,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             if let Some(init) = node.init {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.with_target(EmitTarget::JS, |this| this.emit_expr(init));
             }
@@ -1471,12 +1547,14 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     fn emit_array_binding(&mut self, node: &'cx ast::ArrayBinding<'cx>) {
         if self.target == EmitTarget::JS {
             if node.dotdotdot.is_some() {
-                self.emit_token(TokenKind::DotDotDot);
+                self.js_emit_token(TokenKind::DotDotDot);
+                self.step_comment();
             }
             self.emit_binding(node.name);
             if let Some(init) = node.init {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_expr(init);
             }
@@ -1487,7 +1565,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.emit_binding(node.name);
         } else {
             if node.dotdotdot.is_some() {
-                self.emit_token(TokenKind::DotDotDot);
+                self.js_emit_token(TokenKind::DotDotDot);
+                self.step_comment();
                 if let Some(dts) = self.dts() {
                     dts.print().p_token(TokenKind::DotDotDot);
                 }
@@ -1495,7 +1574,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.emit_binding(node.name);
             if let Some(init) = node.init {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.with_target(EmitTarget::JS, |this| this.emit_expr(init));
             }
@@ -1509,19 +1589,23 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             match node.kind {
                 Ident(n) => self.emit_ident(n),
                 ObjectPat(n) => {
-                    self.emit_token(TokenKind::LBrace);
+                    self.js_emit_token(TokenKind::LBrace);
+                    self.step_comment();
                     self.emit_list(
                         n.elems,
                         |this, item| this.emit_object_binding_elem(item),
                         |this, _| {
-                            this.emit_token(TokenKind::Comma);
+                            this.js_emit_token(TokenKind::Comma);
+                            this.step_comment();
                             this.js.content.p_whitespace();
                         },
                     );
-                    self.emit_token(TokenKind::RBrace);
+                    self.js_emit_token(TokenKind::RBrace);
+                    self.step_comment();
                 }
                 ArrayPat(n) => {
-                    self.emit_token(TokenKind::LBracket);
+                    self.js_emit_token(TokenKind::LBracket);
+                    self.step_comment();
                     self.emit_list(
                         n.elems,
                         |this, item| match item.kind {
@@ -1531,11 +1615,13 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                             }
                         },
                         |this, _| {
-                            this.emit_token(TokenKind::Comma);
+                            this.js_emit_token(TokenKind::Comma);
+                            this.step_comment();
                             this.js.content.p_whitespace();
                         },
                     );
-                    self.emit_token(TokenKind::RBracket);
+                    self.js_emit_token(TokenKind::RBracket);
+                    self.step_comment();
                 }
             }
         } else {
@@ -1543,13 +1629,15 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             match node.kind {
                 Ident(n) => self.emit_ident(n),
                 ObjectPat(n) => {
-                    self.emit_token(TokenKind::LBrace);
+                    self.js_emit_token(TokenKind::LBrace);
+                    self.step_comment();
                     if let Some(dts) = self.dts() {
                         dts.print().p_token(TokenKind::LBrace);
                     }
                     for (idx, item) in n.elems.iter().enumerate() {
                         if idx != 0 {
-                            self.emit_token(TokenKind::Comma);
+                            self.js_emit_token(TokenKind::Comma);
+                            self.step_comment();
                             self.js.content.p_whitespace();
                             if let Some(dts) = self.dts() {
                                 dts.print().p_token(TokenKind::Comma);
@@ -1560,19 +1648,22 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                         }
                         self.emit_object_binding_elem(item);
                     }
-                    self.emit_token(TokenKind::RBrace);
+                    self.js_emit_token(TokenKind::RBrace);
+                    self.step_comment();
                     if let Some(dts) = self.dts() {
                         dts.print().p_token(TokenKind::RBrace);
                     }
                 }
                 ArrayPat(n) => {
-                    self.emit_token(TokenKind::LBracket);
+                    self.js_emit_token(TokenKind::LBracket);
+                    self.step_comment();
                     if let Some(dts) = self.dts() {
                         dts.print().p_token(TokenKind::LBracket);
                     }
                     for (idx, item) in n.elems.iter().enumerate() {
                         if idx != 0 {
-                            self.emit_token(TokenKind::Comma);
+                            self.js_emit_token(TokenKind::Comma);
+                            self.step_comment();
                             self.js.content.p_whitespace();
                             if let Some(dts) = self.dts() {
                                 dts.print().p_token(TokenKind::Comma);
@@ -1588,7 +1679,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                             }
                         }
                     }
-                    self.emit_token(TokenKind::RBracket);
+                    self.js_emit_token(TokenKind::RBracket);
+                    self.step_comment();
                     if let Some(dts) = self.dts() {
                         dts.print().p_token(TokenKind::RBracket);
                     }
@@ -1599,7 +1691,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     fn emit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) {
         if self.target == EmitTarget::JS {
             if node.dotdotdot.is_some() {
-                self.emit_token(TokenKind::DotDotDot);
+                self.js_emit_token(TokenKind::DotDotDot);
+                self.step_comment();
             }
             if node.modifiers.is_some() {
                 self.sync_comment_idx(node.name.span.lo());
@@ -1613,7 +1706,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             if let Some(init) = node.init {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_expr(init);
             }
@@ -1640,7 +1734,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
         } else {
             if node.dotdotdot.is_some() {
-                self.emit_token(TokenKind::DotDotDot);
+                self.js_emit_token(TokenKind::DotDotDot);
+                self.step_comment();
                 if let Some(dts) = self.dts() {
                     dts.print().p_token(TokenKind::DotDotDot);
                 }
@@ -1682,7 +1777,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             if let Some(init) = node.init {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.with_target(EmitTarget::JS, |this| this.emit_expr(init));
             }
@@ -1692,7 +1788,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_block_stmt(node)
         } else if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::LBrace);
+            self.js_emit_token(TokenKind::LBrace);
+            self.step_comment();
             let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
             if has_stmts {
                 self.js.print().indent += self.js.options.indent;
@@ -1703,9 +1800,11 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.js.print().indent -= self.js.options.indent;
                 self.js.print().p_newline();
             }
-            self.emit_token(TokenKind::RBrace);
+            self.js_emit_token(TokenKind::RBrace);
+            self.step_comment();
         } else {
-            self.emit_token(TokenKind::LBrace);
+            self.js_emit_token(TokenKind::LBrace);
+            self.step_comment();
             let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
             if has_stmts {
                 self.js.print().indent += self.js.options.indent;
@@ -1716,23 +1815,28 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.js.print().indent -= self.js.options.indent;
                 self.js.print().p_newline();
             }
-            self.emit_token(TokenKind::RBrace);
+            self.js_emit_token(TokenKind::RBrace);
+            self.step_comment();
         }
     }
     fn emit_if_stmt(&mut self, node: &'cx ast::IfStmt<'cx>) {
         if self.target == EmitTarget::DECLARATION {
             self.walk_if_stmt(node)
         } else {
-            self.emit_token(TokenKind::If);
+            self.js_emit_token(TokenKind::If);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::LParen);
+            self.js_emit_token(TokenKind::LParen);
+            self.step_comment();
             self.emit_expr(node.expr);
-            self.emit_token(TokenKind::RParen);
+            self.js_emit_token(TokenKind::RParen);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_stmt(node.then);
             if let Some(else_then) = node.else_then {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Else);
+                self.js_emit_token(TokenKind::Else);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_stmt(else_then);
             }
@@ -1743,7 +1847,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_ret_stmt(node)
         } else {
-            self.emit_token(TokenKind::Return);
+            self.js_emit_token(TokenKind::Return);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(expr) = node.expr {
                 self.emit_expr(expr);
@@ -1759,7 +1864,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 return;
             };
             self.emit_static_modifier(node.modifiers);
-            self.emit_token(TokenKind::Get);
+            self.js_emit_token(TokenKind::Get);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_prop_name(node.name);
             self.emit_params(&[]);
@@ -1780,7 +1886,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 return;
             };
             self.emit_static_modifier(node.modifiers);
-            self.emit_token(TokenKind::Get);
+            self.js_emit_token(TokenKind::Get);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_prop_name(node.name);
             self.emit_params(&[]);
@@ -1799,7 +1906,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 return;
             };
             self.emit_static_modifier(node.modifiers);
-            self.emit_token(TokenKind::Set);
+            self.js_emit_token(TokenKind::Set);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_prop_name(node.name);
             self.emit_params_without_this(node.params);
@@ -1819,7 +1927,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 return;
             };
             self.emit_static_modifier(node.modifiers);
-            self.emit_token(TokenKind::Set);
+            self.js_emit_token(TokenKind::Set);
+            self.step_comment();
             if let Some(dts) = self.dts() {
                 dts.print().p_token(TokenKind::Set);
             }
@@ -1839,11 +1948,13 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.sync_comment_idx(node.span.hi());
                 return;
             };
-            self.emit_token(TokenKind::Constructor);
+            self.js_emit_token(TokenKind::Constructor);
+            self.step_comment();
             self.emit_params_without_this(node.params);
             self.js.print().p_whitespace();
 
-            self.emit_token(TokenKind::LBrace);
+            self.js_emit_token(TokenKind::LBrace);
+            self.step_comment();
             self.js.print().indent += self.js.options.indent;
 
             let has_block_stmt = body.stmts.iter().any(|s| !self.stmt_is_omitted(s))
@@ -1880,11 +1991,14 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 |this, param| {
                     if this.is_param_property(param) {
                         this.js.content.p_newline();
-                        this.emit_token(TokenKind::This);
-                        this.emit_token(TokenKind::Dot);
+                        this.js_emit_token(TokenKind::This);
+                        this.step_comment();
+                        this.js_emit_token(TokenKind::Dot);
+                        this.step_comment();
                         this.emit_binding(param.name);
                         this.js.content.p_whitespace();
-                        this.emit_token(TokenKind::Eq);
+                        this.js_emit_token(TokenKind::Eq);
+                        this.step_comment();
                         this.js.content.p_whitespace();
                         this.emit_binding(param.name);
                     }
@@ -1902,7 +2016,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.js.print().p_newline();
             }
             self.js.print().indent -= self.js.options.indent;
-            self.emit_token(TokenKind::RBrace);
+            self.js_emit_token(TokenKind::RBrace);
+            self.step_comment();
         } else if self.target == EmitTarget::DECLARATION {
             self.dts.print().p_token(TokenKind::Constructor);
             self.dts.print().p_token(TokenKind::LParen);
@@ -1920,7 +2035,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.with_target(EmitTarget::DECLARATION, |this| this.emit_class_ctor(node));
                 return;
             };
-            self.emit_token(TokenKind::Constructor);
+            self.js_emit_token(TokenKind::Constructor);
+            self.step_comment();
             if let Some(dts) = self.dts() {
                 dts.print().p_token(TokenKind::Constructor);
             }
@@ -1939,7 +2055,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             self.js.print().p_whitespace();
             self.with_target(EmitTarget::JS, |this| {
-                this.emit_token(TokenKind::LBrace);
+                this.js_emit_token(TokenKind::LBrace);
+                this.step_comment();
                 this.js.print().indent += this.js.options.indent;
 
                 let has_block_stmt = body.stmts.iter().any(|s| !this.stmt_is_omitted(s))
@@ -1976,11 +2093,14 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     |this, param| {
                         if this.is_param_property(param) {
                             this.js.content.p_newline();
-                            this.emit_token(TokenKind::This);
-                            this.emit_token(TokenKind::Dot);
+                            this.js_emit_token(TokenKind::This);
+                            this.step_comment();
+                            this.js_emit_token(TokenKind::Dot);
+                            this.step_comment();
                             this.emit_binding(param.name);
                             this.js.content.p_whitespace();
-                            this.emit_token(TokenKind::Eq);
+                            this.js_emit_token(TokenKind::Eq);
+                            this.step_comment();
                             this.js.content.p_whitespace();
                             this.emit_binding(param.name);
                         }
@@ -1998,7 +2118,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     this.js.print().p_newline();
                 }
                 this.js.print().indent -= this.js.options.indent;
-                this.emit_token(TokenKind::RBrace);
+                this.js_emit_token(TokenKind::RBrace);
+                this.step_comment();
             });
         }
     }
@@ -2006,11 +2127,14 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_class_static_block_decl(node)
         } else {
-            self.emit_token(TokenKind::Static);
+            self.js_emit_token(TokenKind::Static);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::LBrace);
+            self.js_emit_token(TokenKind::LBrace);
+            self.step_comment();
             self.emit_block_stmt(node.body);
-            self.emit_token(TokenKind::RBrace);
+            self.js_emit_token(TokenKind::RBrace);
+            self.step_comment();
         }
     }
     fn emit_class_prop_elem(&mut self, node: &'cx ast::ClassPropElem<'cx>) {
@@ -2037,7 +2161,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             if let Some(init) = node.init {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_expr(init);
             }
@@ -2045,7 +2170,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.origin.as_bytes(),
                 node.span.hi() as usize - 1,
             ) {
-                self.emit_token(TokenKind::Semi);
+                self.js_emit_token(TokenKind::Semi);
+                self.step_comment();
             } else {
                 self.js.print().p_token(TokenKind::Semi);
             }
@@ -2119,7 +2245,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             if let Some(init) = node.init {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.with_target(EmitTarget::JS, |this| this.emit_expr(init));
             }
@@ -2127,7 +2254,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.origin.as_bytes(),
                 node.span.hi() as usize - 1,
             ) {
-                self.emit_token(TokenKind::Semi);
+                self.js_emit_token(TokenKind::Semi);
+                self.step_comment();
             } else {
                 self.js.print().p_token(TokenKind::Semi);
             }
@@ -2141,7 +2269,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             };
             self.emit_static_modifier(node.modifiers);
             if node.asterisk.is_some() {
-                self.emit_token(TokenKind::Asterisk);
+                self.js_emit_token(TokenKind::Asterisk);
+                self.step_comment();
             }
             self.emit_prop_name(node.name);
             self.emit_params_without_this(node.params);
@@ -2192,7 +2321,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 }
             }
             if node.asterisk.is_some() {
-                self.emit_token(TokenKind::Asterisk);
+                self.js_emit_token(TokenKind::Asterisk);
+                self.step_comment();
             }
             self.emit_prop_name(node.name);
             self.with_target(EmitTarget::DECLARATION, |this| {
@@ -2268,12 +2398,15 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 .modifiers
                 .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ASYNC))
             {
-                self.emit_token(TokenKind::Async);
+                self.js_emit_token(TokenKind::Async);
+                self.step_comment();
                 self.js.print().p_whitespace();
             }
-            self.emit_token(TokenKind::Function);
+            self.js_emit_token(TokenKind::Function);
+            self.step_comment();
             if node.asterisk.is_some() {
-                self.emit_token(TokenKind::Asterisk);
+                self.js_emit_token(TokenKind::Asterisk);
+                self.step_comment();
             }
             self.js.print().p_whitespace();
             if let Some(name) = node.name {
@@ -2296,7 +2429,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             self.emit_export_modifier_if_needed(contain_export_modifier(n.modifiers));
             self.emit_default_modifier(n.modifiers);
-            self.emit_declare_if_needed();
+            self.dts_emit_declare_if_needed();
             self.dts.print().p_token(TokenKind::Function);
             self.dts.print().p_whitespace();
             if let Some(name) = n.name.map(|name| name.name) {
@@ -2331,20 +2464,23 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     self.emit_export_modifier_if_root(node.modifiers);
                     self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
                     self.emit_default_modifier(node.modifiers);
-                    self.emit_declare_if_needed();
+                    self.dts_emit_declare_if_needed();
                     if node
                         .modifiers
                         .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ASYNC))
                     {
-                        self.emit_token(TokenKind::Async);
+                        self.js_emit_token(TokenKind::Async);
+                        self.step_comment();
                         self.js.print().p_whitespace();
                     }
-                    self.emit_token(TokenKind::Function);
+                    self.js_emit_token(TokenKind::Function);
+                    self.step_comment();
                     if let Some(dts) = self.dts() {
                         dts.print().p_token(TokenKind::Function);
                     }
                     if node.asterisk.is_some() {
-                        self.emit_token(TokenKind::Asterisk);
+                        self.js_emit_token(TokenKind::Asterisk);
+                        self.step_comment();
                     }
                     self.js.print().p_whitespace();
                     if let Some(dts) = self.dts() {
@@ -2398,7 +2534,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 return;
             }
             self.emit_export_modifier_if_root(node.modifiers);
-            self.emit_token(TokenKind::Class);
+            self.js_emit_token(TokenKind::Class);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(name) = node.name {
                 self.emit_ident(name);
@@ -2412,7 +2549,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         } else if self.target == EmitTarget::DECLARATION {
             self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
             self.emit_default_modifier(node.modifiers);
-            self.emit_declare_if_needed();
+            self.dts_emit_declare_if_needed();
             self.dts.print().p_token(TokenKind::Class);
             self.dts.print().p_whitespace();
             if let Some(name) = node.name.map(|name| name.name) {
@@ -2473,8 +2610,9 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.emit_export_modifier_if_root(node.modifiers);
             self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
             self.emit_default_modifier(node.modifiers);
-            self.emit_declare_if_needed();
-            self.emit_token(TokenKind::Class);
+            self.dts_emit_declare_if_needed();
+            self.js_emit_token(TokenKind::Class);
+            self.step_comment();
             if let Some(dts) = self.dts() {
                 dts.print().p_token(TokenKind::Class);
             }
@@ -2494,7 +2632,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 this.emit_type_parameters(node.ty_params)
             });
             if let Some(extends) = node.extends {
-                self.emit_token(TokenKind::Extends);
+                self.js_emit_token(TokenKind::Extends);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 if let Some(dts) = self.dts() {
                     dts.print().p_whitespace();
@@ -2554,7 +2693,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_class_expr(node)
         } else if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::Class);
+            self.js_emit_token(TokenKind::Class);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(name) = node.name {
                 self.emit_ident(name);
@@ -2566,7 +2706,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             self.emit_class_body(node.elems, false);
         } else {
-            self.emit_token(TokenKind::Class);
+            self.js_emit_token(TokenKind::Class);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(name) = node.name {
                 self.emit_ident(name);
@@ -2597,7 +2738,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_throw_stmt(node)
         } else {
-            self.emit_token(TokenKind::Throw);
+            self.js_emit_token(TokenKind::Throw);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.expr);
         }
@@ -2606,7 +2748,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::JS {
             self.emit_instantiated_block_module_decl(node);
         } else if self.target == EmitTarget::DECLARATION {
-            self.emit_declare_if_needed();
+            self.dts_emit_declare_if_needed();
             self.dts.print().p_token(TokenKind::Namespace);
             self.dts.print().p_whitespace();
             self.walk_module_name(node.name);
@@ -2644,13 +2786,16 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                         this.js.content.p_newline();
 
                         this.js.content.p(&param_name);
-                        this.emit_token(TokenKind::Dot);
+                        this.js_emit_token(TokenKind::Dot);
+                        this.step_comment();
                         this.emit_ident(inner.name);
                         this.js.content.p_whitespace();
-                        this.emit_token(TokenKind::Eq);
+                        this.js_emit_token(TokenKind::Eq);
+                        this.step_comment();
                         this.js.content.p_whitespace();
                         this.emit_ident(inner.name);
-                        this.emit_token(TokenKind::Semi);
+                        this.js_emit_token(TokenKind::Semi);
+                        this.step_comment();
                         this.js.content.p_newline();
                     });
                 }
@@ -2667,7 +2812,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
         } else if self.target == EmitTarget::DECLARATION {
             let n = node;
-            self.emit_declare_if_needed();
+            self.dts_emit_declare_if_needed();
             self.dts.print().p_token(TokenKind::Namespace);
             self.dts.print().p_whitespace();
             self.emit_ident(n.name);
@@ -2700,28 +2845,34 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 for member in node.members {
                     this.js.content.p_newline();
                     this.emit_ident(node.name);
-                    this.emit_token(TokenKind::LBracket);
+                    this.js_emit_token(TokenKind::LBracket);
+                    this.step_comment();
                     this.emit_ident(node.name);
-                    this.emit_token(TokenKind::LBracket);
+                    this.js_emit_token(TokenKind::LBracket);
+                    this.step_comment();
                     this.emit_enum_member_name(&member.name);
-                    this.emit_token(TokenKind::RBracket);
+                    this.js_emit_token(TokenKind::RBracket);
+                    this.step_comment();
                     this.js.content.p_whitespace();
-                    this.emit_token(TokenKind::Eq);
+                    this.js_emit_token(TokenKind::Eq);
+                    this.step_comment();
                     this.js.content.p_whitespace();
                     if let Some(init) = member.init {
                         this.emit_expr(init);
                     } else {
                         this.js.content.p("0");
                     }
-                    this.emit_token(TokenKind::RBracket);
+                    this.js_emit_token(TokenKind::RBracket);
+                    this.step_comment();
                     this.js.content.p_whitespace();
-                    this.emit_token(TokenKind::Eq);
+                    this.js_emit_token(TokenKind::Eq);
+                    this.step_comment();
                     this.js.content.p_whitespace();
                     this.emit_enum_member_name(&member.name);
                 }
             });
         } else if self.target == EmitTarget::DECLARATION {
-            self.emit_declare_if_needed();
+            self.dts_emit_declare_if_needed();
             self.dts.print().p_token(TokenKind::Enum);
             self.dts.print().p_whitespace();
             self.dts.emit_atom(self.resolver.atoms(), node.name.name);
@@ -2786,13 +2937,15 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     }
     fn emit_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
         if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::Import);
+            self.js_emit_token(TokenKind::Import);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(clause) = node.clause {
                 self.emit_import_clause(clause);
             }
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::From);
+            self.js_emit_token(TokenKind::From);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_string_lit(node.module);
         } else if self.target == EmitTarget::DECLARATION {
@@ -2806,7 +2959,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.dts.print().p_whitespace();
             self.emit_string_literal(node.module.val);
         } else {
-            self.emit_token(TokenKind::Import);
+            self.js_emit_token(TokenKind::Import);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(dts) = self.dts() {
                 dts.print().p_token(TokenKind::Import);
@@ -2821,7 +2975,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 }
             }
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::From);
+            self.js_emit_token(TokenKind::From);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(dts) = self.dts() {
                 dts.print().p_token(TokenKind::From);
@@ -2844,7 +2999,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                             specs,
                             |this, spec| this.emit_import_spec(spec),
                             |this, _| {
-                                this.emit_token(TokenKind::Comma);
+                                this.js_emit_token(TokenKind::Comma);
+                                this.step_comment();
                                 this.js.content.p_whitespace();
                             },
                         );
@@ -2941,7 +3097,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                         }
                         for (idx, spec) in specs.iter().enumerate() {
                             if idx != 0 {
-                                self.emit_token(TokenKind::Comma);
+                                self.js_emit_token(TokenKind::Comma);
+                                self.step_comment();
                                 self.js.content.p_whitespace();
                                 if let Some(dts) = self.dts() {
                                     dts.print().p_token(TokenKind::Comma);
@@ -2968,9 +3125,11 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_ns_import(node)
         } else {
-            self.emit_token(TokenKind::Asterisk);
+            self.js_emit_token(TokenKind::Asterisk);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::As);
+            self.js_emit_token(TokenKind::As);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_ident(node.name);
         }
@@ -2998,7 +3157,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::JS {
             self.emit_module_export_name(node.prop_name);
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::As);
+            self.js_emit_token(TokenKind::As);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_ident(node.name);
         } else if self.target == EmitTarget::DECLARATION {
@@ -3033,7 +3193,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 this.origin.as_bytes(),
                 n.span.hi() as usize - 1,
             ) {
-                this.emit_token(TokenKind::Semi);
+                this.js_emit_token(TokenKind::Semi);
+                this.step_comment();
             } else {
                 this.js.print().p_token(TokenKind::Semi);
             }
@@ -3065,7 +3226,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             If(n) => self.emit_if_stmt(n),
             Ret(n) => {
                 self.emit_ret_stmt(n);
-                self.emit_token(TokenKind::Semi);
+                self.js_emit_token(TokenKind::Semi);
+                self.step_comment();
             }
             Throw(n) => {
                 self.emit_throw_stmt(n);
@@ -3073,7 +3235,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     self.origin.as_bytes(),
                     n.span.hi() as usize - 1,
                 ) {
-                    self.emit_token(TokenKind::Semi);
+                    self.js_emit_token(TokenKind::Semi);
+                    self.step_comment();
                 } else {
                     self.js.print().p_token(TokenKind::Semi);
                 }
@@ -3082,23 +3245,29 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             Export(n) => self.emit_export_decl(n),
             ExportAssign(n) => {
                 self.emit_export_assign(n);
-                self.emit_token(TokenKind::Semi);
+                self.js_emit_token(TokenKind::Semi);
+                self.step_comment();
             }
             For(n) => self.emit_for_stmt(n),
             ForOf(n) => self.emit_for_of_stmt(n),
             ForIn(n) => self.emit_for_in_stmt(n),
             Break(n) => {
                 self.emit_break_stmt(n);
-                self.emit_token(TokenKind::Semi);
+                self.js_emit_token(TokenKind::Semi);
+                self.step_comment();
             }
             Continue(n) => {
                 self.emit_continue_stmt(n);
-                self.emit_token(TokenKind::Semi);
+                self.js_emit_token(TokenKind::Semi);
+                self.step_comment();
             }
             While(n) => self.emit_while_stmt(n),
             Do(n) => self.emit_do_while_stmt(n),
             Labeled(n) => self.emit_labeled_stmt(n),
-            Empty(_) => self.emit_token(TokenKind::Semi),
+            Empty(_) => {
+                self.js_emit_token(TokenKind::Semi);
+                self.step_comment();
+            }
             Switch(n) => self.emit_switch_stmt(n),
             Debugger(_) => {}
         }
@@ -3107,15 +3276,20 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_switch_stmt(node)
         } else {
-            self.emit_token(TokenKind::Switch);
+            self.js_emit_token(TokenKind::Switch);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::LParen);
+            self.js_emit_token(TokenKind::LParen);
+            self.step_comment();
             self.emit_expr(node.expr);
-            self.emit_token(TokenKind::RParen);
+            self.js_emit_token(TokenKind::RParen);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::LBrace);
+            self.js_emit_token(TokenKind::LBrace);
+            self.step_comment();
             self.emit_case_block(node.case_block);
-            self.emit_token(TokenKind::RBrace);
+            self.js_emit_token(TokenKind::RBrace);
+            self.step_comment();
         }
     }
     fn emit_case_block(&mut self, node: &'cx ast::CaseBlock<'cx>) {
@@ -3165,10 +3339,12 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_case_clause(node)
         } else if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::Case);
+            self.js_emit_token(TokenKind::Case);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.expr);
-            self.emit_token(TokenKind::Colon);
+            self.js_emit_token(TokenKind::Colon);
+            self.step_comment();
             let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
             if has_stmts {
                 self.js.print().indent += self.js.options.indent;
@@ -3180,10 +3356,12 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.js.print().p_newline();
             }
         } else {
-            self.emit_token(TokenKind::Case);
+            self.js_emit_token(TokenKind::Case);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.expr);
-            self.emit_token(TokenKind::Colon);
+            self.js_emit_token(TokenKind::Colon);
+            self.step_comment();
             let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
             if has_stmts {
                 self.js.print().indent += self.js.options.indent;
@@ -3200,8 +3378,10 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_default_clause(node)
         } else if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::Default);
-            self.emit_token(TokenKind::Colon);
+            self.js_emit_token(TokenKind::Default);
+            self.step_comment();
+            self.js_emit_token(TokenKind::Colon);
+            self.step_comment();
             let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
             if has_stmts {
                 self.js.print().indent += self.js.options.indent;
@@ -3213,8 +3393,10 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.js.print().p_newline();
             }
         } else {
-            self.emit_token(TokenKind::Default);
-            self.emit_token(TokenKind::Colon);
+            self.js_emit_token(TokenKind::Default);
+            self.step_comment();
+            self.js_emit_token(TokenKind::Colon);
+            self.step_comment();
             let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
             if has_stmts {
                 self.js.print().indent += self.js.options.indent;
@@ -3229,9 +3411,11 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     }
     fn emit_export_assign(&mut self, node: &'cx ast::ExportAssign<'cx>) {
         if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::Export);
+            self.js_emit_token(TokenKind::Export);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::Default);
+            self.js_emit_token(TokenKind::Default);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.expr);
         } else if self.target == EmitTarget::DECLARATION {
@@ -3248,7 +3432,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.emit_expr(node.expr);
             self.dts.print().p_token(TokenKind::Semi);
         } else {
-            self.emit_token(TokenKind::Export);
+            self.js_emit_token(TokenKind::Export);
+            self.step_comment();
             self.js.print().p_whitespace();
             if node.is_export_equals {
                 if let Some(dts) = self.dts() {
@@ -3271,7 +3456,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     dts.print().p_token(TokenKind::Default);
                 }
             }
-            self.emit_token(TokenKind::Default);
+            self.js_emit_token(TokenKind::Default);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(dts) = self.dts() {
                 dts.print().p_whitespace();
@@ -3287,7 +3473,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_labeled_stmt(node)
         } else {
             self.emit_ident(node.label);
-            self.emit_token(TokenKind::Colon);
+            self.js_emit_token(TokenKind::Colon);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_stmt(node.stmt);
         }
@@ -3296,26 +3483,33 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_do_while_stmt(node)
         } else {
-            self.emit_token(TokenKind::Do);
+            self.js_emit_token(TokenKind::Do);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_stmt(node.stmt);
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::While);
+            self.js_emit_token(TokenKind::While);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::LParen);
+            self.js_emit_token(TokenKind::LParen);
+            self.step_comment();
             self.emit_expr(node.expr);
-            self.emit_token(TokenKind::RParen);
+            self.js_emit_token(TokenKind::RParen);
+            self.step_comment();
         }
     }
     fn emit_while_stmt(&mut self, node: &'cx ast::WhileStmt<'cx>) {
         if self.target == EmitTarget::DECLARATION {
             self.walk_while_stmt(node)
         } else {
-            self.emit_token(TokenKind::While);
+            self.js_emit_token(TokenKind::While);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::LParen);
+            self.js_emit_token(TokenKind::LParen);
+            self.step_comment();
             self.emit_expr(node.expr);
-            self.emit_token(TokenKind::RParen);
+            self.js_emit_token(TokenKind::RParen);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_stmt(node.stmt);
         }
@@ -3324,12 +3518,15 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_catch_clause(node)
         } else {
-            self.emit_token(TokenKind::Catch);
+            self.js_emit_token(TokenKind::Catch);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(var) = node.var {
-                self.emit_token(TokenKind::LParen);
+                self.js_emit_token(TokenKind::LParen);
+                self.step_comment();
                 self.emit_var_decl(var);
-                self.emit_token(TokenKind::RParen);
+                self.js_emit_token(TokenKind::RParen);
+                self.step_comment();
             }
             self.js.print().p_whitespace();
             self.emit_block_stmt(node.block);
@@ -3339,7 +3536,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_try_stmt(node)
         } else {
-            self.emit_token(TokenKind::Try);
+            self.js_emit_token(TokenKind::Try);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_block_stmt(node.try_block);
             if let Some(catch) = node.catch_clause {
@@ -3347,7 +3545,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.emit_catch_clause(catch);
             }
             if let Some(finally) = node.finally_block {
-                self.emit_token(TokenKind::Finally);
+                self.js_emit_token(TokenKind::Finally);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_block_stmt(finally);
             }
@@ -3357,7 +3556,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_continue_stmt(node)
         } else {
-            self.emit_token(TokenKind::Continue);
+            self.js_emit_token(TokenKind::Continue);
+            self.step_comment();
             if let Some(label) = node.label {
                 self.js.print().p_whitespace();
                 self.emit_ident(label);
@@ -3368,7 +3568,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_break_stmt(node)
         } else {
-            self.emit_token(TokenKind::Break);
+            self.js_emit_token(TokenKind::Break);
+            self.step_comment();
             if let Some(label) = node.label {
                 self.js.print().p_whitespace();
                 self.emit_ident(label);
@@ -3377,16 +3578,20 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     }
     fn emit_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {
         if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::For);
+            self.js_emit_token(TokenKind::For);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::LParen);
+            self.js_emit_token(TokenKind::LParen);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_for_init(node.init);
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::In);
+            self.js_emit_token(TokenKind::In);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.expr);
-            self.emit_token(TokenKind::RParen);
+            self.js_emit_token(TokenKind::RParen);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_stmt(node.body);
         } else if self.target == EmitTarget::DECLARATION {
@@ -3396,24 +3601,29 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     }
     fn emit_for_stmt(&mut self, node: &'cx ast::ForStmt<'cx>) {
         if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::For);
+            self.js_emit_token(TokenKind::For);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::LParen);
+            self.js_emit_token(TokenKind::LParen);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(init) = node.init {
                 self.emit_for_init(init);
             }
-            self.emit_token(TokenKind::Semi);
+            self.js_emit_token(TokenKind::Semi);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(cond) = node.cond {
                 self.emit_expr(cond);
             }
-            self.emit_token(TokenKind::Semi);
+            self.js_emit_token(TokenKind::Semi);
+            self.step_comment();
             self.js.print().p_whitespace();
             if let Some(incr) = node.incr {
                 self.emit_expr(incr);
             }
-            self.emit_token(TokenKind::RParen);
+            self.js_emit_token(TokenKind::RParen);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_stmt(node.body);
         } else if self.target == EmitTarget::DECLARATION {
@@ -3423,20 +3633,25 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     }
     fn emit_for_of_stmt(&mut self, node: &'cx ast::ForOfStmt<'cx>) {
         if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::For);
+            self.js_emit_token(TokenKind::For);
+            self.step_comment();
             self.js.print().p_whitespace();
             if node.r#await.is_some() {
-                self.emit_token(TokenKind::Await);
+                self.js_emit_token(TokenKind::Await);
+                self.step_comment();
                 self.js.print().p_whitespace();
             }
-            self.emit_token(TokenKind::LParen);
+            self.js_emit_token(TokenKind::LParen);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_for_init(node.init);
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::Of);
+            self.js_emit_token(TokenKind::Of);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.expr);
-            self.emit_token(TokenKind::RParen);
+            self.js_emit_token(TokenKind::RParen);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_stmt(node.body);
         } else if self.target == EmitTarget::DECLARATION {
@@ -3448,67 +3663,81 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_export_decl(node)
         } else if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::Export);
+            self.js_emit_token(TokenKind::Export);
+            self.step_comment();
             self.js.print().p_whitespace();
             match node.clause.kind {
                 ast::ExportClauseKind::Specs(specs) => {
-                    self.emit_token(TokenKind::LBrace);
+                    self.js_emit_token(TokenKind::LBrace);
+                    self.step_comment();
                     self.js.print().p_whitespace();
                     self.emit_list(
                         specs.list,
                         |this, spec| this.emit_export_spec(spec),
                         |this, _| {
-                            this.emit_token(TokenKind::Comma);
+                            this.js_emit_token(TokenKind::Comma);
+                            this.step_comment();
                             this.js.content.p_whitespace();
                         },
                     );
                     self.js.print().p_whitespace();
-                    self.emit_token(TokenKind::RBrace);
+                    self.js_emit_token(TokenKind::RBrace);
+                    self.step_comment();
                     if let Some(module) = specs.module {
                         self.js.print().p_whitespace();
-                        self.emit_token(TokenKind::From);
+                        self.js_emit_token(TokenKind::From);
+                        self.step_comment();
                         self.js.print().p_whitespace();
                         self.emit_string_lit(module);
                     }
                 }
                 ast::ExportClauseKind::Ns(n) => self.emit_ns_export(n),
                 ast::ExportClauseKind::Glob(n) => {
-                    self.emit_token(TokenKind::Asterisk);
+                    self.js_emit_token(TokenKind::Asterisk);
+                    self.step_comment();
                     self.js.print().p_whitespace();
-                    self.emit_token(TokenKind::From);
+                    self.js_emit_token(TokenKind::From);
+                    self.step_comment();
                     self.js.print().p_whitespace();
                     self.emit_string_lit(n.module);
                 }
             }
         } else {
-            self.emit_token(TokenKind::Export);
+            self.js_emit_token(TokenKind::Export);
+            self.step_comment();
             self.js.print().p_whitespace();
             match node.clause.kind {
                 ast::ExportClauseKind::Specs(specs) => {
-                    self.emit_token(TokenKind::LBrace);
+                    self.js_emit_token(TokenKind::LBrace);
+                    self.step_comment();
                     self.js.print().p_whitespace();
                     self.emit_list(
                         specs.list,
                         |this, spec| this.emit_export_spec(spec),
                         |this, _| {
-                            this.emit_token(TokenKind::Comma);
+                            this.js_emit_token(TokenKind::Comma);
+                            this.step_comment();
                             this.js.content.p_whitespace();
                         },
                     );
                     self.js.print().p_whitespace();
-                    self.emit_token(TokenKind::RBrace);
+                    self.js_emit_token(TokenKind::RBrace);
+                    self.step_comment();
                     if let Some(module) = specs.module {
                         self.js.print().p_whitespace();
-                        self.emit_token(TokenKind::From);
+                        self.js_emit_token(TokenKind::From);
+                        self.step_comment();
                         self.js.print().p_whitespace();
                         self.emit_string_lit(module);
                     }
                 }
                 ast::ExportClauseKind::Ns(n) => self.emit_ns_export(n),
                 ast::ExportClauseKind::Glob(n) => {
-                    self.emit_token(TokenKind::Asterisk);
+                    self.js_emit_token(TokenKind::Asterisk);
+                    self.step_comment();
                     self.js.print().p_whitespace();
-                    self.emit_token(TokenKind::From);
+                    self.js_emit_token(TokenKind::From);
+                    self.step_comment();
                     self.js.print().p_whitespace();
                     self.emit_string_lit(n.module);
                 }
@@ -3521,7 +3750,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         } else if self.target == EmitTarget::JS {
             self.emit_module_export_name(node.prop_name);
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::As);
+            self.js_emit_token(TokenKind::As);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_module_export_name(node.name);
         } else {
@@ -3546,13 +3776,16 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_ns_export(node)
         } else {
-            self.emit_token(TokenKind::Asterisk);
+            self.js_emit_token(TokenKind::Asterisk);
+            self.step_comment();
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::As);
+            self.js_emit_token(TokenKind::As);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_module_export_name(node.name);
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::From);
+            self.js_emit_token(TokenKind::From);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_string_lit(node.module);
         }
@@ -3565,7 +3798,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             ast::AssignOp::LogicalAndEq | ast::AssignOp::LogicalOrEq => TokenKind::Unknown,
             _ => node.op.into(),
         };
-        self.emit_token_value(token, node.op.as_str());
+        self.js_emit_token_value(token, node.op.as_str());
+        self.step_comment();
         self.js.print().p_whitespace();
         self.emit_expr(node.right);
     }
@@ -3576,7 +3810,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         } else {
             self.emit_expr(node.left);
             self.js.print().p_whitespace();
-            self.emit_token_value(node.op.into(), node.op.as_str());
+            self.js_emit_token_value(node.op.into(), node.op.as_str());
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.right);
         }
@@ -3585,16 +3820,19 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_paren_expr(node)
         } else {
-            self.emit_token(TokenKind::LParen);
+            self.js_emit_token(TokenKind::LParen);
+            self.step_comment();
             self.emit_expr(node.expr);
-            self.emit_token(TokenKind::RParen);
+            self.js_emit_token(TokenKind::RParen);
+            self.step_comment();
         }
     }
     fn emit_this_expr(&mut self, node: &'cx ast::ThisExpr) {
         if self.target == EmitTarget::DECLARATION {
             self.walk_this_expr(node)
         } else {
-            self.emit_token(TokenKind::This);
+            self.js_emit_token(TokenKind::This);
+            self.step_comment();
         }
     }
     fn emit_big_int_lit(&mut self, node: &'cx ast::BigIntLit) {
@@ -3602,10 +3840,12 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_big_int_lit(node)
         } else {
             if node.val.0 {
-                self.emit_token(TokenKind::Minus);
+                self.js_emit_token(TokenKind::Minus);
+                self.step_comment();
             }
             let content = self.atoms().get(node.val.1);
-            self.emit_token_value(TokenKind::BigInt, &format!("{content}n"));
+            self.js_emit_token_value(TokenKind::BigInt, &format!("{content}n"));
+            self.step_comment();
         }
     }
     fn emit_reg_exp_lit(&mut self, node: &'cx ast::RegExpLit) {
@@ -3613,22 +3853,26 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_reg_exp_lit(node)
         } else {
             let content = self.atoms().get(node.val);
-            self.emit_token_value(TokenKind::Regexp, content);
+            self.js_emit_token_value(TokenKind::Regexp, content);
+            self.step_comment();
         }
     }
     fn emit_array_lit(&mut self, node: &'cx ast::ArrayLit<'cx>) {
         if self.target == EmitTarget::DECLARATION {
             self.walk_array_lit(node)
         } else {
-            self.emit_token(TokenKind::LBracket);
+            self.js_emit_token(TokenKind::LBracket);
+            self.step_comment();
             for (idx, expr) in node.elems.iter().enumerate() {
                 self.emit_expr(expr);
                 if idx != node.elems.len() - 1 {
-                    self.emit_token(TokenKind::Comma);
+                    self.js_emit_token(TokenKind::Comma);
+                    self.step_comment();
                     self.js.print().p_whitespace();
                 }
             }
-            self.emit_token(TokenKind::RBracket);
+            self.js_emit_token(TokenKind::RBracket);
+            self.step_comment();
         }
     }
     fn emit_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) {
@@ -3636,11 +3880,14 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_object_lit(node)
         } else if self.target == EmitTarget::JS {
             if node.members.is_empty() {
-                self.emit_token(TokenKind::LBrace);
-                self.emit_token(TokenKind::RBrace);
+                self.js_emit_token(TokenKind::LBrace);
+                self.step_comment();
+                self.js_emit_token(TokenKind::RBrace);
+                self.step_comment();
                 return;
             }
-            self.emit_token(TokenKind::LBrace);
+            self.js_emit_token(TokenKind::LBrace);
+            self.step_comment();
             self.js.print().p_newline();
             self.js.print().indent += self.js.options.indent;
             let indent = self.js.print().indent;
@@ -3651,7 +3898,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     this.emit_object_member(member);
                 },
                 |this, _| {
-                    this.emit_token(TokenKind::Comma);
+                    this.js_emit_token(TokenKind::Comma);
+                    this.step_comment();
                     this.js.content.p_newline();
                 },
             );
@@ -3659,14 +3907,18 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.js.print().p_pieces_of_whitespace(indent);
             self.js.print().indent -= self.js.options.indent;
             self.js.print().p_newline();
-            self.emit_token(TokenKind::RBrace);
+            self.js_emit_token(TokenKind::RBrace);
+            self.step_comment();
         } else {
             if node.members.is_empty() {
-                self.emit_token(TokenKind::LBrace);
-                self.emit_token(TokenKind::RBrace);
+                self.js_emit_token(TokenKind::LBrace);
+                self.step_comment();
+                self.js_emit_token(TokenKind::RBrace);
+                self.step_comment();
                 return;
             }
-            self.emit_token(TokenKind::LBrace);
+            self.js_emit_token(TokenKind::LBrace);
+            self.step_comment();
             self.js.print().p_newline();
             self.js.print().indent += self.js.options.indent;
             let indent = self.js.print().indent;
@@ -3677,7 +3929,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     this.emit_object_member(member);
                 },
                 |this, _| {
-                    this.emit_token(TokenKind::Comma);
+                    this.js_emit_token(TokenKind::Comma);
+                    this.step_comment();
                     this.js.content.p_newline();
                 },
             );
@@ -3685,7 +3938,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.js.print().p_pieces_of_whitespace(indent);
             self.js.print().indent -= self.js.options.indent;
             self.js.print().p_newline();
-            self.emit_token(TokenKind::RBrace);
+            self.js_emit_token(TokenKind::RBrace);
+            self.step_comment();
         }
     }
     fn emit_object_method_member(&mut self, node: &'cx ast::ObjectMethodMember<'cx>) {
@@ -3693,7 +3947,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_object_method_member(node)
         } else if self.target == EmitTarget::JS {
             if node.asterisk.is_some() {
-                self.emit_token(TokenKind::Asterisk);
+                self.js_emit_token(TokenKind::Asterisk);
+                self.step_comment();
             }
             self.emit_prop_name(node.name);
             self.emit_params_without_this(node.params);
@@ -3704,7 +3959,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.emit_block_stmt(node.body);
         } else {
             if node.asterisk.is_some() {
-                self.emit_token(TokenKind::Asterisk);
+                self.js_emit_token(TokenKind::Asterisk);
+                self.step_comment();
             }
             self.emit_prop_name(node.name);
             if let Some(ty_params) = node.ty_params {
@@ -3728,7 +3984,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_object_prop_assignment(node)
         } else {
             self.emit_prop_name(node.name);
-            self.emit_token(TokenKind::Colon);
+            self.js_emit_token(TokenKind::Colon);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.init);
         }
@@ -3752,12 +4009,14 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             if let ast::ExprKind::NumLit(n) = node.expr.kind {
                 self.emit_num_lit(n);
                 if n.val.fract() == 0. {
-                    self.emit_token(TokenKind::Dot);
+                    self.js_emit_token(TokenKind::Dot);
+                    self.step_comment();
                 }
             } else {
                 self.emit_expr(node.expr);
             }
-            self.emit_token(TokenKind::Dot);
+            self.js_emit_token(TokenKind::Dot);
+            self.step_comment();
             self.emit_ident(node.name);
         }
     }
@@ -3766,14 +4025,16 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_template_expr(node)
         } else {
             // emit_template_head
-            self.emit_token(TokenKind::Backtick);
+            self.js_emit_token(TokenKind::Backtick);
+            self.step_comment();
             let content = self.atoms().get(node.head.text);
             let content = escape_snippet_text(content);
             self.js.print().p(&content);
             for span in node.spans {
                 self.js.print().p_dollar_and_brace();
                 self.emit_expr(span.expr);
-                self.emit_token(TokenKind::RBrace);
+                self.js_emit_token(TokenKind::RBrace);
+                self.step_comment();
                 let content = self.atoms().get(span.text);
                 self.js.print().p(content);
             }
@@ -3785,7 +4046,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_no_substitution_template_lit(node)
         } else {
             let content = get_source_text_from_source(&self.origin, node.span).to_string();
-            self.emit_token_value(TokenKind::NoSubstitutionTemplate, &content);
+            self.js_emit_token_value(TokenKind::NoSubstitutionTemplate, &content);
+            self.step_comment();
         }
     }
 
@@ -3800,12 +4062,17 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             Ident(n) => self.emit_ident(n),
             BoolLit(n) => {
                 if n.val {
-                    self.emit_token(TokenKind::True);
+                    self.js_emit_token(TokenKind::True);
+                    self.step_comment();
                 } else {
-                    self.emit_token(TokenKind::False);
+                    self.js_emit_token(TokenKind::False);
+                    self.step_comment();
                 }
             }
-            NullLit(_) => self.emit_token(TokenKind::Null),
+            NullLit(_) => {
+                self.js_emit_token(TokenKind::Null);
+                self.step_comment();
+            }
             NumLit(n) => self.emit_num_lit(n),
             BigIntLit(n) => self.emit_big_int_lit(n),
             RegExpLit(n) => self.emit_reg_exp_lit(n),
@@ -3814,21 +4081,28 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             ArrayLit(n) => self.emit_array_lit(n),
             ObjectLit(n) => self.emit_object_lit(n),
             Void(n) => {
-                self.emit_token(TokenKind::Void);
+                self.js_emit_token(TokenKind::Void);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_expr(n.expr);
             }
             Typeof(n) => {
-                self.emit_token(TokenKind::Typeof);
+                self.js_emit_token(TokenKind::Typeof);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_expr(n.expr);
             }
-            Super(_) => self.emit_token(TokenKind::Super),
+            Super(_) => {
+                self.js_emit_token(TokenKind::Super);
+                self.step_comment();
+            }
             EleAccess(n) => {
                 self.emit_expr(n.expr);
-                self.emit_token(TokenKind::LBracket);
+                self.js_emit_token(TokenKind::LBracket);
+                self.step_comment();
                 self.emit_expr(n.arg);
-                self.emit_token(TokenKind::RBracket);
+                self.js_emit_token(TokenKind::RBracket);
+                self.step_comment();
             }
             PropAccess(n) => self.emit_prop_access_expr(n),
             PostfixUnary(n) => {
@@ -3837,7 +4111,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     ast::PostfixUnaryOp::PlusPlus => TokenKind::PlusPlus,
                     ast::PostfixUnaryOp::MinusMinus => TokenKind::MinusMinus,
                 };
-                self.emit_token_value(token, n.op.as_str());
+                self.js_emit_token_value(token, n.op.as_str());
+                self.step_comment();
             }
             PrefixUnary(n) => {
                 let token = match n.op {
@@ -3848,7 +4123,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                     ast::PrefixUnaryOp::Tilde => TokenKind::Tilde,
                     ast::PrefixUnaryOp::Excl => TokenKind::Excl,
                 };
-                self.emit_token_value(token, n.op.as_str());
+                self.js_emit_token_value(token, n.op.as_str());
+                self.step_comment();
                 if matches!(n.expr.kind, PrefixUnary(_)) {
                     self.js.print().p_whitespace();
                 }
@@ -3874,7 +4150,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             Template(n) => self.emit_template_expr(n),
             SpreadElement(n) => {
-                self.emit_token(TokenKind::DotDotDot);
+                self.js_emit_token(TokenKind::DotDotDot);
+                self.step_comment();
                 self.emit_expr(n.expr);
             }
             ArrowFn(n) => self.emit_arrow_fn_expr(n),
@@ -3887,20 +4164,24 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             JsxSelfClosingElem(n) => self.emit_jsx_self_closing_elem(n),
             JsxFrag(n) => self.emit_jsx_frag(n),
             Delete(n) => {
-                self.emit_token(TokenKind::Delete);
+                self.js_emit_token(TokenKind::Delete);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_expr(n.expr);
             }
             Await(n) => {
-                self.emit_token(TokenKind::Await);
+                self.js_emit_token(TokenKind::Await);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 self.emit_expr(n.expr);
             }
             Yield(n) => {
-                self.emit_token(TokenKind::Yield);
+                self.js_emit_token(TokenKind::Yield);
+                self.step_comment();
                 self.js.print().p_whitespace();
                 if n.asterisk.is_some() {
-                    self.emit_token(TokenKind::Asterisk);
+                    self.js_emit_token(TokenKind::Asterisk);
+                    self.step_comment();
                     self.js.print().p_whitespace();
                 }
                 if let Some(expr) = n.expr {
@@ -3908,8 +4189,10 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 }
             }
             NewMetaProperty(n) => {
-                self.emit_token(TokenKind::New);
-                self.emit_token(TokenKind::Dot);
+                self.js_emit_token(TokenKind::New);
+                self.step_comment();
+                self.js_emit_token(TokenKind::Dot);
+                self.step_comment();
                 self.emit_ident(n.name);
             }
             As(n) => {
@@ -3947,7 +4230,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_jsx_ns_name(node)
         } else {
             self.emit_ident(node.ns);
-            self.emit_token(TokenKind::Colon);
+            self.js_emit_token(TokenKind::Colon);
+            self.step_comment();
             self.emit_ident(node.name);
         }
     }
@@ -3955,34 +4239,42 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_jsx_expr(node)
         } else {
-            self.emit_token(TokenKind::LBrace);
+            self.js_emit_token(TokenKind::LBrace);
+            self.step_comment();
             if node.dotdotdot_token.is_some() {
-                self.emit_token(TokenKind::DotDotDot);
+                self.js_emit_token(TokenKind::DotDotDot);
+                self.step_comment();
             }
             if let Some(expr) = node.expr {
                 self.emit_expr(expr);
             }
-            self.emit_token(TokenKind::RBrace);
+            self.js_emit_token(TokenKind::RBrace);
+            self.step_comment();
         }
     }
     fn emit_jsx_frag(&mut self, node: &'cx ast::JsxFrag<'cx>) {
         if self.target == EmitTarget::DECLARATION {
             self.walk_jsx_frag(node)
         } else {
-            self.emit_token(TokenKind::Less);
-            self.emit_token(TokenKind::Great);
+            self.js_emit_token(TokenKind::Less);
+            self.step_comment();
+            self.js_emit_token(TokenKind::Great);
+            self.step_comment();
             for child in node.children {
                 self.emit_jsx_child(*child);
             }
-            self.emit_token(TokenKind::LessSlash);
-            self.emit_token(TokenKind::Great);
+            self.js_emit_token(TokenKind::LessSlash);
+            self.step_comment();
+            self.js_emit_token(TokenKind::Great);
+            self.step_comment();
         }
     }
     fn emit_jsx_self_closing_elem(&mut self, node: &'cx ast::JsxSelfClosingElem<'cx>) {
         if self.target == EmitTarget::DECLARATION {
             self.walk_jsx_self_closing_elem(node)
         } else if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::Less);
+            self.js_emit_token(TokenKind::Less);
+            self.step_comment();
             self.emit_jsx_tag_name(node.tag_name);
             self.js.print().p_whitespace();
             for attr in node.attrs {
@@ -3990,10 +4282,13 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.emit_jsx_attr(attr);
             }
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::Slash);
-            self.emit_token(TokenKind::Great);
+            self.js_emit_token(TokenKind::Slash);
+            self.step_comment();
+            self.js_emit_token(TokenKind::Great);
+            self.step_comment();
         } else {
-            self.emit_token(TokenKind::Less);
+            self.js_emit_token(TokenKind::Less);
+            self.step_comment();
             self.emit_jsx_tag_name(node.tag_name);
             if let Some(ty_args) = node.ty_args {
                 self.with_target(EmitTarget::DECLARATION, |this| {
@@ -4008,32 +4303,39 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.emit_jsx_attr(attr);
             }
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::Slash);
-            self.emit_token(TokenKind::Great);
+            self.js_emit_token(TokenKind::Slash);
+            self.step_comment();
+            self.js_emit_token(TokenKind::Great);
+            self.step_comment();
         }
     }
     fn emit_jsx_elem(&mut self, node: &'cx ast::JsxElem<'cx>) {
         if self.target == EmitTarget::DECLARATION {
             self.walk_jsx_elem(node)
         } else if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::Less);
+            self.js_emit_token(TokenKind::Less);
+            self.step_comment();
             self.emit_jsx_tag_name(node.opening_elem.tag_name);
             self.js.print().p_whitespace();
             for attr in node.opening_elem.attrs {
                 self.js.print().p_whitespace();
                 self.emit_jsx_attr(attr);
             }
-            self.emit_token(TokenKind::Great);
+            self.js_emit_token(TokenKind::Great);
+            self.step_comment();
 
             for child in node.children {
                 self.emit_jsx_child(*child);
             }
 
-            self.emit_token(TokenKind::LessSlash);
+            self.js_emit_token(TokenKind::LessSlash);
+            self.step_comment();
             self.emit_jsx_tag_name(node.closing_elem.tag_name);
-            self.emit_token(TokenKind::Great);
+            self.js_emit_token(TokenKind::Great);
+            self.step_comment();
         } else {
-            self.emit_token(TokenKind::Less);
+            self.js_emit_token(TokenKind::Less);
+            self.step_comment();
             self.emit_jsx_tag_name(node.opening_elem.tag_name);
             if let Some(ty_args) = node.opening_elem.ty_args {
                 self.with_target(EmitTarget::DECLARATION, |this| {
@@ -4047,15 +4349,18 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.js.print().p_whitespace();
                 self.emit_jsx_attr(attr);
             }
-            self.emit_token(TokenKind::Great);
+            self.js_emit_token(TokenKind::Great);
+            self.step_comment();
 
             for child in node.children {
                 self.emit_jsx_child(*child);
             }
 
-            self.emit_token(TokenKind::LessSlash);
+            self.js_emit_token(TokenKind::LessSlash);
+            self.step_comment();
             self.emit_jsx_tag_name(node.closing_elem.tag_name);
-            self.emit_token(TokenKind::Great);
+            self.js_emit_token(TokenKind::Great);
+            self.step_comment();
         }
     }
     fn emit_cond_expr(&mut self, node: &'cx ast::CondExpr<'cx>) {
@@ -4064,11 +4369,13 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         } else {
             self.emit_expr(node.cond);
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::Question);
+            self.js_emit_token(TokenKind::Question);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.when_true);
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::Colon);
+            self.js_emit_token(TokenKind::Colon);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.when_false);
         }
@@ -4077,9 +4384,11 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_fn_expr(node)
         } else if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::Function);
+            self.js_emit_token(TokenKind::Function);
+            self.step_comment();
             if node.asterisk.is_some() {
-                self.emit_token(TokenKind::Asterisk);
+                self.js_emit_token(TokenKind::Asterisk);
+                self.step_comment();
             }
             self.js.print().p_whitespace();
             if let Some(name) = node.name {
@@ -4092,9 +4401,11 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.js.print().p_whitespace();
             self.emit_block_stmt(node.body);
         } else {
-            self.emit_token(TokenKind::Function);
+            self.js_emit_token(TokenKind::Function);
+            self.step_comment();
             if node.asterisk.is_some() {
-                self.emit_token(TokenKind::Asterisk);
+                self.js_emit_token(TokenKind::Asterisk);
+                self.step_comment();
             }
             self.js.print().p_whitespace();
             if let Some(name) = node.name {
@@ -4129,7 +4440,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         if self.target == EmitTarget::DECLARATION {
             self.walk_new_expr(node)
         } else if self.target == EmitTarget::JS {
-            self.emit_token(TokenKind::New);
+            self.js_emit_token(TokenKind::New);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.expr);
             match node.args {
@@ -4140,7 +4452,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 }
             }
         } else {
-            self.emit_token(TokenKind::New);
+            self.js_emit_token(TokenKind::New);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_expr(node.expr);
             if let Some(ty_args) = node.ty_args {
@@ -4182,7 +4495,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_arrow_fn_expr(node)
         } else if self.target == EmitTarget::JS {
             if node.async_modifier.is_some() {
-                self.emit_token(TokenKind::Async);
+                self.js_emit_token(TokenKind::Async);
+                self.step_comment();
                 self.js.print().p_whitespace();
             }
             let single_ident_param = match node.params {
@@ -4209,7 +4523,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.sync_comment_idx(ty.span().hi());
             }
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::EqGreat);
+            self.js_emit_token(TokenKind::EqGreat);
+            self.step_comment();
             self.js.print().p_whitespace();
 
             match node.body {
@@ -4225,9 +4540,11 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                         && let ast::StmtKind::Ret(ret) = stmt.kind
                         && let Some(expr) = ret.expr
                     {
-                        self.emit_token(TokenKind::LParen);
+                        self.js_emit_token(TokenKind::LParen);
+                        self.step_comment();
                         self.emit_expr(expr);
-                        self.emit_token(TokenKind::RParen);
+                        self.js_emit_token(TokenKind::RParen);
+                        self.step_comment();
                     } else {
                         self.emit_block_stmt(block);
                     }
@@ -4235,7 +4552,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
         } else {
             if node.async_modifier.is_some() {
-                self.emit_token(TokenKind::Async);
+                self.js_emit_token(TokenKind::Async);
+                self.step_comment();
                 self.js.print().p_whitespace();
             }
             if let Some(ty_params) = node.ty_params {
@@ -4270,7 +4588,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 self.with_target(EmitTarget::DECLARATION, |this| this.emit_ty(ty));
             }
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::EqGreat);
+            self.js_emit_token(TokenKind::EqGreat);
+            self.step_comment();
             self.js.print().p_whitespace();
 
             match node.body {
@@ -4291,9 +4610,11 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                                 self.with_target(EmitTarget::DECLARATION, |this| this.emit_stmt(s));
                             }
                         }
-                        self.emit_token(TokenKind::LParen);
+                        self.js_emit_token(TokenKind::LParen);
+                        self.step_comment();
                         self.emit_expr(expr);
-                        self.emit_token(TokenKind::RParen);
+                        self.js_emit_token(TokenKind::RParen);
+                        self.step_comment();
                     } else {
                         self.emit_block_stmt(block);
                     }
@@ -4306,11 +4627,13 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             if self.resolver.is_import_equals_namespace_module(node) {
                 return;
             }
-            self.emit_token(TokenKind::Var);
+            self.js_emit_token(TokenKind::Var);
+            self.step_comment();
             self.js.print().p_whitespace();
             self.emit_ident(node.name);
             self.js.print().p_whitespace();
-            self.emit_token(TokenKind::Eq);
+            self.js_emit_token(TokenKind::Eq);
+            self.step_comment();
             self.js.print().p_whitespace();
             match node.module_reference {
                 ast::ModuleReferenceKind::EntityName(n) => self.emit_entity_name(n),
@@ -4341,7 +4664,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
         } else {
             let js_on = !self.resolver.is_import_equals_namespace_module(node);
             if js_on {
-                self.emit_token(TokenKind::Var);
+                self.js_emit_token(TokenKind::Var);
+                self.step_comment();
                 self.js.print().p_whitespace();
             }
             if let Some(dts) = self.dts() {
@@ -4359,7 +4683,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
             if js_on {
                 self.js.print().p_whitespace();
-                self.emit_token(TokenKind::Eq);
+                self.js_emit_token(TokenKind::Eq);
+                self.step_comment();
                 self.js.print().p_whitespace();
             }
             if let Some(dts) = self.dts() {
@@ -4399,7 +4724,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             self.walk_qualified_name(node)
         } else if self.target == EmitTarget::JS {
             self.emit_entity_name(node.left);
-            self.emit_token(TokenKind::Dot);
+            self.js_emit_token(TokenKind::Dot);
+            self.step_comment();
             self.emit_ident(node.right);
         } else {
             self.target = EmitTarget::JS;
@@ -4435,7 +4761,8 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
                 Ident(n) => self.emit_ident(n),
                 Qualified(q) => {
                     self.emit_entity_name(q.left);
-                    self.emit_token(TokenKind::Dot);
+                    self.js_emit_token(TokenKind::Dot);
+                    self.step_comment();
                     if let Some(dts) = self.dts() {
                         dts.print().p_token(TokenKind::Dot);
                     }

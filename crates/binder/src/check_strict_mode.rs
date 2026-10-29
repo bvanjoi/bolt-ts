@@ -6,6 +6,39 @@ use bolt_ts_config::Target;
 use super::BinderState;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
+    pub(super) fn check_strict_mode_eval_or_arguments_for_binding(
+        &mut self,
+        context_node: ast::NodeID,
+        binding: &ast::Binding,
+    ) {
+        debug_assert!(self.in_strict_mode);
+        match binding.kind {
+            ast::BindingKind::Ident(n) => self.check_strict_mode_eval_or_arguments(context_node, n),
+            ast::BindingKind::ObjectPat(n) => {
+                for elem in n.elems {
+                    match elem.name {
+                        ast::ObjectBindingName::Shorthand(n) => {
+                            self.check_strict_mode_eval_or_arguments(context_node, n)
+                        }
+                        ast::ObjectBindingName::Prop { name, .. } => {
+                            self.check_strict_mode_eval_or_arguments_for_binding(
+                                context_node,
+                                name,
+                            );
+                        }
+                    }
+                }
+            }
+            ast::BindingKind::ArrayPat(n) => {
+                for elem in n.elems {
+                    if let ast::ArrayBindingElemKind::Binding(n) = elem.kind {
+                        self.check_strict_mode_eval_or_arguments_for_binding(context_node, n.name);
+                    }
+                }
+            }
+        }
+    }
+
     pub(super) fn check_strict_mode_eval_or_arguments(
         &mut self,
         context_node: ast::NodeID,
