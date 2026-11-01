@@ -211,16 +211,17 @@ prefilled_atom_map!(
             IDENT_UINT16_ARRAY_CLASS:               ["Uint16Array", 152],
             IDENT_UINT32_ARRAY_CLASS:               ["Uint32Array", 153],
             IDENT_NODE_LIST_CLASS:                  ["NodeList", 154],
+            IDENT_HAS_INSTANCE:                     ["hasInstance", 155],
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 155]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 156]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 156]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 157]
         },
         NUMBER: {
-            NUMBER_ZERO:                            ["0", 157],
-            NUMBER_NEGATIVE_INFINITY:               ["-Infinity", 158]
+            NUMBER_ZERO:                            ["0", 158],
+            NUMBER_NEGATIVE_INFINITY:               ["-Infinity", 159]
         },
     }
 );

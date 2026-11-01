@@ -483,6 +483,15 @@ pub struct TheLeftHandSideOfAnInstanceofExpressionMustBeOfTypeAnyAnObjectTypeOrA
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
+    "The right-hand side of an 'instanceof' expression must be either of type 'any', a class, function, or other type assignable to the 'Function' interface type, or an object type with a 'Symbol.hasInstance' method."
+)]
+pub struct TheRightHandSideOfAnInstanceofExpressionMustBeOfTypeAnyAnObjectTypeOrATypeParameter {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
     "The right-hand side of a 'for...in' statement must be of type 'any', an object type or a type parameter, but here has type '{ty}'."
 )]
 pub struct TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType
@@ -2273,6 +2282,13 @@ pub struct BindingElementXImplicitlyHasAnYType {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("All imports in import declaration are unused.")]
+pub struct AllImportsInImportDeclarationAreUnused {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{name}' is declared but its value is never read.")]
 pub struct XIsDeclaredButItsValueIsNeverRead {
     #[label(primary)]
@@ -2381,4 +2397,23 @@ pub struct TypeXIsNotAnArrayTypeOrDoesNotHaveASymbolIteratorMethodThatReturnsAnI
 pub struct FallthroughCaseInSwitch {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Module '{module}' has no default export. Did you mean to use 'import {{ {name} }} from {module}' instead?"
+)]
+pub struct ModuleXHasNoDefaultExportDidYouMeanToUseImportYFromXInstead {
+    #[label(primary)]
+    pub span: Span,
+    pub module: String,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Module '{module}' has no default export.")]
+pub struct ModuleXHasNoDefaultExport {
+    #[label(primary)]
+    pub span: Span,
+    pub module: String,
 }

@@ -1240,6 +1240,10 @@ pub struct ImportNamedSpec<'cx> {
     pub name: &'cx Ident,
 }
 
+/// ```txt
+/// import { a } from 'xxxx'
+///                    ~~~~ module
+/// ```
 #[derive(Debug, Clone)]
 pub struct ImportDecl<'cx> {
     pub id: NodeID,

@@ -547,6 +547,7 @@ impl<'cx> Node<'cx> {
                 | ImportShorthandSpec(_)
                 | ImportEqualsDecl(_)
                 | ExportNamedSpec(_)
+                | ImportClause(_)
                 | ExportShorthandSpec(_)
                 | GetterDecl(_)
                 | SetterDecl(_)

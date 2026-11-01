@@ -749,8 +749,10 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
                 self.resolve_call_like_expr(new);
             }
             Bin(bin) => {
-                self.resolve_expr(bin.left);
-                self.resolve_expr(bin.right);
+                bolt_ts_utils::ensure_sufficient_stack(|| {
+                    self.resolve_expr(bin.left);
+                    self.resolve_expr(bin.right);
+                });
             }
             Assign(assign) => {
                 self.resolve_expr(assign.left);

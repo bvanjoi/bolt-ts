@@ -1044,3 +1044,18 @@ pub struct AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfAModule {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("The '{modifier}' modifier can only be used in TypeScript files.")]
+pub struct TheXModifierCanOnlyBeUsedInTypeScriptFiles {
+    #[label(primary)]
+    pub span: Span,
+    pub modifier: &'static str,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An import declaration cannot have modifiers.")]
+pub struct AnImportDeclarationCannotHaveModifiers {
+    #[label(primary)]
+    pub span: Span,
+}

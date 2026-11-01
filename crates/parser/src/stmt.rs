@@ -789,34 +789,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> ast::StmtKind<'cx> {
         debug_assert!(self.token.kind == TokenKind::Import);
-        if let Some(mods) = modifiers {
-            if mods.flags.contains(ast::ModifierFlags::AMBIENT) {
-                let m = mods
-                    .list
-                    .iter()
-                    .find(|m| m.kind() == ast::ModifierKind::Ambient)
-                    .unwrap();
-                let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
-                    span: m.span(),
-                    modifier: m.kind(),
-                };
-                self.push_error(Box::new(error));
-            }
-            if mods.flags.intersects(ast::ModifierFlags::ACCESSIBILITY) {
-                for m in mods.list {
-                    if m.kind() == ast::ModifierKind::Private
-                        || m.kind() == ast::ModifierKind::Protected
-                        || m.kind() == ast::ModifierKind::Public
-                    {
-                        let error = errors::ModifierCannotAppearOnAModuleOrNamespaceElement {
-                            modifier: m.kind().to_string(),
-                            span: m.span(),
-                        };
-                        self.push_error(Box::new(error));
-                    }
-                }
-            }
-        }
         self.check_module_element_context(|this| {
             let error: bolt_ts_errors::BoxedDiag = if is_js_like_variant(VARIANT) {
                 Box::new(
@@ -853,26 +825,49 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     None
                 };
             }
-        }
-
-        if let Some(name) = name {
-            self.check_contextual_ident(name);
+            self.check_contextual_ident(i);
         }
 
         if let Some(name) = name
             && matches!(self.token.kind, TokenKind::Eq)
         {
-            let export_modifier = modifiers
-                .and_then(|m| {
-                    m.list
-                        .iter()
-                        .find(|m| m.kind() == ast::ModifierKind::Export)
-                })
-                .copied();
+            let mut export_modifier = None;
+            if let Some(mods) = modifiers {
+                for m in mods.list {
+                    match m.kind() {
+                        ast::ModifierKind::Private
+                        | ast::ModifierKind::Protected
+                        | ast::ModifierKind::Public => {
+                            let error = errors::ModifierCannotAppearOnAModuleOrNamespaceElement {
+                                modifier: m.kind().to_string(),
+                                span: m.span(),
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                        ast::ModifierKind::Ambient => {
+                            let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
+                                span: m.span(),
+                                modifier: m.kind(),
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                        ast::ModifierKind::Export => {
+                            export_modifier = Some(*m);
+                        }
+                        _ => {
+                            // TODO: more case
+                        }
+                    }
+                }
+            }
             // TODO: is_type_only
             let decl = self.parse_import_equals_declaration(start, export_modifier, name, false);
             ast::StmtKind::ImportEquals(decl)
         } else {
+            if let Some(mods) = modifiers {
+                let error = errors::AnImportDeclarationCannotHaveModifiers { span: mods.span };
+                self.push_error(Box::new(error));
+            }
             let clause =
                 self.try_parse_import_clause(name, after_import_pos as usize, is_type_only);
             let module = self.parse_module_spec();

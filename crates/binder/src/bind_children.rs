@@ -1408,8 +1408,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.expr.id());
             }
             BinExpr(n) => {
-                self.bind(n.left.id());
-                self.bind(n.right.id());
+                bolt_ts_utils::ensure_sufficient_stack(|| {
+                    self.bind(n.left.id());
+                    self.bind(n.right.id());
+                });
             }
             OmitExpr(_) | DebuggerStmt(_) => {}
             ParenExpr(n) => {
@@ -1711,7 +1713,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ExprStmt(n) => self.bind_expr_stmt(n),
             PrefixUnaryExpr(n) => self.bind_prefix_unary_expr_flow(n),
             PostfixUnaryExpr(n) => self.bind_postfix_unary_expr_flow(n),
-            BinExpr(n) => self.bind_bin_expr_flow(n),
+            BinExpr(n) => bolt_ts_utils::ensure_sufficient_stack(|| self.bind_bin_expr_flow(n)),
             CondExpr(n) => self.bind_cond_expr_flow(n),
             PropAccessExpr(n) => {
                 let node_id = n.id;

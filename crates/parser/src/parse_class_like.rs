@@ -4,7 +4,7 @@ use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
 use super::CheckParameterFlags;
-use super::const_variant::is_js_variant;
+use super::const_variant::is_js_like_variant;
 use super::errors;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
@@ -358,6 +358,15 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         let asterisk = self.parse_optional(TokenKind::Asterisk).map(|t| t.span);
         let name = self.parse_prop_name::<true>();
         let question_token = self.parse_optional(TokenKind::Question);
+        if is_js_like_variant(VARIANT)
+            && let Some(t) = question_token
+        {
+            let error = errors::TheXModifierCanOnlyBeUsedInTypeScriptFiles {
+                span: t.span,
+                modifier: "?",
+            };
+            self.push_error(Box::new(error));
+        }
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let flags = if asterisk.is_some() {
@@ -381,6 +390,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                 self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
             }
             let span = self.new_span(start);
+            self.check_signature_declaration_in_js_file(span);
             let method = self.create_class_method_element(
                 span, modifiers, asterisk, name, ty_params, params, ty, body,
             );
@@ -411,6 +421,13 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             })
         } else {
             false
+        }
+    }
+
+    fn check_signature_declaration_in_js_file(&mut self, span: Span) {
+        if is_js_like_variant(VARIANT) {
+            let error = errors::SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles { span };
+            self.push_error(Box::new(error));
         }
     }
 
@@ -463,11 +480,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                         params,
                         CheckParameterFlags::CONSTRUCTOR.union(CheckParameterFlags::MISSING_BODY),
                     );
-                    if is_js_variant(VARIANT) {
-                        let error =
-                            errors::SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles { span };
-                        this.p().push_error(Box::new(error));
-                    }
+                    this.p().check_signature_declaration_in_js_file(span);
                 };
                 let ctor = this
                     .p()

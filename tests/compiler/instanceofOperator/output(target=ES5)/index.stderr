@@ -1,0 +1,67 @@
+  × Class name cannot be 'Object' when targeting ES5 and above with module
+  │ CommonJS.
+    ╭─[../../tests/compiler/instanceofOperator/index.ts:13:11]
+ 13 │ Object
+    · ──────
+    ╰────
+
+  × The left-hand side of an 'instanceof' expression must be of type 'any', an
+  │ object type or a type parameter.
+    ╭─[../../tests/compiler/instanceofOperator/index.ts:19:5]
+ 19 │ 4
+    · ─
+    ╰────
+
+  × The right-hand side of an 'instanceof' expression must be either of type
+  │ 'any', a class, function, or other type assignable to the 'Function'
+  │ interface type, or an object type with a 'Symbol.hasInstance' method.
+    ╭─[../../tests/compiler/instanceofOperator/index.ts:19:18]
+ 19 │ null
+    · ────
+    ╰────
+
+  × The right-hand side of an 'instanceof' expression must be either of type
+  │ 'any', a class, function, or other type assignable to the 'Function'
+  │ interface type, or an object type with a 'Symbol.hasInstance' method.
+    ╭─[../../tests/compiler/instanceofOperator/index.ts:24:20]
+ 24 │ 4
+    · ─
+    ╰────
+
+  × The right-hand side of an 'instanceof' expression must be either of type
+  │ 'any', a class, function, or other type assignable to the 'Function'
+  │ interface type, or an object type with a 'Symbol.hasInstance' method.
+    ╭─[../../tests/compiler/instanceofOperator/index.ts:26:23]
+ 26 │ obj
+    · ───
+    ╰────
+
+  × The left-hand side of an 'instanceof' expression must be of type 'any', an
+  │ object type or a type parameter.
+    ╭─[../../tests/compiler/instanceofOperator/index.ts:30:5]
+ 30 │ null
+    · ────
+    ╰────
+
+  × The right-hand side of an 'instanceof' expression must be either of type
+  │ 'any', a class, function, or other type assignable to the 'Function'
+  │ interface type, or an object type with a 'Symbol.hasInstance' method.
+    ╭─[../../tests/compiler/instanceofOperator/index.ts:30:21]
+ 30 │ null
+    · ────
+    ╰────
+
+  × The left-hand side of an 'instanceof' expression must be of type 'any', an
+  │ object type or a type parameter.
+    ╭─[../../tests/compiler/instanceofOperator/index.ts:34:5]
+ 34 │ undefined
+    · ─────────
+    ╰────
+
+  × The right-hand side of an 'instanceof' expression must be either of type
+  │ 'any', a class, function, or other type assignable to the 'Function'
+  │ interface type, or an object type with a 'Symbol.hasInstance' method.
+    ╭─[../../tests/compiler/instanceofOperator/index.ts:34:26]
+ 34 │ undefined
+    · ─────────
+    ╰────

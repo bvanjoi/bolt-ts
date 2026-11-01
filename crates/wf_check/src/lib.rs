@@ -164,18 +164,8 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
 
-    fn check_collisions_for_declaration_name(&mut self, node: ast::NodeID, name: &'cx ast::Ident) {
-        let n = self.p.node(node);
-        let kind = if n.is_class_like() {
-            Some(DeclKind::Class)
-        } else if n.is_interface_decl() {
-            Some(DeclKind::Interface)
-        } else {
-            None
-        };
-        if is_reserved_type_name(name.name)
-            && let Some(kind) = kind
-        {
+    fn check_collisions_for_declaration_name(&mut self, name: &'cx ast::Ident, kind: DeclKind) {
+        if is_reserved_type_name(name.name) {
             let error = errors::DeclNameCannotBe {
                 span: name.span,
                 name: pprint_ident(name, self.atoms),
@@ -187,7 +177,24 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
 
     fn check_class_like(&mut self, class: &impl ast::r#trait::ClassLike<'cx>) {
         if let Some(name) = class.name() {
-            self.check_collisions_for_declaration_name(class.id(), name);
+            self.check_collisions_for_declaration_name(name, DeclKind::Class);
+            if !self
+                .p
+                .node_flags(class.id())
+                .contains(ast::NodeFlags::AMBIENT)
+            {
+                // check_class_name_collision_with_object
+                if name.name == keyword::IDENT_OBJECT_CLASS
+                    && *self.compiler_options.module() < bolt_ts_config::Module::ES2015
+                {
+                    let error =
+                        errors::ClassNameCannotBeObjectWhenTargetingEs5AndAboveWithModuleX {
+                            span: name.span,
+                            module: format!("{}", self.compiler_options.module()),
+                        };
+                    self.push_error(Box::new(error));
+                }
+            }
         };
     }
 
@@ -390,6 +397,9 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
 
 impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
     type Result = ();
+    fn visit_bin_expr(&mut self, node: &'cx ast::BinExpr<'cx>) {
+        bolt_ts_utils::ensure_sufficient_stack(|| bolt_ts_ast_visitor::visit_bin_expr(self, node))
+    }
     fn visit_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
         self.check_class_like(class);
         bolt_ts_ast_visitor::visit_class_decl(self, class)
@@ -399,7 +409,7 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
         bolt_ts_ast_visitor::visit_class_method_elem(self, node)
     }
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) {
-        self.check_collisions_for_declaration_name(node.id, node.name);
+        self.check_collisions_for_declaration_name(node.name, DeclKind::Interface);
         bolt_ts_ast_visitor::visit_interface_decl(self, node)
     }
     fn visit_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) {

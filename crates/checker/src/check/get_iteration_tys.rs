@@ -626,7 +626,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_prop_name_for_known_symbol_name(&mut self, name: SymbolName) -> SymbolName {
+    pub(super) fn get_prop_name_for_known_symbol_name(&mut self, name: SymbolName) -> SymbolName {
         let ctor_ty = self.get_global_es_symbol_constructor_symbol();
         let unique_ty = ctor_ty.and_then(|ctor_ty| {
             let ty = self.get_type_of_symbol(ctor_ty);

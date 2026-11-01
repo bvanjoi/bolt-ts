@@ -436,6 +436,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn mark_check_property_initializer_deferred(&mut self, class: &impl ClassLike<'cx>) {
+        let options = self.config.compiler_options();
+        if !options.strict_null_checks() || !options.strict_property_initialization() {
+            return;
+        }
         let idx = class.id().module().as_usize();
         let prev = self.deferred_class_nodes_for_property_initializer_check[idx].insert(class.id());
         debug_assert!(prev);

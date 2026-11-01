@@ -1371,6 +1371,70 @@ fn get_target_of_import_clause<'cx, const DONT_RECUR_ALIAS: bool>(
     })
 }
 
+fn is_only_importable_as_default(this: &mut TyChecker<'_>) -> bool {
+    let m = *this.config.compiler_options().module();
+    if m >= bolt_ts_config::Module::Node16 && m <= bolt_ts_config::Module::NodeNext {
+        // TODO:
+        return false;
+    }
+    false
+}
+
+fn report_non_default_export<'cx>(
+    this: &mut TyChecker<'_>,
+    module_symbol: SymbolID,
+    node: &'cx ast::ImportClause<'cx>,
+) {
+    let Some(name) = node.name.as_ref() else {
+        unreachable!()
+    };
+    let s = this.symbol(module_symbol);
+    let Some(exports) = s.exports.as_ref() else {
+        return;
+    };
+    let import_clause_s = this.symbol(this.final_res(node.id));
+    let parent = this.parent(node.id).unwrap();
+    let parent = this.p.node(parent).expect_import_decl();
+    let module = this.atoms.get(parent.module.val);
+    if exports.0.contains_key(&import_clause_s.name) {
+        let error = errors::ModuleXHasNoDefaultExportDidYouMeanToUseImportYFromXInstead {
+            span: name.span,
+            module: module.to_string(),
+            name: import_clause_s.name.to_string(&this.atoms),
+        };
+        this.push_error(Box::new(error));
+    } else {
+        let error = errors::ModuleXHasNoDefaultExport {
+            span: name.span,
+            module: module.to_string(),
+        };
+        this.push_error(Box::new(error));
+        //     if let Some(export_star) = exports.0.get(&SymbolName::ExportStar)
+        //     && let Some(list) = this.symbol(*export_star).decls.clone()//TODO: remove clone
+        //     && let default_export = list.into_iter().find(|&d| {
+        //         if let Some(module_spec) = this
+        //             .p
+        //             .node(d)
+        //             .as_export_decl()
+        //             .and_then(|d| d.module_spec())
+        //             && let Some(module_symbol) = this.resolve_external_module_name(d, module_spec.val)
+        //             && this
+        //                 .symbol(module_symbol)
+        //                 .exports
+        //                 .as_ref()
+        //                 .is_some_and(|e| e.0.contains_key(&SymbolName::ExportDefault))
+        //         {
+        //             true
+        //         } else {
+        //             false
+        //         }
+        //     })
+        // {
+
+        // }
+    }
+}
+
 fn get_target_of_module_default<const DONT_RESOLVE_ALIAS: bool>(
     this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
@@ -1387,12 +1451,19 @@ fn get_target_of_module_default<const DONT_RESOLVE_ALIAS: bool>(
             node,
         )
     };
-    if export_default_symbol.is_none() {
-        let module_spec = this
-            .node_query(node.module())
-            .get_module_spec_for_import_or_export(node)
-            .unwrap();
-        error_no_module_member_symbol(this, module_symbol, module_spec.val, node);
+    let has_default_only = is_only_importable_as_default(this);
+    if export_default_symbol.is_none() && !has_default_only {
+        if this.symbol(module_symbol).has_export_assignment_symbol() {
+            // TODO:
+        } else if let ast::Node::ImportClause(n) = this.p.node(node) {
+            report_non_default_export(this, module_symbol, n);
+        } else {
+            let module_spec = this
+                .node_query(node.module())
+                .get_module_spec_for_import_or_export(node)
+                .unwrap();
+            error_no_module_member_symbol(this, module_symbol, module_spec.val, node);
+        }
     }
     // TODO: mark_symbol_of_alias_decl_if_ty_only
     export_default_symbol

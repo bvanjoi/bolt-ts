@@ -47,10 +47,11 @@ pub struct Position {
     pub column: usize,
 }
 
-pub fn offset_to_position(offset: usize, rope: &ropey::Rope) -> Option<Position> {
-    let line = rope.try_char_to_line(offset).ok()?;
+fn offset_to_position(offset: usize, rope: &ropey::Rope) -> Option<Position> {
+    let line = rope.try_byte_to_line(offset).ok()?;
+    let char_offset = rope.try_byte_to_char(offset).ok()?;
     let first_char_of_line = rope.try_line_to_char(line).ok()?;
-    let column = offset - first_char_of_line;
+    let column = char_offset - first_char_of_line;
     Some(Position { line, column })
 }
 
@@ -63,4 +64,14 @@ pub fn miette_label_span_to_line_position(
     let start = offset_to_position(label.offset(), &rope).unwrap();
     let end = offset_to_position(label.len(), &rope).unwrap();
     (start, end)
+}
+
+#[test]
+fn test_offset_to_position_with_non_ascii_source() {
+    const SOURCE: &str = "你好 4";
+    const OFFSET: usize = 7;
+    let rope = ropey::Rope::from_str(SOURCE);
+    assert_eq!(SOURCE.as_bytes()[OFFSET], b'4');
+    let pos = offset_to_position(OFFSET, &rope).unwrap();
+    assert_eq!(pos.column, 3);
 }

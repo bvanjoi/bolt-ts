@@ -3805,16 +3805,19 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     }
 
     fn emit_bin_expr(&mut self, node: &'cx ast::BinExpr<'cx>) {
-        if self.target == EmitTarget::DECLARATION {
-            self.walk_bin_expr(node)
-        } else {
-            self.emit_expr(node.left);
-            self.js.print().p_whitespace();
-            self.js_emit_token_value(node.op.into(), node.op.as_str());
-            self.step_comment();
-            self.js.print().p_whitespace();
-            self.emit_expr(node.right);
-        }
+        bolt_ts_utils::ensure_sufficient_stack(|| {
+            if self.target == EmitTarget::DECLARATION {
+                self.emit_expr(node.left);
+                self.emit_expr(node.right)
+            } else {
+                self.emit_expr(node.left);
+                self.js.print().p_whitespace();
+                self.js_emit_token_value(node.op.into(), node.op.as_str());
+                self.step_comment();
+                self.js.print().p_whitespace();
+                self.emit_expr(node.right);
+            }
+        })
     }
     fn emit_paren_expr(&mut self, node: &'cx ast::ParenExpr<'cx>) {
         if self.target == EmitTarget::DECLARATION {
@@ -4627,6 +4630,9 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             if self.resolver.is_import_equals_namespace_module(node) {
                 return;
             }
+            // if node.export_modifier.is_some() {
+            // TODO:
+            // }
             self.js_emit_token(TokenKind::Var);
             self.step_comment();
             self.js.print().p_whitespace();
@@ -5554,10 +5560,6 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
     }
     fn walk_optional_ty(&mut self, n: &'cx ast::OptionalTy<'cx>) {
         self.emit_ty(n.ty)
-    }
-    fn walk_bin_expr(&mut self, n: &'cx ast::BinExpr<'cx>) {
-        self.emit_expr(n.left);
-        self.emit_expr(n.right)
     }
     fn walk_jsx_text(&mut self, _n: &'cx ast::JsxText) {}
     fn walk_switch_stmt(&mut self, n: &'cx ast::SwitchStmt<'cx>) {

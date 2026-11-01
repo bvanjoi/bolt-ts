@@ -40,15 +40,13 @@ impl<'cx> TyChecker<'cx> {
     /// `check_property_initializer` should be called after `check_class_elements` to
     /// ensure the constructor is checked.
     fn check_property_initializer_deferred(&mut self, class_id: ast::NodeID) {
-        if self.config.compiler_options().strict_null_checks()
-            && self
-                .config
-                .compiler_options()
-                .strict_property_initialization()
-            && !self
-                .p
-                .node_flags(class_id)
-                .contains(ast::NodeFlags::AMBIENT)
+        let options = self.config.compiler_options();
+        debug_assert!(options.strict_null_checks());
+        debug_assert!(options.strict_property_initialization());
+        if !self
+            .p
+            .node_flags(class_id)
+            .contains(ast::NodeFlags::AMBIENT)
         {
             let elements = match self.p.node(class_id) {
                 ast::Node::ClassDecl(n) => n.elems.list,

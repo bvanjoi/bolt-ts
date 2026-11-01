@@ -596,7 +596,10 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                     };
                     self.push_unused_local_error(unused, Box::new(error), diags);
                 } else {
-                    todo!()
+                    let error = errors::AllImportsInImportDeclarationAreUnused {
+                        span: import_clause.span,
+                    };
+                    self.push_unused_local_error(import_clause.id, Box::new(error), diags);
                 }
             } else {
                 for unused in unused {

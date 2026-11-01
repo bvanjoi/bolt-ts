@@ -167,3 +167,11 @@ pub struct DidYouMeanToUseAColonAnCanOnlyFollowAPropertyNameWhenTheContainingObj
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Class name cannot be 'Object' when targeting ES5 and above with module {module}.")]
+pub struct ClassNameCannotBeObjectWhenTargetingEs5AndAboveWithModuleX {
+    #[label(primary)]
+    pub span: Span,
+    pub module: String,
+}

@@ -387,24 +387,30 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
-        if let Some(clause) = node.clause.and_then(|c| c.kind) {
+        if let Some(clause) = node.clause {
             use bolt_ts_ast::ImportClauseKind::*;
-            match clause {
-                Ns(n) => {
-                    // import * as ns from 'xxxx'
-                    self.check_import_binding(n.id);
-                }
-                Specs(specs) => {
-                    // import { a, b as c } from 'xxxx'
-                    for spec in specs {
-                        use bolt_ts_ast::ImportSpecKind::*;
-                        match spec.kind {
-                            Shorthand(n) => {
-                                // import { a } from 'xxxx'
-                                self.check_import_binding(n.id);
-                            }
-                            Named(_) => {
-                                // import { a as b } from 'xxxx'
+            if clause.name.is_some() {
+                // import a from 'xxxx'
+                self.check_import_binding(clause.id);
+            }
+            if let Some(clause_kind) = clause.kind {
+                match clause_kind {
+                    Ns(n) => {
+                        // import * as ns from 'xxxx'
+                        self.check_import_binding(n.id);
+                    }
+                    Specs(specs) => {
+                        // import { a, b as c } from 'xxxx'
+                        for spec in specs {
+                            use bolt_ts_ast::ImportSpecKind::*;
+                            match spec.kind {
+                                Shorthand(n) => {
+                                    // import { a } from 'xxxx'
+                                    self.check_import_binding(n.id);
+                                }
+                                Named(_) => {
+                                    // import { a as b } from 'xxxx'
+                                }
                             }
                         }
                     }

@@ -1,0 +1,11 @@
+  × Identifier expected. 'let' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/letInVarDeclOfForIn_ES5/index.ts:7:10]
+ 7 │ let
+   · ───
+   ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/letInVarDeclOfForIn_ES5/index.ts:11:11]
+ 11 │ let
+    · ───
+    ╰────
