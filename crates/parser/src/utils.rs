@@ -1055,6 +1055,9 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         // TODO: assert params.is_none
         let ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
+        if let Some(body) = body {
+            self.check_fn_implement_in_ambient(Some(name.span()), body);
+        }
         self.check_body_during_parse_accessor(under_type_context, &mut body);
         let span = self.new_span(start);
         Ok(self.create_getter_declaration(span, modifiers, name, ty, body))
@@ -1101,6 +1104,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let _ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
         if let Some(body) = body {
+            self.check_fn_implement_in_ambient(Some(name.span()), body);
             self.check_use_strict_simple_parameters(params, body);
             self.check_parameters(params, CheckParameterFlags::empty());
         } else {

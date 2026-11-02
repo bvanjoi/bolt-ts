@@ -1059,3 +1059,10 @@ pub struct AnImportDeclarationCannotHaveModifiers {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An implementation cannot be declared in ambient contexts.")]
+pub struct AnImplementationCannotBeDeclaredInAmbientContexts {
+    #[label(primary)]
+    pub span: Span,
+}

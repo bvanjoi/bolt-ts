@@ -1,3 +1,9 @@
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/ambientGetters/index.ts:11:9]
+ 11 │ length
+    · ──────
+    ╰────
+
   × An implementation cannot be declared in type contexts.
     ╭─[../../tests/compiler/ambientGetters/index.ts:11:18]
  11 │ { return 0; }

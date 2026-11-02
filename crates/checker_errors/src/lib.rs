@@ -546,7 +546,7 @@ pub struct ModuleADeclaresBLocallyButItIsNotExported {
     pub module_name: String,
     pub symbol_name: String,
     #[related]
-    pub related: [NameIsDeclaredHere; 1],
+    pub related: Vec<ModuleADeclaresBLocallyButItIsExportedAsCHelperKind>,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
@@ -2397,6 +2397,17 @@ pub struct TypeXIsNotAnArrayTypeOrDoesNotHaveASymbolIteratorMethodThatReturnsAnI
 pub struct FallthroughCaseInSwitch {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Module '{module}' has no exported member '{member}'. Did you mean to use 'import {member} from {module}' instead?"
+)]
+pub struct ModuleXHasNoExportedMemberYDidYouMeanToUseImportYFromXInstead {
+    #[label(primary)]
+    pub span: Span,
+    pub module: String,
+    pub member: String,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]

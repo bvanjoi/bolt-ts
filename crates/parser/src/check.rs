@@ -98,4 +98,21 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             }
         }
     }
+
+    pub(super) fn check_fn_implement_in_ambient(
+        &mut self,
+        name_span: Option<bolt_ts_span::Span>,
+        body: &'cx ast::BlockStmt<'cx>,
+    ) {
+        if self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
+            let span = match name_span {
+                Some(name_span) => name_span,
+                None => {
+                    bolt_ts_span::Span::new(body.span.lo(), body.span.lo() + 1, body.span.module())
+                }
+            };
+            let error = errors::AnImplementationCannotBeDeclaredInAmbientContexts { span };
+            self.push_error(Box::new(error));
+        }
+    }
 }

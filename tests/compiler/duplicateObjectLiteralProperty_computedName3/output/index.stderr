@@ -1,0 +1,35 @@
+  × An object literal cannot have multiple properties with the same name.
+   ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName3/b.ts:5:5]
+ 4 │ [keys.n]: 1,
+   · ────┬───
+   ·     ╰── Previous definition here
+ 5 │     [keys.n]
+   ·     ────────
+   ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName3/b.ts:11:5]
+ 10 │ [keys.s]: 1,
+    · ────┬───
+    ·     ╰── Previous definition here
+ 11 │     [keys.s]
+    ·     ────────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName3/b.ts:17:5]
+ 16 │ [keys.E1.A]: 1,
+    · ─────┬─────
+    ·      ╰── Previous definition here
+ 17 │     [keys.E1.A]
+    ·     ───────────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName3/b.ts:23:5]
+ 22 │ [keys.E2.B]: 1,
+    · ─────┬─────
+    ·      ╰── Previous definition here
+ 23 │     [keys.E2.B]
+    ·     ───────────
+    ╰────

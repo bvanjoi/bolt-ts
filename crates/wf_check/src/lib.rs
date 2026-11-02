@@ -281,29 +281,6 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         false
     }
 
-    fn check_implement_in_ambient(&mut self, node: ast::NodeID) {
-        let body = match self.p.node(node) {
-            ast::Node::GetterDecl(n) => n.body,
-            ast::Node::SetterDecl(n) => n.body,
-            ast::Node::ClassMethodElem(n) => n.body,
-            ast::Node::ClassCtor(n) => n.body,
-            _ => unreachable!(),
-        };
-        let node_flags = self.p.node_flags(node);
-        if node_flags.contains(ast::NodeFlags::AMBIENT)
-            && let Some(body) = body
-        {
-            let span = match self.p.node(node).name() {
-                Some(name) => name.span(),
-                None => {
-                    bolt_ts_span::Span::new(body.span.lo(), body.span.lo() + 1, body.span.module())
-                }
-            };
-            let error = errors::AnImplementationCannotBeDeclaredInAmbientContexts { span };
-            self.push_error(Box::new(error));
-        }
-    }
-
     fn check_ambient_initializer(&mut self, node: &impl self::VarLike<'cx>) {
         let Some(init) = node.init() else {
             return;
@@ -405,7 +382,6 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
         bolt_ts_ast_visitor::visit_class_decl(self, class)
     }
     fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) {
-        self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_class_method_elem(self, node)
     }
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) {
@@ -467,15 +443,12 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
         bolt_ts_ast_visitor::visit_enum_decl(self, node)
     }
     fn visit_getter_decl(&mut self, node: &'cx ast::GetterDecl<'cx>) {
-        self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_getter_decl(self, node)
     }
     fn visit_setter_decl(&mut self, node: &'cx ast::SetterDecl<'cx>) {
-        self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_setter_decl(self, node)
     }
     fn visit_class_ctor(&mut self, node: &'cx ast::ClassCtor<'cx>) {
-        self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_class_ctor(self, node)
     }
     fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) {

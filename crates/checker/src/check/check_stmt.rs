@@ -408,8 +408,9 @@ impl<'cx> TyChecker<'cx> {
                                     // import { a } from 'xxxx'
                                     self.check_import_binding(n.id);
                                 }
-                                Named(_) => {
+                                Named(n) => {
                                     // import { a as b } from 'xxxx'
+                                    self.check_import_binding(n.id);
                                 }
                             }
                         }
@@ -1083,6 +1084,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_type_alias_decl(&mut self, n: &'cx ast::TypeAliasDecl<'cx>) {
         self.check_type_parameters(n.ty_params);
+        self.check_exports_on_merged_decls(n.id);
 
         match n.ty.kind {
             ast::TyKind::Intrinsic(_) => {

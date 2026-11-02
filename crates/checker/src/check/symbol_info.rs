@@ -1154,7 +1154,21 @@ fn error_no_module_member_symbol(
 ) {
     let n = this.p.node(spec_name_id);
     let spec_name = n.import_export_spec_name().unwrap();
-    report_non_exported_member(this, spec_name_id, spec_name, module_symbol, module_name);
+    if this
+        .symbol(module_symbol)
+        .exports
+        .as_ref()
+        .is_some_and(|exports| exports.0.contains_key(&SymbolName::ExportDefault))
+    {
+        let error = errors::ModuleXHasNoExportedMemberYDidYouMeanToUseImportYFromXInstead {
+            span: this.p.node(spec_name_id).span(),
+            member: this.atoms.get(spec_name).to_string(),
+            module: format!("\"{}\"", this.atoms.get(module_name)),
+        };
+        this.push_error(Box::new(error));
+    } else {
+        report_non_exported_member(this, spec_name_id, spec_name, module_symbol, module_name);
+    }
 }
 
 fn report_non_exported_member(
@@ -1176,75 +1190,74 @@ fn report_non_exported_member(
         None
     };
     if let Some(local_symbol) = local_symbol {
-        let decl = s.exports().and_then(|exports| {
-            exports.0.values().find_map(|export| {
-                // TODO: use `get_symbol_if_same_reference`
-                let s = binder_symbol(this, *export);
-                if s.flags == SymbolFlags::ALIAS {
-                    let decl = s.decls.as_ref().unwrap()[0];
-                    if let Some(spec) = this.p.node(decl).as_export_named_spec() {
-                        match spec.prop_name.kind {
-                            ast::ModuleExportNameKind::Ident(ident) if ident.name == spec_name => {
-                                return Some(decl);
-                            }
-                            _ => (),
-                        }
-                    }
-                }
-                None
-            })
-        });
-        let symbol_span = this
-            .p
-            .node(decls_of_symbol(local_symbol, this).as_ref().unwrap()[0])
-            .ident_name()
-            .unwrap()
-            .span;
-        let error: bolt_ts_errors::BoxedDiag = if let Some(decl) = decl {
-            let mut helper = vec![];
-            helper.push(
-                errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::NameIsDeclaredHere(
-                    errors::NameIsDeclaredHere {
-                        span: symbol_span,
-                        name: this.atoms.get(spec_name).to_string(),
-                    },
-                ),
-            );
-            let target_name = match this.p.node(decl) {
-                ast::Node::ExportNamedSpec(n) => match n.name.kind {
-                    ast::ModuleExportNameKind::Ident(ident) => ident.name,
-                    ast::ModuleExportNameKind::StringLit(lit) => lit.val,
-                },
-                _ => unreachable!(),
-            };
-            helper.push(
-                errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::ExportedAliasHere(
-                    errors::ExportedAliasHere {
-                        span: this.p.node(decl).span(),
-                        name: this.atoms.get(spec_name).to_string(),
-                    },
-                ),
-            );
-            let error = errors::ModuleADeclaresBLocallyButItIsExportedAsC {
-                span: this.p.node(spec_name_id).span(),
-                module_name: this.atoms.get(module_name).to_string(),
-                symbol_name: this.atoms.get(spec_name).to_string(),
-                target_name: this.atoms.get(target_name).to_string(),
-                related: helper,
-            };
-            Box::new(error)
+        if let Some(&exported_equals_symbol) = s
+            .exports
+            .as_ref()
+            .and_then(|exports| exports.0.get(&SymbolName::ExportEquals))
+        {
+            if this
+                .get_symbol_if_same_reference(exported_equals_symbol, local_symbol)
+                .is_some()
+            {
+                // TODO: resolve_invalid_import_equals_export_member
+            } else {
+                let error = errors::ModuleXHasNoExportedMemberY {
+                    span: this.p.node(spec_name_id).span(),
+                    module: this.atoms.get(module_name).to_string(),
+                    member: this.atoms.get(spec_name).to_string(),
+                };
+                this.push_error(Box::new(error));
+            }
         } else {
-            Box::new(errors::ModuleADeclaresBLocallyButItIsNotExported {
-                span: this.p.node(spec_name_id).span(),
-                module_name: this.atoms.get(module_name).to_string(),
-                symbol_name: this.atoms.get(spec_name).to_string(),
-                related: [errors::NameIsDeclaredHere {
-                    span: symbol_span,
-                    name: this.atoms.get(spec_name).to_string(),
-                }],
-            })
-        };
-        this.push_error(error);
+            // TODO: remove clone
+            let exports = s.exports.clone();
+            let exported_symbol = exports.as_ref().and_then(|exports| {
+                exports.0.values().find(|symbol| {
+                    this.get_symbol_if_same_reference(**symbol, local_symbol)
+                        .is_some()
+                })
+            });
+            let mut helper = vec![];
+            if let Some(decls) = this.symbol(local_symbol).decls.clone() {
+                for decl in decls {
+                    helper.push(
+                        errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::NameIsDeclaredHere(
+                            errors::NameIsDeclaredHere {
+                                span: this.p.node(decl).ident_name().unwrap().span,
+                                name: this.atoms.get(spec_name).to_string(),
+                            },
+                        ),
+                    );
+                    // TODO: show exported alias position later
+                    // helper.push(
+                    //     errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::ExportedAliasHere(
+                    //         errors::ExportedAliasHere {
+                    //             span: todo!(),
+                    //             name: this.atoms.get(spec_name).to_string(),
+                    //         },
+                    //     ),
+                    // );
+                }
+            };
+            if let Some(exported_symbol) = exported_symbol {
+                let error = errors::ModuleADeclaresBLocallyButItIsExportedAsC {
+                    span: this.p.node(spec_name_id).span(),
+                    module_name: this.atoms.get(module_name).to_string(),
+                    symbol_name: this.atoms.get(spec_name).to_string(),
+                    target_name: this.symbol(*exported_symbol).name.to_string(&this.atoms),
+                    related: helper,
+                };
+                this.push_error(Box::new(error));
+            } else {
+                let error = errors::ModuleADeclaresBLocallyButItIsNotExported {
+                    span: this.p.node(spec_name_id).span(),
+                    module_name: this.atoms.get(module_name).to_string(),
+                    symbol_name: this.atoms.get(spec_name).to_string(),
+                    related: helper,
+                };
+                this.push_error(Box::new(error));
+            }
+        }
     } else {
         use ast::Node::*;
         let span = match this.p.node(spec_name_id) {

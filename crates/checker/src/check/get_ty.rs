@@ -216,7 +216,10 @@ impl<'cx> TyChecker<'cx> {
             };
         }
 
-        let ty = if node.is_prop_access_expr()
+        let ty = if let Some(node) = node.as_export_assign() {
+            let ty = self.check_expression::<false>(node.expr, None);
+            self.widen_ty_for_variable_like_declaration::<false>(Some(ty), decl)
+        } else if node.is_prop_access_expr()
             || node.is_ele_access_expr()
             || node.is_ident()
             || node.is_string_lit()

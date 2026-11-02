@@ -81,13 +81,6 @@ pub struct EnumNameCannotBeX {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("An implementation cannot be declared in ambient contexts.")]
-pub struct AnImplementationCannotBeDeclaredInAmbientContexts {
-    #[label(primary)]
-    pub span: Span,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Initializer cannot be declared in ambient contexts.")]
 pub struct InitializersAreNotAllowedInAmbientContexts {
     #[label(primary)]

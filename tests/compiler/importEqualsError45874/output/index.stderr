@@ -1,0 +1,5 @@
+  × Namespace 'globals' has no exported member 'toString'.
+   ╭─[../../tests/compiler/importEqualsError45874/globals.ts:5:22]
+ 5 │ toString
+   · ────────
+   ╰────

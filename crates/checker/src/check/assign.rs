@@ -107,7 +107,7 @@ impl<'cx> TyChecker<'cx> {
             return self.get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(name);
         }
 
-        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(elem) {
+        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(elem.id) {
             self.report_implicit_any(elem.id, self.any_ty, None);
         }
 
@@ -142,7 +142,7 @@ impl<'cx> TyChecker<'cx> {
                 .get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(elem.name);
         }
 
-        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(elem) {
+        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(elem.id) {
             self.report_implicit_any(elem.id, self.any_ty, None);
         }
 

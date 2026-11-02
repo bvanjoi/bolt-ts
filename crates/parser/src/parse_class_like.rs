@@ -383,14 +383,15 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             let params = self.parse_parameters(flags);
             let ty = self.parse_return_ty::<true, false>()?;
             let body = self.parse_fn_block_or_semi(flags);
+            let span = self.new_span(start);
             if let Some(body) = body {
+                self.check_fn_implement_in_ambient(Some(name.span()), body);
                 self.check_use_strict_simple_parameters(params, body);
                 self.check_parameters(params, CheckParameterFlags::empty());
             } else {
                 self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
+                self.check_signature_declaration_in_js_file(span);
             }
-            let span = self.new_span(start);
-            self.check_signature_declaration_in_js_file(span);
             let method = self.create_class_method_element(
                 span, modifiers, asterisk, name, ty_params, params, ty, body,
             );
@@ -472,6 +473,8 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                 }
                 let span = this.p().new_span(start);
                 if let Some(body) = body {
+                    this.p()
+                        .check_fn_implement_in_ambient(Some(name_span), body);
                     this.p().check_use_strict_simple_parameters(params, body);
                     this.p()
                         .check_parameters(params, CheckParameterFlags::CONSTRUCTOR);
