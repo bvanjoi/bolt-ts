@@ -17,6 +17,16 @@ pub struct DuplicateIdentifier {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot redeclare block-scoped variable '{name}'.")]
+pub struct CannotRedeclareBlockScopedVariableX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+    #[label("Previous definition here")]
+    pub original_span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Enum declarations can only merge with namespace or other enum declarations.")]
 pub struct EnumDeclarationsCanOnlyMergeWithNamespaceOrOtherEnumDeclarations {
     #[label(primary)]
