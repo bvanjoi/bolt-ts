@@ -223,7 +223,15 @@ impl<'cx> TyChecker<'cx> {
             return resolved_base_ctor_ty;
         }
         let symbol = ty.symbol().unwrap();
-        let decl = self.get_class_like_decl_of_symbol(symbol).unwrap();
+        let Some(decl) = self.get_class_like_decl_of_symbol(symbol) else {
+            // return early for this this function in js file:
+            // ```
+            // function f() { `f` had been mark class symbol flags so the typeof `f` is reference type.
+            //   this.a = 1;
+            // }
+            // ```
+            return self.undefined_ty;
+        };
         let Some(extends) = self.get_effective_base_type_node(decl) else {
             return self.undefined_ty;
         };
@@ -631,6 +639,7 @@ impl<'cx> TyChecker<'cx> {
                         }
                         EnumMemberValue::Err => self.create_computed_enum_ty(member_symbol),
                     };
+                    let member_ty = self.get_fresh_ty_of_literal_ty(member_ty);
                     self.get_mut_symbol_links(member_symbol)
                         .set_declared_ty(member_ty);
                     member_ty_list.push(self.get_regular_ty_of_literal_ty(member_ty))

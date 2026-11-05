@@ -7,8 +7,8 @@ function stringify1(anything) {
 function stringify2(anything) {
   return typeof anything === 'string' ? anything.toUpperCase() : '';
 }
-function stringify3(anything) {
-  // should simplify to just `unknown` which should narrow fine
+function stringify3(anything) {// should simplify to just `unknown` which should narrow fine
+
   return typeof anything === 'string' ? anything.toUpperCase() : '';
 }
 function stringify4(anything) {

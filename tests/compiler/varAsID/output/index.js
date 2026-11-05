@@ -2,8 +2,8 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
 class Foo {
-  var;
-  // ok
+  var;// ok
+  
   x = 1;
 }
 var f = new Foo();

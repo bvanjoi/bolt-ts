@@ -5,13 +5,19 @@
    ╰────
 
   × Variable 't' is used before being assigned.
-    ╭─[../../tests/compiler/typeParameterExtendsPrimitive/index.ts:12:12]
- 12 │ t
+   ╭─[../../tests/compiler/typeParameterExtendsPrimitive/index.ts:9:10]
+ 9 │ t
+   · ─
+   ╰────
+
+  × Variable 't' is used before being assigned.
+    ╭─[../../tests/compiler/typeParameterExtendsPrimitive/index.ts:13:12]
+ 13 │ t
     · ─
     ╰────
 
   × Variable 't' is used before being assigned.
-    ╭─[../../tests/compiler/typeParameterExtendsPrimitive/index.ts:12:16]
- 12 │ t
+    ╭─[../../tests/compiler/typeParameterExtendsPrimitive/index.ts:13:16]
+ 13 │ t
     · ─
     ╰────

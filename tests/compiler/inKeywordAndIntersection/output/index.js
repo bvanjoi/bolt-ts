@@ -10,11 +10,11 @@ class B {
 }
 function f10(obj) {
   if (obj instanceof Object) {
-    obj;
-  // A & { x: string } | B
+    obj;// A & { x: string } | B
+    
   } else {
-    obj;
-  // Error
+    obj;// Error
+    
   }
   
 }// Repro from #50844

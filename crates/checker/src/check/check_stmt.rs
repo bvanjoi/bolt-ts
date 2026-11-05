@@ -4,6 +4,7 @@ use bolt_ts_binder::ModuleInstanceState;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolName;
+use bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver;
 use bolt_ts_ty::ObjectFlags;
 use bolt_ts_ty::TypeFacts;
 
@@ -73,11 +74,16 @@ impl<'cx> TyChecker<'cx> {
             Continue(_) => {}
             Try(n) => self.check_try_stmt(n),
             While(n) => self.check_while_stmt(n),
-            Do(_) => {}
+            Do(n) => self.check_do_while_stmt(n),
             Debugger(_) => {}
             Switch(n) => self.check_switch_stmt(n),
             Labeled(n) => self.check_stmt(n.stmt),
         };
+    }
+
+    fn check_do_while_stmt(&mut self, node: &'cx ast::DoWhileStmt<'cx>) {
+        self.check_stmt(node.stmt);
+        self.check_truthiness_expr(node.expr, None);
     }
 
     fn check_export_assignment(&mut self, node: &'cx ast::ExportAssign<'cx>) {
@@ -131,7 +137,7 @@ impl<'cx> TyChecker<'cx> {
         self.register_potentially_unused_case_block(node.case_block);
 
         for clause in node.case_block.clauses {
-            match clause {
+            let stmts = match clause {
                 Case(n) => {
                     let case_ty = self.check_expression::<false>(n.expr, None);
                     if !self.is_type_equality_comparable_to(expr_ty, case_ty) {
@@ -149,15 +155,31 @@ impl<'cx> TyChecker<'cx> {
                             }),
                         );
                     }
-                    for stmt in n.stmts {
-                        self.check_stmt(stmt);
-                    }
+                    n.stmts
                 }
-                Default(n) => {
-                    for stmt in n.stmts {
-                        self.check_stmt(stmt);
+                Default(n) => n.stmts,
+            };
+            for stmt in stmts {
+                self.check_stmt(stmt);
+            }
+            if self.options().no_fallthrough_cases_in_switch()
+                && let id = clause.id()
+                && let Some(flow) = self
+                    .binder
+                    .get(id.module())
+                    .fallthrough_flow_nodes
+                    .get(clause)
+                && self.is_reachable_flow_node(flow)
+            {
+                let span = match clause {
+                    Case(n) => n.expr.span(),
+                    Default(n) => {
+                        let lo = n.span.lo();
+                        bolt_ts_span::Span::new(lo, lo + "default".len() as u32, n.span.module())
                     }
-                }
+                };
+                let error = errors::FallthroughCaseInSwitch { span };
+                self.push_error(Box::new(error));
             }
         }
     }
@@ -365,24 +387,31 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
-        if let Some(clause) = node.clause.and_then(|c| c.kind) {
+        if let Some(clause) = node.clause {
             use bolt_ts_ast::ImportClauseKind::*;
-            match clause {
-                Ns(n) => {
-                    // import * as ns from 'xxxx'
-                    self.check_import_binding(n.id);
-                }
-                Specs(specs) => {
-                    // import { a, b as c } from 'xxxx'
-                    for spec in specs {
-                        use bolt_ts_ast::ImportSpecKind::*;
-                        match spec.kind {
-                            Shorthand(n) => {
-                                // import { a } from 'xxxx'
-                                self.check_import_binding(n.id);
-                            }
-                            Named(_) => {
-                                // import { a as b } from 'xxxx'
+            if clause.name.is_some() {
+                // import a from 'xxxx'
+                self.check_import_binding(clause.id);
+            }
+            if let Some(clause_kind) = clause.kind {
+                match clause_kind {
+                    Ns(n) => {
+                        // import * as ns from 'xxxx'
+                        self.check_import_binding(n.id);
+                    }
+                    Specs(specs) => {
+                        // import { a, b as c } from 'xxxx'
+                        for spec in specs {
+                            use bolt_ts_ast::ImportSpecKind::*;
+                            match spec.kind {
+                                Shorthand(n) => {
+                                    // import { a } from 'xxxx'
+                                    self.check_import_binding(n.id);
+                                }
+                                Named(n) => {
+                                    // import { a as b } from 'xxxx'
+                                    self.check_import_binding(n.id);
+                                }
                             }
                         }
                     }
@@ -587,15 +616,30 @@ impl<'cx> TyChecker<'cx> {
         if s.flags.intersects(SymbolFlags::VALUE_MODULE)
             && !in_ambient_context
             && self.is_instantiate_module(module_block)
-            && s.decls.as_ref().is_some_and(|decls| decls.len() > 1)
-            && let Some(first_none_ambient_class_or_fn) =
-                self.get_first_non_ambient_class_or_fn_decl(s)
-            && span.lo() < self.p.node(first_none_ambient_class_or_fn).span().lo()
         {
-            let error = errors::ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
+            if self.options().erasable_syntax_only() {
+                todo!()
+            }
+            // TODO: get_isolated_modules
+            if let Some(decls) = s.decls.as_ref()
+                && decls.len() > 1
+                && let Some(first_none_ambient_class_or_fn) =
+                    self.get_first_non_ambient_class_or_fn_decl(s)
+            {
+                let first_none_ambient_class_or_fn_span =
+                    self.p.node(first_none_ambient_class_or_fn).span();
+                if span.module() != first_none_ambient_class_or_fn_span.module() {
+                    let error = errors::ANamespaceDeclarationCannotBeInADifferentFileFromAClassOrFunctionWithWhichItIsMerged {
+                        span: module_name.span(),
+                    };
+                    self.push_error(Box::new(error));
+                } else if span.lo() < first_none_ambient_class_or_fn_span.lo() {
+                    let error = errors::ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
                             span: module_name.span(),
                         };
-            self.push_error(Box::new(error));
+                    self.push_error(Box::new(error));
+                }
+            }
         }
 
         if is_ambient_external_module {
@@ -1049,12 +1093,13 @@ impl<'cx> TyChecker<'cx> {
     fn check_class_decl(&mut self, n: &'cx ast::ClassDecl<'cx>) {
         self.check_class_like_decl(n);
         self.check_class_elements(n.elems);
-        self.check_property_initializer(n);
+        self.mark_check_property_initializer_deferred(n);
         self.register_potentially_unused_class_declaration(n);
     }
 
     fn check_type_alias_decl(&mut self, n: &'cx ast::TypeAliasDecl<'cx>) {
         self.check_type_parameters(n.ty_params);
+        self.check_exports_on_merged_decls(n.id);
 
         match n.ty.kind {
             ast::TyKind::Intrinsic(_) => {

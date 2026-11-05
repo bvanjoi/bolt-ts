@@ -19,7 +19,6 @@ pub fn get_default_lib_filename(
         ES2017 => "lib.es2017.full.d.ts",
         ES2016 => "lib.es2016.full.d.ts",
         ES2015 => "lib.es6.d.ts",
-        ES5 => "lib.es5.d.ts",
         _ => "lib.d.ts",
     }
 }

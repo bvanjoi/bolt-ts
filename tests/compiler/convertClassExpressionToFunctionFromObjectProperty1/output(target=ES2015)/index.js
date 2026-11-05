@@ -8,8 +8,8 @@ foo.x = class {
 };
 foo.y = class {
   constructor() {}
-// keywords
 };
+// keywords
 foo.break = class {
   constructor() {}
 };

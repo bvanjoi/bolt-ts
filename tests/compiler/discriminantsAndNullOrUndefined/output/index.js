@@ -3,7 +3,7 @@
 //@compiler-options: strictNullChecks
 //@run-fail
 function never(_) {
-  throw new Error()
+  throw new Error();
 }
 function useA(_) {}
 function useB(_) {}

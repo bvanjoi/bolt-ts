@@ -1,0 +1,135 @@
+  × Declaration or statement expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:102:3]
+ 102 │ public
+     · ──────
+     ╰────
+
+  × '}' expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:102:3]
+ 102 │ public
+     · ──────
+     ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:101:16]
+ 101 │ {
+     · ─
+     ╰────
+
+  × Declaration or statement expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:106:1]
+ 106 │ }
+     · ─
+     ╰────
+
+  × Declaration or statement expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:111:3]
+ 111 │ private
+     · ───────
+     ╰────
+
+  × '}' expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:111:3]
+ 111 │ private
+     · ───────
+     ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:110:16]
+ 110 │ {
+     · ─
+     ╰────
+
+  × Declaration or statement expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:115:1]
+ 115 │ }
+     · ─
+     ╰────
+
+  × Declaration or statement expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:120:3]
+ 120 │ public
+     · ──────
+     ╰────
+
+  × '}' expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:120:3]
+ 120 │ public
+     · ──────
+     ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:119:16]
+ 119 │ {
+     · ─
+     ╰────
+
+  × Unexpected keyword or identifier.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:120:10]
+ 120 │ this
+     · ────
+     ╰────
+
+  × Declaration or statement expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:125:1]
+ 125 │ }
+     · ─
+     ╰────
+
+  × Declaration or statement expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:130:3]
+ 130 │ private
+     · ───────
+     ╰────
+
+  × '}' expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:130:3]
+ 130 │ private
+     · ───────
+     ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:129:16]
+ 129 │ {
+     · ─
+     ╰────
+
+  × Unexpected keyword or identifier.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:130:11]
+ 130 │ this
+     · ────
+     ╰────
+
+  × Declaration or statement expected.
+     ╭─[../../tests/compiler/classUpdateTests/index.ts:135:1]
+ 135 │ }
+     · ─
+     ╰────
+
+  × Constructors for derived classes must contain a 'super' call.
+    ╭─[../../tests/compiler/classUpdateTests/index.ts:39:2]
+ 39 │ constructor
+    · ───────────
+    ╰────
+
+  × 'super' can only be referenced in a derived class.
+    ╭─[../../tests/compiler/classUpdateTests/index.ts:49:18]
+ 49 │ super
+    · ─────
+    ╰────
+
+  × Class 'L' incorrectly extends base class 'G'.
+    ╭─[../../tests/compiler/classUpdateTests/index.ts:70:7]
+ 70 │ L
+    · ─
+    ╰────
+
+  × Class 'M' incorrectly extends base class 'G'.
+    ╭─[../../tests/compiler/classUpdateTests/index.ts:77:7]
+ 77 │ M
+    · ─
+    ╰────

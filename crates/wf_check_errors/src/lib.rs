@@ -81,13 +81,6 @@ pub struct EnumNameCannotBeX {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("An implementation cannot be declared in ambient contexts.")]
-pub struct AnImplementationCannotBeDeclaredInAmbientContexts {
-    #[label(primary)]
-    pub span: Span,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Initializer cannot be declared in ambient contexts.")]
 pub struct InitializersAreNotAllowedInAmbientContexts {
     #[label(primary)]
@@ -166,4 +159,12 @@ pub struct DidYouMeanToUseAColonAnCanOnlyFollowAPropertyNameWhenTheContainingObj
 {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Class name cannot be 'Object' when targeting ES5 and above with module {module}.")]
+pub struct ClassNameCannotBeObjectWhenTargetingEs5AndAboveWithModuleX {
+    #[label(primary)]
+    pub span: Span,
+    pub module: String,
 }

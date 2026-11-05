@@ -1,0 +1,6 @@
+  × Module './es6ImportDefaultBindingFollowedWithNamespaceBindingInEs5_0' has
+  │ no default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamespaceBindingInEs5/es6ImportDefaultBindingFollowedWithNamespaceBindingInEs5_1.ts:1:8]
+ 1 │ defaultBinding
+   · ──────────────
+   ╰────

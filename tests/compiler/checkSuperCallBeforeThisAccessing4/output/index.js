@@ -3,16 +3,16 @@ class Based {}
 class Derived extends Based {
   x;
   constructor() {(() => {
-      this;
-    // No error
+      this;// No error
+      
     });
     () => {
-      this;
-    // No error
+      this;// No error
+      
     };
     (() => {
-      this;
-    // No error
+      this;// No error
+      
     })();
     super();
     super();this.x = 10;

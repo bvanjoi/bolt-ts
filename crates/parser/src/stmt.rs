@@ -3,6 +3,7 @@ use bolt_ts_ast::{NodeFlags, VarDecls};
 use bolt_ts_ast_factory::ASTFactory;
 
 use super::ast;
+use super::const_variant::is_js_like_variant;
 use super::const_variant::is_ts_like_variant;
 use super::errors;
 use super::keyword;
@@ -454,7 +455,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         if matches!(self.token.kind, TokenKind::Ident if self.ident_token() == keyword::IDENT_GLOBAL)
         {
             let name = self.create_ident(true, None);
-            self.check_module_declaration_error(name.span);
+            self.check_module_declaration_error::<true, false>(name.span);
             let name = ast::ModuleName::Ident(name);
             return self.parse_ambient_external_module_decl::<true>(start, modifiers, name);
         } else if self.parse_optional(TokenKind::Namespace).is_none() {
@@ -467,7 +468,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     self.push_error(Box::new(error));
                 }
                 let name = self.parse_string_lit();
-                self.check_module_declaration_error(name.span);
+                self.check_module_declaration_error::<false, true>(name.span);
                 let name = ast::ModuleName::StringLit(name);
                 return self.parse_ambient_external_module_decl::<false>(start, modifiers, name);
             }
@@ -498,7 +499,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 ast::StmtKind::BlockModule(module)
             }
         };
-        self.check_module_declaration_error(name.span);
+        self.check_module_declaration_error::<false, false>(name.span);
         self.has_export_decl = save_has_export_decl;
         module
     }
@@ -525,21 +526,24 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     }
 
     fn parse_module_block(&mut self) -> &'cx ast::ModuleBlock<'cx> {
-        self.do_inside_of_parse_context(ParseContext::MODULE_BLOCK, |this| {
-            let start = this.token.start();
-            this.expect(TokenKind::LBrace);
+        self.do_inside_of_parse_context(
+            ParseContext::MODULE_BLOCK
+                .union(ParseContext::MODULE_BLOCK_TOP_LEVEL)
+                .union(ParseContext::BLOCK),
+            |this| {
+                let start = this.token.start();
+                this.expect(TokenKind::LBrace);
 
-            let save_external_module_indicator = this.external_module_indicator;
+                let save_external_module_indicator = this.external_module_indicator;
 
-            let stmts = this.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
-                this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
-            });
+                let stmts = this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt);
 
-            this.external_module_indicator = save_external_module_indicator;
+                this.external_module_indicator = save_external_module_indicator;
 
-            this.expect(TokenKind::RBrace);
-            this.create_module_block(this.new_span(start), stmts)
-        })
+                this.expect(TokenKind::RBrace);
+                this.create_module_block(this.new_span(start), stmts)
+            },
+        )
     }
 
     fn parse_ambient_external_module_decl<const IS_GLOBAL_ARGUMENT: bool>(
@@ -785,39 +789,21 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> ast::StmtKind<'cx> {
         debug_assert!(self.token.kind == TokenKind::Import);
-        if let Some(mods) = modifiers {
-            if mods.flags.contains(ast::ModifierFlags::AMBIENT) {
-                let m = mods
-                    .list
-                    .iter()
-                    .find(|m| m.kind() == ast::ModifierKind::Ambient)
-                    .unwrap();
-                let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
-                    span: m.span(),
-                    modifier: m.kind(),
-                };
-                self.push_error(Box::new(error));
-            }
-            if mods.flags.intersects(ast::ModifierFlags::ACCESSIBILITY) {
-                for m in mods.list {
-                    if m.kind() == ast::ModifierKind::Private
-                        || m.kind() == ast::ModifierKind::Protected
-                        || m.kind() == ast::ModifierKind::Public
-                    {
-                        let error = errors::ModifierCannotAppearOnAModuleOrNamespaceElement {
-                            modifier: m.kind().to_string(),
-                            span: m.span(),
-                        };
-                        self.push_error(Box::new(error));
-                    }
-                }
-            }
-        }
         self.check_module_element_context(|this| {
-            let error = errors::AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
-                span: this.token.span,
+            let error: bolt_ts_errors::BoxedDiag = if is_js_like_variant(VARIANT) {
+                Box::new(
+                    errors::AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfAModule {
+                        span: this.token.span,
+                    },
+                )
+            } else {
+                Box::new(
+                    errors::AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
+                        span: this.token.span,
+                    },
+                )
             };
-            this.push_error(Box::new(error));
+            this.push_error(error);
         });
         let start = self.token.start();
         self.next_token(); // consume `import`
@@ -839,26 +825,49 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     None
                 };
             }
-        }
-
-        if let Some(name) = name {
-            self.check_contextual_ident(name);
+            self.check_contextual_ident(i);
         }
 
         if let Some(name) = name
             && matches!(self.token.kind, TokenKind::Eq)
         {
-            let export_modifier = modifiers
-                .and_then(|m| {
-                    m.list
-                        .iter()
-                        .find(|m| m.kind() == ast::ModifierKind::Export)
-                })
-                .copied();
+            let mut export_modifier = None;
+            if let Some(mods) = modifiers {
+                for m in mods.list {
+                    match m.kind() {
+                        ast::ModifierKind::Private
+                        | ast::ModifierKind::Protected
+                        | ast::ModifierKind::Public => {
+                            let error = errors::ModifierCannotAppearOnAModuleOrNamespaceElement {
+                                modifier: m.kind().to_string(),
+                                span: m.span(),
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                        ast::ModifierKind::Ambient => {
+                            let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
+                                span: m.span(),
+                                modifier: m.kind(),
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                        ast::ModifierKind::Export => {
+                            export_modifier = Some(*m);
+                        }
+                        _ => {
+                            // TODO: more case
+                        }
+                    }
+                }
+            }
             // TODO: is_type_only
             let decl = self.parse_import_equals_declaration(start, export_modifier, name, false);
             ast::StmtKind::ImportEquals(decl)
         } else {
+            if let Some(mods) = modifiers {
+                let error = errors::AnImportDeclarationCannotHaveModifiers { span: mods.span };
+                self.push_error(Box::new(error));
+            }
             let clause =
                 self.try_parse_import_clause(name, after_import_pos as usize, is_type_only);
             let module = self.parse_module_spec();
@@ -940,11 +949,13 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         let mods = self.parse_modifiers::<false, false, true>(false);
         let is_ambient = mods.is_some_and(Self::contain_declare_mod);
-        if mods.is_some_and(|ms| {
-            ms.flags
-                .contains(ast::ModifierFlags::EXPORT.union(ast::ModifierFlags::DEFAULT))
-        }) {
-            self.check_export_default_error(self.token.span);
+        if let Some(ms) = mods {
+            let flags = ms.flags;
+            if flags.contains(ast::ModifierFlags::EXPORT.union(ast::ModifierFlags::DEFAULT)) {
+                self.check_export_default_error(self.token.span);
+            } else if flags.contains(ast::ModifierFlags::EXPORT) {
+                self.check_export_declaration_error(self.token.span);
+            }
         }
         if is_ambient {
             self.do_inside_of_node_flags(NodeFlags::AMBIENT, |this| this.parse_decl_worker(mods))
@@ -1088,9 +1099,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
 
     pub(super) fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
         let binding = self.parse_ident_or_pat();
-        if self.in_strict_mode && !self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
-            self.check_strict_mode_eval_or_arguments_for_binding(binding);
-        }
         // if (getFullWidth(name) === 0 && !some(modifiers) && isModifierKind(token())) {
         //     // in cases like
         //     // 'use strict'
@@ -1198,35 +1206,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         Ok(elem)
     }
 
-    pub(super) fn check_strict_mode_eval_or_arguments_for_binding(
-        &mut self,
-        binding: &ast::Binding,
-    ) {
-        debug_assert!(self.in_strict_mode);
-        match binding.kind {
-            ast::BindingKind::Ident(n) => self.check_strict_mode_eval_or_arguments(n),
-            ast::BindingKind::ObjectPat(n) => {
-                for elem in n.elems {
-                    match elem.name {
-                        ast::ObjectBindingName::Shorthand(n) => {
-                            self.check_strict_mode_eval_or_arguments(n)
-                        }
-                        ast::ObjectBindingName::Prop { name, .. } => {
-                            self.check_strict_mode_eval_or_arguments_for_binding(name);
-                        }
-                    }
-                }
-            }
-            ast::BindingKind::ArrayPat(n) => {
-                for elem in n.elems {
-                    if let ast::ArrayBindingElemKind::Binding(n) = elem.kind {
-                        self.check_strict_mode_eval_or_arguments_for_binding(n.name);
-                    }
-                }
-            }
-        }
-    }
-
     // TODO: move to binder because we need to know is this file has module augmentation
     pub(super) fn check_strict_mode_eval_or_arguments(&mut self, n: &ast::Ident) {
         debug_assert!(self.in_strict_mode);
@@ -1241,22 +1220,26 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
 
     fn check_variable_declaration_should_initializer(&mut self, n: &'cx ast::VarDecl<'cx>) {
         let flags = self.node_flags_map.get(n.id);
-        if flags.contains(ast::NodeFlags::CONST)
-            && !flags.contains(ast::NodeFlags::AMBIENT)
-            && n.init.is_none()
-        {
-            let span = n.name.span;
-            self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
-            return;
-        }
-
-        match n.name.kind {
-            ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) if n.init.is_none() => {
-                let error =
-                    errors::ADestructuringDeclarationMustHaveAnInitializer { span: n.name.span };
-                self.push_error(Box::new(error));
+        if flags.contains(ast::NodeFlags::AMBIENT) {
+            // check_ambient_initializer
+        } else {
+            if flags.contains(ast::NodeFlags::CONST) && n.init.is_none() {
+                let span = n.name.span;
+                self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
+                return;
             }
-            _ => {}
+
+            match n.name.kind {
+                ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_)
+                    if n.init.is_none() =>
+                {
+                    let error = errors::ADestructuringDeclarationMustHaveAnInitializer {
+                        span: n.name.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+                _ => {}
+            }
         }
     }
 

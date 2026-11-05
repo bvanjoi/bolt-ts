@@ -1,0 +1,5 @@
+  × Module './server' has no default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamespaceBindingDts/client.ts:1:8]
+ 1 │ defaultBinding
+   · ──────────────
+   ╰────

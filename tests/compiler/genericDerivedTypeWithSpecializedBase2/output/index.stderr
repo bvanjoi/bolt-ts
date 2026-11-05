@@ -1,3 +1,10 @@
+  × Type 'B<number>' is not assignable to type 'A<{ length: number; foo:
+  │ number; }>'.
+    ╭─[../../tests/compiler/genericDerivedTypeWithSpecializedBase2/index.ts:17:1]
+ 17 │ x
+    · ─
+    ╰────
+
   × Property 'x' has no initializer and is not definitely assigned in the
   │ constructor.
    ╭─[../../tests/compiler/genericDerivedTypeWithSpecializedBase2/index.ts:6:5]
@@ -9,12 +16,5 @@
   │ constructor.
     ╭─[../../tests/compiler/genericDerivedTypeWithSpecializedBase2/index.ts:11:5]
  11 │ y
-    · ─
-    ╰────
-
-  × Type 'B<number>' is not assignable to type 'A<{ length: number; foo:
-  │ number; }>'.
-    ╭─[../../tests/compiler/genericDerivedTypeWithSpecializedBase2/index.ts:17:1]
- 17 │ x
     · ─
     ╰────

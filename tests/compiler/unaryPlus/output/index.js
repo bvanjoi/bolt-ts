@@ -9,8 +9,8 @@ var E = {};
   E[E['some'// also allowed, used to be errors
   ] = 0] = 'some'
   E//should be valid
-  [E['thing'] = 0// should be valid
-  ] = 'thing'
+  [E['thing'] =// should be valid
+   0] = 'thing'
 })(E);
 ;
 var c = +E.some;

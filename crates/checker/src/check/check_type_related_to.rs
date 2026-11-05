@@ -78,6 +78,34 @@ impl<'cx> TyChecker<'cx> {
     }
 }
 
+// TODO: clone `FxIndexSet` and `Vec` is very expensive,
+// we should find a better way to store the context.
+#[derive(Debug, Clone)]
+pub(super) struct RelationContext<'cx> {
+    relation: RelationKind,
+    maybe_keys_set: FxIndexSet<RelationKey<'cx>>,
+    expanding_flags: RecursionFlags,
+    source_stack: Vec<&'cx ty::Ty<'cx>>,
+    target_stack: Vec<&'cx ty::Ty<'cx>>,
+    error_node: Option<ast::NodeID>,
+}
+
+impl<'cx> RelationContext<'cx> {
+    pub(super) fn record(c: &TypeRelatedChecker<'cx, '_>) -> Self {
+        Self {
+            relation: c.relation,
+            // TODO: remove clone
+            maybe_keys_set: c.maybe_keys_set.clone(),
+            expanding_flags: c.expanding_flags,
+            // TODO: remove clone
+            source_stack: c.source_stack.clone(),
+            // TODO: remove clone
+            target_stack: c.target_stack.clone(),
+            error_node: c.error_node,
+        }
+    }
+}
+
 pub(super) struct TypeRelatedChecker<'cx, 'checker> {
     pub(super) c: &'checker mut TyChecker<'cx>,
     relation: RelationKind,
@@ -107,6 +135,22 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
     }
 
+    pub(super) fn from_context(
+        c: &'checker mut TyChecker<'cx>,
+        context: RelationContext<'cx>,
+    ) -> Self {
+        TypeRelatedChecker {
+            origin_diag_len: c.diags.len(),
+            c,
+            relation: context.relation,
+            maybe_keys_set: context.maybe_keys_set,
+            expanding_flags: context.expanding_flags,
+            source_stack: context.source_stack,
+            target_stack: context.target_stack,
+            error_node: context.error_node,
+        }
+    }
+
     #[tracing::instrument(
         level = tracing::Level::TRACE,
         skip_all,
@@ -120,7 +164,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         ),
         ret
     )]
-    fn is_related_to(
+    pub(super) fn is_related_to(
         &mut self,
         original_source: &'cx Ty<'cx>,
         original_target: &'cx Ty<'cx>,
@@ -1987,11 +2031,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 let mut source_extends = source_cond.extends_ty;
                 let mut mapper: Option<&'cx dyn ty::TyMap<'cx>> = None;
                 if let Some(source_params) = source_cond.root.infer_ty_params {
+                    let ctx = RelationContext::record(self);
                     let ctx = self.c.create_inference_context(
                         source_params,
                         None,
                         InferenceFlags::empty(),
-                        Some(InferenceCompare::IsRelatedTo(self.relation)),
+                        Some(InferenceCompare::IsRelatedTo(ctx)),
                     );
                     let inferences = self.c.inference(ctx).inferences;
                     self.c.infer_tys::<false>(
@@ -3011,7 +3056,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     intersection_state,
                 )
             },
-            InferenceCompare::IsRelatedTo(self.relation),
+            InferenceCompare::IsRelatedTo(RelationContext::record(self)),
         )
     }
 
@@ -3022,7 +3067,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         check_mode: SigCheckMode,
         report_error: bool,
         compare: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>, bool) -> Ternary + Copy,
-        inference_compare: InferenceCompare,
+        inference_compare: InferenceCompare<'cx>,
     ) -> Ternary {
         if source == target {
             return Ternary::TRUE;
@@ -3085,9 +3130,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             // `<G>() => G` and `<T>() => T`
             // we should canonical the type parameters `G` and `T` into the same type parameter
             target = self.c.get_canonical_sig(target);
-            source =
-                self.c
-                    .instantiate_sig_in_context_of(source, target, None, Some(inference_compare));
+            source = self.c.instantiate_sig_in_context_of(
+                source,
+                target,
+                None,
+                Some(inference_compare.clone()),
+            );
         }
         let source_count = source.get_param_count(self.c);
         let source_rest_ty = source.get_non_array_rest_ty(self.c);
@@ -3194,7 +3242,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             },
                         report_error,
                         compare,
-                        inference_compare,
+                        inference_compare.clone(),
                     )
                 } else if !check_mode.intersects(SigCheckMode::CALLBACK) && !strict_variance {
                     let res = compare(self, source_ty, target_ty, false);

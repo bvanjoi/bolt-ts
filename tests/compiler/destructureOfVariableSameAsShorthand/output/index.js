@@ -7,14 +7,14 @@ async function main() {
     // body is never
     var body = response.data;
   });
-  get().then(({data}) => // data is never
-  {});
-  var response = await get// body is never
-  ();
-  var body = response// data is never
-  .data;
+  get().then(({data}) => {// data is never
+  });
+  var response = await get();
+  // body is never
+  var body = response.data;
+  // data is never
   var {data} = await get();
-  // The following did not work as expected.
+  var {data// The following did not work as expected.
   // shouldBeNever should be never, but was any
-  var {data: shouldBeNever} = await get();
+  : shouldBeNever} = await get();
 }

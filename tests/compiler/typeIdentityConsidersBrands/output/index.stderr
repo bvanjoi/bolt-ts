@@ -1,3 +1,15 @@
+  × Type 'X_1' is not assignable to type 'Y_1'.
+    ╭─[../../tests/compiler/typeIdentityConsidersBrands/index.ts:38:1]
+ 38 │ a2
+    · ──
+    ╰────
+
+  × Argument of type 'Y_1' is not assignable to parameter of type 'X_1'.
+    ╭─[../../tests/compiler/typeIdentityConsidersBrands/index.ts:40:6]
+ 40 │ a2
+    · ──
+    ╰────
+
   × Property 'name' has no initializer and is not definitely assigned in the
   │ constructor.
    ╭─[../../tests/compiler/typeIdentityConsidersBrands/index.ts:6:7]
@@ -24,16 +36,4 @@
     ╭─[../../tests/compiler/typeIdentityConsidersBrands/index.ts:21:13]
  21 │ name
     · ────
-    ╰────
-
-  × Type 'X_1' is not assignable to type 'Y_1'.
-    ╭─[../../tests/compiler/typeIdentityConsidersBrands/index.ts:38:1]
- 38 │ a2
-    · ──
-    ╰────
-
-  × Argument of type 'Y_1' is not assignable to parameter of type 'X_1'.
-    ╭─[../../tests/compiler/typeIdentityConsidersBrands/index.ts:40:6]
- 40 │ a2
-    · ──
     ╰────

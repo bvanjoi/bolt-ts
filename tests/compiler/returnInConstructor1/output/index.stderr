@@ -24,13 +24,6 @@
     · ──────
     ╰────
 
-  × Property 'foo' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnInConstructor1/index.ts:38:12]
- 38 │ foo
-    · ───
-    ╰────
-
   × Type 'number' is not assignable to type 'string'.
     ╭─[../../tests/compiler/returnInConstructor1/index.ts:49:18]
  49 │ foo
@@ -44,13 +37,6 @@
     · ──────────
     ╰────
 
-  × Property 'foo' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnInConstructor1/index.ts:46:12]
- 46 │ foo
-    · ───
-    ╰────
-
   × Type 'G' is not assignable to type 'H'.
     ╭─[../../tests/compiler/returnInConstructor1/index.ts:67:16]
  67 │ new G()
@@ -62,4 +48,18 @@
     ╭─[../../tests/compiler/returnInConstructor1/index.ts:67:16]
  67 │ new G()
     · ───────
+    ╰────
+
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:38:12]
+ 38 │ foo
+    · ───
+    ╰────
+
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:46:12]
+ 46 │ foo
+    · ───
     ╰────

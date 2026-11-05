@@ -1,0 +1,11 @@
+  × An import declaration cannot have modifiers.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamespaceBindingWithExport/client.ts:1:1]
+ 1 │ export
+   · ──────
+   ╰────
+
+  × Module './server' has no default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamespaceBindingWithExport/client.ts:1:15]
+ 1 │ defaultBinding
+   · ──────────────
+   ╰────

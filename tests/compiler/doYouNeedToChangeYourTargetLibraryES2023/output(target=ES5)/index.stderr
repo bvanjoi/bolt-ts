@@ -1,0 +1,77 @@
+  × Property 'findLastIndex' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:14:31]
+ 14 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Parameter 'v' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:14:45]
+ 14 │ v
+    · ─
+    ╰────
+
+  × Property 'findLastIndex' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:17:31]
+ 17 │ findLastIndex
+    · ─────────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:20:26]
+ 20 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'findLast' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:22:26]
+ 22 │ findLast
+    · ────────
+    ╰────
+
+  × Property 'toSorted' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:25:27]
+ 25 │ toSorted
+    · ────────
+    ╰────
+
+  × Property 'toSpliced' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:28:29]
+ 28 │ toSpliced
+    · ─────────
+    ╰────
+
+  × Property 'toSpliced' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:30:29]
+ 30 │ toSpliced
+    · ─────────
+    ╰────
+
+  × Property 'toSpliced' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:32:29]
+ 32 │ toSpliced
+    · ─────────
+    ╰────
+
+  × Property 'toSpliced' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:34:29]
+ 34 │ toSpliced
+    · ─────────
+    ╰────
+
+  × Property 'toSpliced' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:36:29]
+ 36 │ toSpliced
+    · ─────────
+    ╰────
+
+  × Property 'with' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:40:34]
+ 40 │ with
+    · ────
+    ╰────
+
+  × Property 'with' does not exist on type 'number[]'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:42:29]
+ 42 │ with
+    · ────
+    ╰────

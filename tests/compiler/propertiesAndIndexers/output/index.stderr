@@ -135,16 +135,16 @@
     · ─
     ╰────
 
-  × Property 't' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:65:5]
- 65 │ t
-    · ─
-    ╰────
-
   × Property '3' of type 'boolean' is not assignable to 'number' index type
   │ 'string'.
     ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:73:5]
  73 │ 3
+    · ─
+    ╰────
+
+  × Property 't' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:65:5]
+ 65 │ t
     · ─
     ╰────

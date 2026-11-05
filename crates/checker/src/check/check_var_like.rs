@@ -77,13 +77,11 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(Box::new(error));
             }
-        } else {
-            let is_assignment = s.flags.contains(SymbolFlags::ASSIGNMENT);
+        } else if !s.flags.contains(SymbolFlags::ASSIGNMENT) {
             let decl_ty = self.get_widened_ty_for_var_like_decl::<false>(decl);
             if !self.is_error(ty)
                 && !self.is_error(decl_ty)
                 && !self.is_type_identical_to(ty, decl_ty)
-                && !is_assignment
             {
                 let name = self.p.node(name_id).ident_name().unwrap();
                 let error: bolt_ts_errors::BoxedDiag = if matches!(

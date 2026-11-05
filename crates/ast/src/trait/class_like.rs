@@ -1,3 +1,17 @@
+pub fn find_constructor_declaration<'cx>(
+    elements: &[&'cx crate::ClassElem<'cx>],
+) -> Option<&'cx crate::ClassCtor<'cx>> {
+    elements.iter().find_map(|e| {
+        if let crate::ClassElemKind::Ctor(ctor) = e.kind
+            && ctor.body.is_some()
+        {
+            Some(ctor)
+        } else {
+            None
+        }
+    })
+}
+
 pub trait ClassLike<'cx>: std::fmt::Debug {
     fn id(&self) -> crate::NodeID;
     fn modifiers(&self) -> Option<&'cx crate::Modifiers<'cx>>;
@@ -8,14 +22,7 @@ pub trait ClassLike<'cx>: std::fmt::Debug {
     fn elems(&self) -> &'cx crate::ClassElems<'cx>;
     fn span(&self) -> crate::Span;
     fn find_ctor_decl(&self) -> Option<&'cx crate::ClassCtor<'cx>> {
-        for elem in self.elems().list {
-            if let crate::ClassElemKind::Ctor(ctor) = elem.kind
-                && ctor.body.is_some()
-            {
-                return Some(ctor);
-            }
-        }
-        None
+        find_constructor_declaration(self.elems().list)
     }
 }
 

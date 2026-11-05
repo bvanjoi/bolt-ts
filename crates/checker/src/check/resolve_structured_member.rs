@@ -543,6 +543,8 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if !base_tys_is_empty {
+            let placeholder = self.structure_members_placeholder;
+            set_structured_members(self, placeholder);
             for base_ty in base_tys {
                 let instantiated_base_ty = if let Some(this_arg) = ty_args.last() {
                     let ty = self.instantiate_ty(base_ty, mapper);
@@ -573,16 +575,26 @@ impl<'cx> TyChecker<'cx> {
                     index_infos.push(self.any_base_type_index_info());
                 }
             }
+            let props = self.get_props_from_members(&members);
+            let m = self.alloc(ty::StructuredMembers {
+                members: self.alloc(members),
+                call_sigs: self.alloc(call_sigs),
+                ctor_sigs: self.alloc(ctor_sigs),
+                index_infos: self.alloc(index_infos),
+                props,
+            });
+            self.get_mut_ty_links(ty.id).override_structured_members(m);
+        } else {
+            let props = self.get_props_from_members(&members);
+            let m = self.alloc(ty::StructuredMembers {
+                members: self.alloc(members),
+                call_sigs: self.alloc(call_sigs),
+                ctor_sigs: self.alloc(ctor_sigs),
+                index_infos: self.alloc(index_infos),
+                props,
+            });
+            set_structured_members(self, m);
         }
-        let props = self.get_props_from_members(&members);
-        let m = self.alloc(ty::StructuredMembers {
-            members: self.alloc(members),
-            call_sigs: self.alloc(call_sigs),
-            ctor_sigs: self.alloc(ctor_sigs),
-            index_infos: self.alloc(index_infos),
-            props,
-        });
-        set_structured_members(self, m);
     }
 
     fn resolve_declared_members(

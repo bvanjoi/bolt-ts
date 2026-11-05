@@ -36,12 +36,12 @@ x[0] = {
   foo: 'hi'  
 };
 x[0] = {
-  foo: // previously ran out of memory here
-  'hi'  
+  foo: 'hi'  
 };
 x[0] = {
   foo: 'hi'  
-};
+}// previously ran out of memory here
+;
 x[0] = {
   foo: 'hi'  
 };

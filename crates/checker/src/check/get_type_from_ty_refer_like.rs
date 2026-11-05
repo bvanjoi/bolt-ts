@@ -302,8 +302,8 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_ty_refer_type(node, symbol);
         // TODO: remove cycle check
         if let Some(old) = self.get_node_links(id).get_resolved_symbol() {
-            debug_assert!(old == symbol);
-            debug_assert!(self.get_node_links(id).get_resolved_ty() == Some(ty));
+            debug_assert_eq!(old, symbol);
+            debug_assert_eq!(self.get_node_links(id).get_resolved_ty(), Some(ty));
         } else {
             self.get_mut_node_links(id).set_resolved_symbol(symbol);
             self.get_mut_node_links(id).set_resolved_ty(ty);

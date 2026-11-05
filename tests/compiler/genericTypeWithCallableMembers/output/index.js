@@ -4,10 +4,10 @@ class C {
     this.data = data
     
     this.data2 = data2}
-  create() {
-    // no error
-    var x = new this.data();
-    // was error, shouldn't be
+  create() {// no error
+  
+    var x = new this.data();// was error, shouldn't be
+    
     var x2 = new this.data2();
   }
 }

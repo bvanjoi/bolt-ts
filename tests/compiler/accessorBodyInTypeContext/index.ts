@@ -24,12 +24,20 @@ interface Y {
 
 declare namespace C {
   class D {
-    set foo(v: any) { } //~ERROR: An implementation cannot be declared in type contexts.
-    get foo() { return 0 } //~ERROR: An implementation cannot be declared in type contexts.
+    set foo(v: any) { } 
+    //~^ ERROR: An implementation cannot be declared in type contexts.
+    //~| ERROR: An implementation cannot be declared in ambient contexts.
+    get foo() { return 0 }
+    //~^ ERROR: An implementation cannot be declared in type contexts.
+    //~| ERROR: An implementation cannot be declared in ambient contexts.
   }
 }
 
 declare class E {
-  set foo(v: any) { } //~ERROR: An implementation cannot be declared in type contexts.
-  get foo() { return 0 } //~ERROR: An implementation cannot be declared in type contexts.
+  set foo(v: any) { } 
+  //~^ ERROR: An implementation cannot be declared in type contexts.
+  //~| ERROR: An implementation cannot be declared in ambient contexts.
+  get foo() { return 0 }
+  //~^ ERROR: An implementation cannot be declared in type contexts.
+  //~| ERROR: An implementation cannot be declared in ambient contexts.
 }

@@ -1,0 +1,12 @@
+  × Class 'C' used before its declaration.
+   ╭─[../../tests/compiler/es5ExportDefaultClassDeclaration3/index.ts:8:21]
+ 8 │ C
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Class 'C' is defined here
+    ╭─[../../tests/compiler/es5ExportDefaultClassDeclaration3/index.ts:11:22]
+ 11 │ C
+    · ─
+    ╰────

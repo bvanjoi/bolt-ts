@@ -1955,7 +1955,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let identifier_ty = self.get_ty_of_expr(identifier);
-        if self.is_function_type(identifier_ty) && !self.is_constructor_ty(identifier_ty) {
+        if !self.is_function_type(identifier_ty) && !self.is_constructor_ty(identifier_ty) {
             return ty;
         }
 

@@ -1,0 +1,11 @@
+  × Cannot find name 'default'.
+   ╭─[../../tests/compiler/defaultIsNotVisibleInLocalScope/a.ts:4:24]
+ 4 │ default
+   · ───────
+   ╰────
+
+  × Cannot find name 'default'.
+   ╭─[../../tests/compiler/defaultIsNotVisibleInLocalScope/b.ts:2:24]
+ 2 │ default
+   · ───────
+   ╰────

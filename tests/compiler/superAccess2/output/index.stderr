@@ -1,0 +1,128 @@
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superAccess2/index.ts:11:15]
+ 11 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superAccess2/index.ts:11:15]
+ 11 │ ;
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superAccess2/index.ts:14:22]
+ 14 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superAccess2/index.ts:14:22]
+ 14 │ ;
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superAccess2/index.ts:19:33]
+ 19 │ ,
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superAccess2/index.ts:19:33]
+ 19 │ ,
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superAccess2/index.ts:19:45]
+ 19 │ ,
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superAccess2/index.ts:19:45]
+ 19 │ ,
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superAccess2/index.ts:19:64]
+ 19 │ )
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superAccess2/index.ts:19:64]
+ 19 │ )
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superAccess2/index.ts:33:19]
+ 33 │ )
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superAccess2/index.ts:33:19]
+ 33 │ )
+    · ─
+    ╰────
+
+  × 'super' must be followed by an argument list or member access.
+    ╭─[../../tests/compiler/superAccess2/index.ts:41:26]
+ 41 │ )
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/superAccess2/index.ts:41:26]
+ 41 │ )
+    · ─
+    ╰────
+
+  × 'super' must be called before accessing a property of 'super' in the
+  │ constructor of a derived class.
+    ╭─[../../tests/compiler/superAccess2/index.ts:19:28]
+ 19 │ super
+    · ─────
+    ╰────
+
+  × 'super' cannot be referenced in constructor arguments.
+    ╭─[../../tests/compiler/superAccess2/index.ts:19:28]
+ 19 │ super
+    · ─────
+    ╰────
+
+  × 'super' must be called before accessing a property of 'super' in the
+  │ constructor of a derived class.
+    ╭─[../../tests/compiler/superAccess2/index.ts:19:40]
+ 19 │ super
+    · ─────
+    ╰────
+
+  × 'super' cannot be referenced in constructor arguments.
+    ╭─[../../tests/compiler/superAccess2/index.ts:19:40]
+ 19 │ super
+    · ─────
+    ╰────
+
+  × Property 'y' does not exist on type 'P<Q>'.
+    ╭─[../../tests/compiler/superAccess2/index.ts:37:15]
+ 37 │ y
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Did you mean to access the static member 'P<Q>.y' instead?
+    ╭─[../../tests/compiler/superAccess2/index.ts:37:15]
+ 37 │ y
+    · ─
+    ╰────
+
+  × Property 'x' does not exist on type 'typeof P'.
+    ╭─[../../tests/compiler/superAccess2/index.ts:44:15]
+ 44 │ x
+    · ─
+    ╰────

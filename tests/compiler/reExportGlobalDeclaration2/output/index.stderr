@@ -1,0 +1,35 @@
+  × Cannot export 'I1'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration2/file2.ts:1:9]
+ 1 │ I1
+   · ──
+   ╰────
+
+  × Cannot export 'I1'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration2/file2.ts:1:13]
+ 1 │ I1
+   · ──
+   ╰────
+
+  × Cannot export 'I2'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration2/file2.ts:4:9]
+ 4 │ I2
+   · ──
+   ╰────
+
+  × Cannot export 'I2'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration2/file2.ts:4:13]
+ 4 │ I2
+   · ──
+   ╰────
+
+  × Cannot export 'I1'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration2/file2.ts:7:9]
+ 7 │ I1
+   · ──
+   ╰────
+
+  × Cannot export 'I2'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration2/file2.ts:9:9]
+ 9 │ I2
+   · ──
+   ╰────

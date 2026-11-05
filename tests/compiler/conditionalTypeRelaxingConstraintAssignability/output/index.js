@@ -7,8 +7,8 @@ export class Elem {
 }
 new Elem(undefined);
 new Elem('');
-new Elem('');
-// error
+new Elem('');// error
+
 new Elem('');// error
 // Repro from #31766
 

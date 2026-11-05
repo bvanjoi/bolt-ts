@@ -12,6 +12,13 @@
     · ─
     ╰────
 
+  × An export declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:13:20]
+ 13 │ function
+    · ────────
+    ╰────
+
   × '}' expected.
    ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:15:1]
    ╰────

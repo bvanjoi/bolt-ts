@@ -10,7 +10,6 @@ use super::ty::Ty;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
-use bolt_ts_ast::r#trait;
 use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
@@ -720,6 +719,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if decl.init().is_some() && decl.has_only_expr_initializer() {
+            // TODO: is_in_js_file
             let ty = self.check_declaration_initializer(decl, check_mode, None);
             let ty = self.widen_ty_inferred_from_initializer(decl, ty);
             return Some(self.add_optionality::<false>(ty, is_optional));
@@ -783,9 +783,9 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
         let widened = self.get_widened_literal_ty_for_initializer(decl, ty);
-        if self.node_query(decl.id().module()).is_in_js_file(decl.id()) {
-            todo!()
-        }
+        // if self.node_query(decl.id().module()).is_in_js_file(decl.id()) {
+        //     todo!()
+        // }
         widened
     }
 
@@ -883,29 +883,33 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn widen_ty_for_variable_like_declaration<const REPORT_ERROR: bool>(
         &mut self,
         ty: Option<&'cx Ty<'cx>>,
-        decl: &impl r#trait::VarLike<'cx>,
+        variable_like_declaration_id: ast::NodeID,
     ) -> &'cx Ty<'cx> {
         match ty {
             Some(ty) => {
                 // TODO: esymbol check
                 if REPORT_ERROR {
-                    self.report_errors_from_widening(decl.id(), ty, None);
+                    self.report_errors_from_widening(variable_like_declaration_id, ty, None);
                 }
                 self.get_widened_ty(ty)
             }
             None => {
-                let ty = if let Some(decl) = self.p.node(decl.id()).as_param_decl() {
-                    if decl.dotdotdot.is_some() {
-                        self.any_array_ty()
+                let ty =
+                    if let Some(decl) = self.p.node(variable_like_declaration_id).as_param_decl() {
+                        if decl.dotdotdot.is_some() {
+                            self.any_array_ty()
+                        } else {
+                            self.any_ty
+                        }
                     } else {
                         self.any_ty
-                    }
-                } else {
-                    self.any_ty
-                };
+                    };
 
-                if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(decl) {
-                    self.report_implicit_any(decl.id(), ty, None);
+                if REPORT_ERROR
+                    && !self
+                        .declaration_belongs_to_private_ambient_member(variable_like_declaration_id)
+                {
+                    self.report_implicit_any(variable_like_declaration_id, ty, None);
                 }
 
                 ty
@@ -915,9 +919,9 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn declaration_belongs_to_private_ambient_member(
         &self,
-        decl: &impl VarLike<'cx>,
+        variable_like_declaration_id: ast::NodeID,
     ) -> bool {
-        let decl_id = decl.id();
+        let decl_id = variable_like_declaration_id;
         let root = self.node_query(decl_id.module()).get_root_decl(decl_id);
         let member_declaration = if self.p.node(root).is_param_decl() {
             self.parent(root).unwrap()

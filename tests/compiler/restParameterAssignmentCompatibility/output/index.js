@@ -11,8 +11,8 @@ var t;
 var s;
 // M is a non - specialized call or construct signature and S' contains a call or construct signature N where,
 //  the number of non-optional parameters in N is less than or equal to the total number of parameters in M,
-t = s;
-// Should be valid (rest params correspond to an infinite expansion of parameters)
+t = s;// Should be valid (rest params correspond to an infinite expansion of parameters)
+
 class T1 {
   m(p1, p2) {}
 }

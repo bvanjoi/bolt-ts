@@ -143,6 +143,19 @@ impl BinderState<'_, '_, '_> {
                                 && ident.name == keyword::IDENT_EMPTY
                             {
                                 // TODO: delay error reporting
+                            } else if old_symbol
+                                .flags
+                                .intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE)
+                            {
+                                let error = Box::new(errors::CannotRedeclareBlockScopedVariableX {
+                                    span: declaration_name.span(),
+                                    name: name.to_string(self.atoms),
+                                    original_span: old_decl
+                                        .name()
+                                        .map(|name| name.span())
+                                        .unwrap_or(old_decl.span()),
+                                });
+                                self.push_error(error);
                             } else {
                                 let error = Box::new(errors::DuplicateIdentifier {
                                     span: declaration_name.span(),

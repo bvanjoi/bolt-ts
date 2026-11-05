@@ -2,8 +2,8 @@
 //@compiler-options: target=es2015
 function foo(a) {
   var b = 0;
-  a = b;
-  // ok
+  a = b;// ok
+  
   var c = 0;
   a = c;
   var d = 0;

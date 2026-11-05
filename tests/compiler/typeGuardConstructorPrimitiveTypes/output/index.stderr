@@ -1,0 +1,161 @@
+  × Variable 'var1' is used before being assigned.
+   ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:7:5]
+ 7 │ var1
+   · ────
+   ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:11:11]
+ 11 │ a
+    · ─
+    ╰────
+
+  × Variable 'var1' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:14:5]
+ 14 │ var1
+    · ────
+    ╰────
+
+  × Type 'number' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:18:11]
+ 18 │ a
+    · ─
+    ╰────
+
+  × Variable 'var1' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:21:5]
+ 21 │ var1
+    · ────
+    ╰────
+
+  × Type 'boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:25:11]
+ 25 │ a
+    · ─
+    ╰────
+
+  × Variable 'var1' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:28:5]
+ 28 │ var1
+    · ────
+    ╰────
+
+  × Type 'any[]' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:31:11]
+ 31 │ a
+    · ─
+    ╰────
+
+  × Variable 'var1' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:34:5]
+ 34 │ var1
+    · ────
+    ╰────
+
+  × Type 'symbol' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:38:11]
+ 38 │ a
+    · ─
+    ╰────
+
+  × Variable 'var1' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:41:5]
+ 41 │ var1
+    · ────
+    ╰────
+
+  × Type 'bigint' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:45:11]
+ 45 │ a
+    · ─
+    ╰────
+
+  × Variable 'var2' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:51:5]
+ 51 │ var2
+    · ────
+    ╰────
+
+  × Variable 'var1' is used before being assigned.
+   ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:7:5]
+ 7 │ var1
+   · ────
+   ╰────
+
+  × Type 'String' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:54:11]
+ 54 │ a
+    · ─
+    ╰────
+
+  × Variable 'var2' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:57:5]
+ 57 │ var2
+    · ────
+    ╰────
+
+  × Variable 'var1' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:14:5]
+ 14 │ var1
+    · ────
+    ╰────
+
+  × Type 'Number' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:60:11]
+ 60 │ a
+    · ─
+    ╰────
+
+  × Variable 'var2' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:63:5]
+ 63 │ var2
+    · ────
+    ╰────
+
+  × Variable 'var1' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:21:5]
+ 21 │ var1
+    · ────
+    ╰────
+
+  × Type 'Boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:66:11]
+ 66 │ a
+    · ─
+    ╰────
+
+  × Variable 'var2' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:69:5]
+ 69 │ var2
+    · ────
+    ╰────
+
+  × Variable 'var1' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:34:5]
+ 34 │ var1
+    · ────
+    ╰────
+
+  × Type 'Symbol' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:72:11]
+ 72 │ a
+    · ─
+    ╰────
+
+  × Variable 'var2' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:75:5]
+ 75 │ var2
+    · ────
+    ╰────
+
+  × Variable 'var1' is used before being assigned.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:41:5]
+ 41 │ var1
+    · ────
+    ╰────
+
+  × Type 'BigInt' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorPrimitiveTypes/index.ts:78:11]
+ 78 │ a
+    · ─
+    ╰────

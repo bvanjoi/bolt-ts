@@ -5,6 +5,6 @@
 
 x = Error;
 x = RangeError;
-new // OK
-x().message;
+new// OK
+ x().message;
 x.captureStackTrace;

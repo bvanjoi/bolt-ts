@@ -2,6 +2,6 @@
 //@compiler-options: target=es2015
 function test(fn) {
   var arr = {};
-  fn(...arr// Error: Argument of type 'any[]' is not assignable to parameter of type 'Foo<T>'
-  );
+  fn(...arr)// Error: Argument of type 'any[]' is not assignable to parameter of type 'Foo<T>'
+  ;
 }

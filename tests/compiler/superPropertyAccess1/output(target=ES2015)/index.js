@@ -12,12 +12,12 @@ class D extends C {
   foo() {
     super.bar();
     super.x;
-  }
-  // error
+  }// error
+  
   //~[target=ES5]^ ERROR: Only public and protected methods of the base class are accessible via the 'super' keyword.
   constructor() {super();super.bar();
-    super.x;}
-  // error
+    super.x;}// error
+  
   //~[target=ES5]^ ERROR: Only public and protected methods of the base class are accessible via the 'super' keyword.
   get y() {
     super.bar();

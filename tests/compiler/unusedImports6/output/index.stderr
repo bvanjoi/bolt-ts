@@ -1,0 +1,5 @@
+  × 'd' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedImports6/file2.ts:1:8]
+ 1 │ d
+   · ─
+   ╰────

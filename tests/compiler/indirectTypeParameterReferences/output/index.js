@@ -20,6 +20,6 @@ literal((aPlusB) => {
 combined((comb) => {
   comb.b;
   comb.a;
-// Repro from #19091
-});
+});// Repro from #19091
+
 var n = f(2).a;

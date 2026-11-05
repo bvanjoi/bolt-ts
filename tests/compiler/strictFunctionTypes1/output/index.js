@@ -3,15 +3,15 @@
 //@compiler-options: strict
 //@compiler-options: declaration
 //@run-fail
-var x1 = f1(fo, fs);
-// (x: string) => void
-var x2 = f2('abc', fo, fs);
-// "abc"
-var x3 = f3('abc', fo, fx);
-// "abc" | "def"
-var x4 = f4(fo, fs);
+var x1 = f1(fo, fs);// (x: string) => void
 
-// Func<string>
+var x2 = f2('abc', fo, fs);// "abc"
+
+var x3 = f3('abc', fo, fx);// "abc" | "def"
+
+var x4 = f4(fo, fs);// Func<string>
+
+
 var x10 = f2(never, fo, fs);
 var x11 = f3(never// string
 , fo, fx);// "def"

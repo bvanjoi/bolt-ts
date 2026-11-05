@@ -217,41 +217,6 @@
     · ────────
     ╰────
 
-  × Property 'x' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:73:35]
- 73 │ x
-    · ─
-    ╰────
-
-  × Property 'y' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:73:46]
- 73 │ y
-    · ─
-    ╰────
-
-  × Property 'x' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:76:36]
- 76 │ x
-    · ─
-    ╰────
-
-  × Property 'z' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:76:47]
- 76 │ z
-    · ─
-    ╰────
-
-  × Property 'a' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:79:34]
- 79 │ a
-    · ─
-    ╰────
-
   × No overload matches this call.
     ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:91:22]
  84 │ voidIfAny(x: boolean, y?: boolean): number;
@@ -595,3 +560,38 @@
  128 │ ifaceObj
      · ────────
      ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:73:35]
+ 73 │ x
+    · ─
+    ╰────
+
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:73:46]
+ 73 │ y
+    · ─
+    ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:76:36]
+ 76 │ x
+    · ─
+    ╰────
+
+  × Property 'z' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:76:47]
+ 76 │ z
+    · ─
+    ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:79:34]
+ 79 │ a
+    · ─
+    ╰────

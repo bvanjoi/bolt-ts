@@ -23,7 +23,7 @@ export {  }/**
  * These two functions work as charm, also they are superfast and as expected they don't use additional Memory
  */
 var y1;
-var y2/**
+var y2;/**
  *
  * ... nevertheless when I need to use the Expand in other Types, as the following examples, the popup show "loading..." and without show any information and
  * the Memory Heap grows to 1.2gb (in my case) every time... You can see it opening the Chrome DevTools and check the memory Tab.
@@ -34,7 +34,7 @@ var y2/**
  * *******
  *
  */
-;
+
 /**
  * but as you can see here, the expansion of Interface X it's still working.
  *

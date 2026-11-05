@@ -1,0 +1,5 @@
+  × Generic type 'callback' requires 1 type argument.
+   ╭─[../../tests/compiler/typeAliasDeclarationEmit/index.ts:7:37]
+ 7 │ callback
+   · ────────
+   ╰────

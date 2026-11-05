@@ -1,0 +1,5 @@
+  × Invalid use of 'arguments'. Modules are automatically in strict mode.
+    ╭─[../../tests/compiler/shadowedReservedCompilerDeclarationsWithNoEmit/index.ts:30:13]
+ 30 │ arguments
+    · ─────────
+    ╰────

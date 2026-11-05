@@ -1,0 +1,10 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/tryStatementInternalComments.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+/*1*/ try /*2*/ { /*3*/
+    /*4*/ throw /*5*/ "no" /*6*/;
+/*7*/} /*8*/ catch /*9*/ ( /*10*/ e /*11*/ ) /*12*/ { /*13*/
+
+/*14*/} /*15*/ finally /*16*/ { /*17*/
+
+/*18*/} /*19*/

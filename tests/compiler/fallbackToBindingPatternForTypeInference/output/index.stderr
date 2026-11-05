@@ -1,0 +1,73 @@
+  × Argument of type '({ a }: { a: any; }) => any' is not assignable to
+  │ parameter of type '(x: unknown) => string'.
+   ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:5:7]
+ 5 │ ({a}) => a
+   · ──────────
+   ╰────
+
+  × Argument of type '([b, c]: [any?, any?]) => string' is not assignable to
+  │ parameter of type '(x: unknown) => string'.
+   ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:7:7]
+ 7 │ ([b,c]) => 'foo'
+   · ────────────────
+   ╰────
+
+  × Property '"d"' does not exist on type 'unknown'.
+   ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:9:9]
+ 9 │ d
+   · ─
+   ╰────
+
+  × Property '"d"' does not exist on type 'unknown'.
+   ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:9:9]
+ 9 │ d
+   · ─
+   ╰────
+
+  × Argument of type '({ d: [e, f] }: { d: [any?, any?]; }) => string' is not
+  │ assignable to parameter of type '(x: unknown) => string'.
+   ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:9:7]
+ 9 │ ({d: [e,f]}) => 'foo'
+   · ─────────────────────
+   ╰────
+
+  × Property '"g"' does not exist on type 'undefined | { g: any; }'.
+    ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:13:10]
+ 13 │ g
+    · ─
+    ╰────
+
+  × Property '"h"' does not exist on type 'undefined | { h: any; }'.
+    ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:13:14]
+ 13 │ h
+    · ─
+    ╰────
+
+  × Type 'T' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+    ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:13:8]
+ 13 │ [{g},{h}]
+    · ─────────
+    ╰────
+
+  × Type 'T' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+    ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:13:8]
+ 13 │ [{g},{h}]
+    · ─────────
+    ╰────
+
+  × Argument of type '([{ g }, { h }]: [undefined | { g: any; }?, undefined |
+  │ { h: any; }?]) => string' is not assignable to parameter of type '(x:
+  │ unknown) => string'.
+    ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:13:7]
+ 13 │ ([{g},{h}]) => 'foo'
+    · ────────────────────
+    ╰────
+
+  × Argument of type '({ a, b }: { a: any; b: undefined | number; }) => any'
+  │ is not assignable to parameter of type '(x: unknown) => string'.
+    ╭─[../../tests/compiler/fallbackToBindingPatternForTypeInference/index.ts:19:7]
+ 19 │ ({a, b = 10}) => a
+    · ──────────────────
+    ╰────

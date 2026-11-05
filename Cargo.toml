@@ -21,7 +21,7 @@ members = [
   "crates/module_resolve",
   "crates/module_resolve_test",
   "crates/napi",
-  "crates/optimize",
+  "crates/emit",
   "crates/parser",
   "crates/parser_errors",
   "crates/path",

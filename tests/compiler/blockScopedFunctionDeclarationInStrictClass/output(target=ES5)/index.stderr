@@ -1,0 +1,12 @@
+  × Function declarations are not allowed inside blocks in strict mode when
+  │ targeting 'ES5'. Class definitions are automatically in strict mode.
+   ╭─[../../tests/compiler/blockScopedFunctionDeclarationInStrictClass/index.ts:9:22]
+ 9 │ foo
+   · ───
+   ╰────
+
+  × Cannot find name 'foo'.
+    ╭─[../../tests/compiler/blockScopedFunctionDeclarationInStrictClass/index.ts:13:9]
+ 13 │ foo
+    · ───
+    ╰────

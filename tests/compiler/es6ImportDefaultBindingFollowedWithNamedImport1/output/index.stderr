@@ -1,0 +1,47 @@
+  × Module '"./es6ImportDefaultBindingFollowedWithNamedImport1_0"' has no
+  │ exported member 'a'. Did you mean to use 'import a from "./
+  │ es6ImportDefaultBindingFollowedWithNamedImport1_0"' instead?
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1/es6ImportDefaultBindingFollowedWithNamedImport1_1.ts:3:27]
+ 3 │ a
+   · ─
+   ╰────
+
+  × Module '"./es6ImportDefaultBindingFollowedWithNamedImport1_0"' has no
+  │ exported member 'a'. Did you mean to use 'import a from "./
+  │ es6ImportDefaultBindingFollowedWithNamedImport1_0"' instead?
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1/es6ImportDefaultBindingFollowedWithNamedImport1_1.ts:6:27]
+ 6 │ a as b
+   · ──────
+   ╰────
+
+  × Module '"./es6ImportDefaultBindingFollowedWithNamedImport1_0"' has no
+  │ exported member 'x'. Did you mean to use 'import x from "./
+  │ es6ImportDefaultBindingFollowedWithNamedImport1_0"' instead?
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1/es6ImportDefaultBindingFollowedWithNamedImport1_1.ts:9:27]
+ 9 │ x
+   · ─
+   ╰────
+
+  × Module '"./es6ImportDefaultBindingFollowedWithNamedImport1_0"' has no
+  │ exported member 'a'. Did you mean to use 'import a from "./
+  │ es6ImportDefaultBindingFollowedWithNamedImport1_0"' instead?
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1/es6ImportDefaultBindingFollowedWithNamedImport1_1.ts:9:30]
+ 9 │ a as y
+   · ──────
+   ╰────
+
+  × Module '"./es6ImportDefaultBindingFollowedWithNamedImport1_0"' has no
+  │ exported member 'x'. Did you mean to use 'import x from "./
+  │ es6ImportDefaultBindingFollowedWithNamedImport1_0"' instead?
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1/es6ImportDefaultBindingFollowedWithNamedImport1_1.ts:13:27]
+ 13 │ x as z
+    · ──────
+    ╰────
+
+  × Module '"./es6ImportDefaultBindingFollowedWithNamedImport1_0"' has no
+  │ exported member 'm'. Did you mean to use 'import m from "./
+  │ es6ImportDefaultBindingFollowedWithNamedImport1_0"' instead?
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1/es6ImportDefaultBindingFollowedWithNamedImport1_1.ts:16:27]
+ 16 │ m
+    · ─
+    ╰────

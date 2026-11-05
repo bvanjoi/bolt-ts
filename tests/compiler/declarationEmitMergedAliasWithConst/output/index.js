@@ -7,3 +7,4 @@ var Color = {
   Green: 'Green',
   Blue: 'Blue'  
 };
+Color;

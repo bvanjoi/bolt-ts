@@ -1,75 +1,123 @@
+  × An implementation cannot be declared in ambient contexts.
+   ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:8:13]
+ 8 │ X
+   · ─
+   ╰────
+
   × An implementation cannot be declared in type contexts.
    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:8:17]
  8 │ { return 1; }
    · ─────────────
    ╰────
 
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:10:18]
- 10 │ { }
-    · ───
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:14:24]
- 14 │ { return 1; }
-    · ─────────────
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:16:25]
- 16 │ { }
-    · ───
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:23:13]
- 23 │ { return 1; }
-    · ─────────────
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:25:14]
- 25 │ { }
-    · ───
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:29:20]
- 29 │ { return 1; }
-    · ─────────────
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:31:21]
- 31 │ { }
-    · ───
-    ╰────
-
-  × Property 'X' implicitly has type 'any', because its set accessor lacks a
-  │ parameter type annotation.
-    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:10:13]
- 10 │ X
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:11:13]
+ 11 │ X
     · ─
     ╰────
 
-  × Property 'Y' implicitly has type 'any', because its set accessor lacks a
-  │ parameter type annotation.
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:11:18]
+ 11 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in ambient contexts.
     ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:16:20]
  16 │ Y
     · ─
     ╰────
 
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:16:24]
+ 16 │ { return 1; }
+    · ─────────────
+    ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:19:20]
+ 19 │ Y
+    · ─
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:19:25]
+ 19 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:27:9]
+ 27 │ X
+    · ─
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:27:13]
+ 27 │ { return 1; }
+    · ─────────────
+    ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:30:9]
+ 30 │ X
+    · ─
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:30:14]
+ 30 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:35:16]
+ 35 │ Y
+    · ─
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:35:20]
+ 35 │ { return 1; }
+    · ─────────────
+    ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:38:16]
+ 38 │ Y
+    · ─
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:38:21]
+ 38 │ { }
+    · ───
+    ╰────
+
   × Property 'X' implicitly has type 'any', because its set accessor lacks a
   │ parameter type annotation.
-    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:25:9]
- 25 │ X
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:11:13]
+ 11 │ X
     · ─
     ╰────
 
   × Property 'Y' implicitly has type 'any', because its set accessor lacks a
   │ parameter type annotation.
-    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:31:16]
- 31 │ Y
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:19:20]
+ 19 │ Y
+    · ─
+    ╰────
+
+  × Property 'X' implicitly has type 'any', because its set accessor lacks a
+  │ parameter type annotation.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:30:9]
+ 30 │ X
+    · ─
+    ╰────
+
+  × Property 'Y' implicitly has type 'any', because its set accessor lacks a
+  │ parameter type annotation.
+    ╭─[../../tests/compiler/accessorsInAmbientContext/index.ts:38:16]
+ 38 │ Y
     · ─
     ╰────
