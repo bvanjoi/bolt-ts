@@ -2428,3 +2428,12 @@ pub struct ModuleXHasNoDefaultExport {
     pub span: Span,
     pub module: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "A namespace declaration cannot be in a different file from a class or function with which it is merged."
+)]
+pub struct ANamespaceDeclarationCannotBeInADifferentFileFromAClassOrFunctionWithWhichItIsMerged {
+    #[label(primary)]
+    pub span: Span,
+}

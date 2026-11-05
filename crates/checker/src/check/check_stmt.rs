@@ -616,15 +616,30 @@ impl<'cx> TyChecker<'cx> {
         if s.flags.intersects(SymbolFlags::VALUE_MODULE)
             && !in_ambient_context
             && self.is_instantiate_module(module_block)
-            && s.decls.as_ref().is_some_and(|decls| decls.len() > 1)
-            && let Some(first_none_ambient_class_or_fn) =
-                self.get_first_non_ambient_class_or_fn_decl(s)
-            && span.lo() < self.p.node(first_none_ambient_class_or_fn).span().lo()
         {
-            let error = errors::ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
+            if self.options().erasable_syntax_only() {
+                todo!()
+            }
+            // TODO: get_isolated_modules
+            if let Some(decls) = s.decls.as_ref()
+                && decls.len() > 1
+                && let Some(first_none_ambient_class_or_fn) =
+                    self.get_first_non_ambient_class_or_fn_decl(s)
+            {
+                let first_none_ambient_class_or_fn_span =
+                    self.p.node(first_none_ambient_class_or_fn).span();
+                if span.module() != first_none_ambient_class_or_fn_span.module() {
+                    let error = errors::ANamespaceDeclarationCannotBeInADifferentFileFromAClassOrFunctionWithWhichItIsMerged {
+                        span: module_name.span(),
+                    };
+                    self.push_error(Box::new(error));
+                } else if span.lo() < first_none_ambient_class_or_fn_span.lo() {
+                    let error = errors::ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
                             span: module_name.span(),
                         };
-            self.push_error(Box::new(error));
+                    self.push_error(Box::new(error));
+                }
+            }
         }
 
         if is_ambient_external_module {

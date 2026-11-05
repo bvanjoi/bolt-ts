@@ -1,0 +1,24 @@
+  × Cannot find name 'Library'.
+   ╭─[../../tests/compiler/namespaceMergedWithImportAliasNoCrash/file1.ts:5:1]
+ 5 │ Library
+   · ───────
+   ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a value.
+   ╭─[../../tests/compiler/namespaceMergedWithImportAliasNoCrash/file1.ts:1:18]
+ 1 │ Library
+   · ───────
+   ╰────
+
+  × Import declaration conflicts with local declaration of 'Lib'.
+   ╭─[../../tests/compiler/namespaceMergedWithImportAliasNoCrash/file2.ts:1:8]
+ 1 │ * as Lib
+   · ────────
+   ╰────
+
+  × Namespace 'Lib' has no exported member 'Bar'.
+   ╭─[../../tests/compiler/namespaceMergedWithImportAliasNoCrash/file2.ts:7:12]
+ 7 │ Bar
+   · ───
+   ╰────

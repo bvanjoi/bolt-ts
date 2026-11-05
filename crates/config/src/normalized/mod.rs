@@ -51,17 +51,18 @@ bitflags::bitflags! {
         const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 23;
         const ES_MODULE_INTEROP                         = 1 << 24;
         const EMIT_DECLARATION_ONLY                     = 1 << 25;
+        const ERASABLE_SYNTAX_ONLY                      = 1 << 26;
 
-        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 26;
-        const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 27;
+        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 27;
+        const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 28;
 
-        const PRESERVE_SYMLINKS                         = 1 << 28;
-        const PRESERVE_CONST_ENUMS                      = 1 << 29;
+        const PRESERVE_SYMLINKS                         = 1 << 29;
+        const PRESERVE_CONST_ENUMS                      = 1 << 30;
 
-        const ALWAYS_STRICT                             = 1 << 30;
-        const DECLARATION                               = 1 << 31;
-        const CHECK_JS                                  = 1 << 32;
-        const DOWNLEVEL_ITERATION                       = 1 << 33;
+        const ALWAYS_STRICT                             = 1 << 31;
+        const DECLARATION                               = 1 << 32;
+        const CHECK_JS                                  = 1 << 33;
+        const DOWNLEVEL_ITERATION                       = 1 << 34;
     }
 }
 
@@ -274,6 +275,12 @@ impl NormalizedCompilerOptions {
     #[inline(always)]
     pub const fn no_emit(&self) -> bool {
         self.flags.contains(CompilerOptionFlags::NO_EMIT)
+    }
+
+    #[inline(always)]
+    pub const fn erasable_syntax_only(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::ERASABLE_SYNTAX_ONLY)
     }
 }
 

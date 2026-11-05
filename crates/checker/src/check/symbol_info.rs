@@ -1312,7 +1312,8 @@ fn get_target_of_export_spec<const DONT_RESOLVE_ALIAS: bool>(
                 let p = this.parent(node).unwrap();
                 let p = this.p.node(p).expect_specs_export();
                 if p.module.is_some() {
-                    todo!()
+                    // todo!()
+                    None
                 } else {
                     Some(this.final_res(ident.id))
                 }

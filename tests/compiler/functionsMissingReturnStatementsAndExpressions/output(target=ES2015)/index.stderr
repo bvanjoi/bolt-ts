@@ -1,0 +1,56 @@
+  × Identifier expected.
+     ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressions/index.ts:160:5]
+ 160 │ }
+     · ─
+     ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+   ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressions/index.ts:7:16]
+ 7 │ string
+   · ──────
+   ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressions/index.ts:13:5]
+ 13 │ return;
+    · ───────
+    ╰────
+
+  × Type 'null' is not assignable to type 'void'.
+    ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressions/index.ts:36:12]
+ 36 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'void'.
+    ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressions/index.ts:51:12]
+ 51 │ null
+    · ────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressions/index.ts:80:5]
+ 80 │ return;
+    · ───────
+    ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+     ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressions/index.ts:105:17]
+ 105 │ number | string
+     · ───────────────
+     ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+     ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressions/index.ts:113:17]
+ 113 │ undefined | number
+     · ──────────────────
+     ╰────
+
+  × A 'get' accessor must return a value.
+     ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressions/index.ts:136:16]
+ 136 │ m1
+     · ──
+     ╰────

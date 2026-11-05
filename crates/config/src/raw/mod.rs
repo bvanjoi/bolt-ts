@@ -51,6 +51,7 @@ with_option!(
     (strict_property_initialization, bool),
     (no_emit, bool),
     (emit_declaration_only, bool),
+    (erasable_syntax_only, bool),
     (no_lib, bool),
     (no_implicit_any, bool),
     (no_implicit_this, bool),
@@ -184,6 +185,9 @@ impl RawCompilerOptions {
         }
         if self.emit_declaration_only.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::EMIT_DECLARATION_ONLY);
+        }
+        if self.erasable_syntax_only.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::ERASABLE_SYNTAX_ONLY);
         }
 
         match self.use_define_for_class_fields {

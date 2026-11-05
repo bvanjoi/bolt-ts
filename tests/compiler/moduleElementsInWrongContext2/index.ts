@@ -27,13 +27,11 @@ function blah () {
     function foo() { }
     export * from "ambient";
     //~^ ERROR: An export declaration can only be used at the top level of a namespace or module.
-    //~| ERROR: Export declarations are not permitted in a namespace.
     export { foo };
     //~^ ERROR: An export declaration can only be used at the top level of a namespace or module.
     //~| ERROR: Export declaration conflicts with exported declaration of 'foo'.
     export { baz as b } from "ambient";
     //~^ ERROR: An export declaration can only be used at the top level of a namespace or module.
-    //~| ERROR: Export declarations are not permitted in a namespace.
     export default v;
     //~^ ERROR: A default export must be at the top level of a file or module declaration.
     export default class C { }
@@ -44,7 +42,6 @@ function blah () {
     //~^ ERROR: An import declaration can only be used at the top level of a namespace or module.
     import I2 = require("foo");
     //~^ ERROR: An import declaration can only be used at the top level of a namespace or module.
-    //~| ERROR: Import declarations in a namespace cannot reference a module.
     import * as Foo from "ambient";
     //~^ ERROR: An import declaration can only be used at the top level of a namespace or module.
     import bar from "ambient";

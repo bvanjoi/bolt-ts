@@ -310,21 +310,23 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         }
     }
 
-    fn check_external_import_equals_declaration(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) {
-        let Some(module_name) = node.get_external_module_name() else {
-            return;
-        };
-        let parent = self.parent(node.id).unwrap();
+    fn check_external_import_like_declaration(
+        &mut self,
+        node: ast::NodeID,
+        module_span: bolt_ts_span::Span,
+    ) {
+        let parent = self.parent(node).unwrap();
         let parent_node = self.p.node(parent);
-        let is_ambient_external_module = parent_node.is_module_block() && {
+        // let is_ambient_external_module = parent_node.is_module_block() && {
+        //     let parent_parent = self.parent(parent).unwrap();
+        //     self.p.node(parent_parent).is_ambient_module()
+        // };
+        if !parent_node.is_program() && parent_node.is_module_block() && {
             let parent_parent = self.parent(parent).unwrap();
-            self.p.node(parent_parent).is_ambient_module()
-        };
-        if !parent_node.is_program() && !is_ambient_external_module {
+            !self.p.node(parent_parent).is_ambient_module()
+        } {
             let error = Box::new(
-                errors::ImportDeclarationsInANamespaceCannotReferenceAModule {
-                    span: module_name.span,
-                },
+                errors::ImportDeclarationsInANamespaceCannotReferenceAModule { span: module_span },
             );
             self.push_error(error);
         }
@@ -337,11 +339,10 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         };
         let parent = self.parent(node.id).unwrap();
         let parent_node = self.p.node(parent);
-        let is_ambient_external_module = parent_node.is_module_block() && {
+        if !parent_node.is_program() && parent_node.is_module_block() && {
             let parent_parent = self.parent(parent).unwrap();
-            self.p.node(parent_parent).is_ambient_module()
-        };
-        if !parent_node.is_program() && !is_ambient_external_module {
+            !self.p.node(parent_parent).is_ambient_module()
+        } {
             let error = Box::new(errors::ExportDeclarationsAreNotPermittedInANamespace {
                 span: module_name.span,
             });
@@ -528,8 +529,14 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
         bolt_ts_ast_visitor::visit_object_binding_elem(self, node)
     }
     fn visit_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) -> Self::Result {
-        self.check_external_import_equals_declaration(node);
+        if let Some(module) = node.get_external_module_name() {
+            self.check_external_import_like_declaration(node.id, module.span);
+        }
         bolt_ts_ast_visitor::visit_import_equals_decl(self, node)
+    }
+    fn visit_import_decl(&mut self, node: &'cx bolt_ts_ast::ImportDecl<'cx>) -> Self::Result {
+        self.check_external_import_like_declaration(node.id, node.module.span);
+        bolt_ts_ast_visitor::visit_import_decl(self, node)
     }
     fn visit_ty_param(&mut self, node: &'cx ast::TyParam<'cx>) -> Self::Result {
         self.check_type_name_is_reserved(node.name, |this| {
