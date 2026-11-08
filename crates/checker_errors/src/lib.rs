@@ -4,6 +4,8 @@ use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
 use bolt_ts_span::Span;
 
+pub use bolt_ts_parser_errors::ThisSyntaxIsNotAllowedWhenErasableSyntaxOnlyIsEnabled;
+
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy)]

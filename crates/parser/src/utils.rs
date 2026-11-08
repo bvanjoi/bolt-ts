@@ -730,24 +730,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         const INVALID_MODIFIERS: ast::ModifierFlags = ast::ModifierFlags::STATIC
             .union(ast::ModifierFlags::EXPORT)
             .union(ast::ModifierFlags::AMBIENT);
-        if modifiers
-            .map(|ms| ms.flags.intersects(INVALID_MODIFIERS))
-            .unwrap_or_default()
-            && let Some(ms) = modifiers.map(|ms| {
-                ms.list
-                    .iter()
-                    .filter(|m| INVALID_MODIFIERS.contains(m.kind().into_flag()))
-                    .copied()
-            })
-        {
-            for m in ms {
-                let error = errors::ModifierCannotAppearOnAParameter {
-                    span: m.span(),
-                    kind: m.kind(),
-                };
-                self.push_error(Box::new(error));
-            }
-        }
 
         if self.token.kind == TokenKind::This {
             let name = self.parse_binding_with_ident(None);
@@ -815,6 +797,31 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             }
         };
         let span = self.new_span(start);
+
+        if let Some(ms) = modifiers {
+            if ms.flags.intersects(INVALID_MODIFIERS)
+                && let ms = ms
+                    .list
+                    .iter()
+                    .filter(|m| INVALID_MODIFIERS.contains(m.kind().into_flag()))
+                    .copied()
+            {
+                for m in ms {
+                    let error = errors::ModifierCannotAppearOnAParameter {
+                        span: m.span(),
+                        kind: m.kind(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+            if ms
+                .flags
+                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+            {
+                self.report_erasable_syntax_error(span);
+            }
+        }
+
         let decl =
             self.create_parameter_declaration(span, modifiers, dotdotdot, name, question, ty, init);
         Ok(decl)

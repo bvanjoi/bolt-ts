@@ -617,9 +617,6 @@ impl<'cx> TyChecker<'cx> {
             && !in_ambient_context
             && self.is_instantiate_module(module_block)
         {
-            if self.options().erasable_syntax_only() {
-                todo!()
-            }
             // TODO: get_isolated_modules
             if let Some(decls) = s.decls.as_ref()
                 && decls.len() > 1
@@ -640,6 +637,7 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
             }
+            self.report_erasable_syntax_error(module_name.span());
         }
 
         if is_ambient_external_module {

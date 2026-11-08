@@ -53,6 +53,7 @@ pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) target: Target,
     /// cache these tokens to prevent scan multiple times during lookahead.
     pub(super) tokens: FxHashMap<usize, TokenContext>,
+    pub(super) flags: bolt_ts_config::CompilerOptionFlags,
 }
 
 #[derive(Debug)]
@@ -76,6 +77,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         module_id: ModuleID,
         file_path: &std::path::Path,
         target: Target,
+        flags: bolt_ts_config::CompilerOptionFlags,
     ) -> Self {
         debug_assert!(file_path.is_normalized());
         let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
@@ -123,6 +125,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             labels: Default::default(),
             target,
             tokens: FxHashMap::default(),
+            flags,
         }
     }
 
@@ -600,6 +603,17 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                 span: ident.span,
                 identifier: self.atoms.lock().unwrap().get(ident.name).to_string(),
             };
+            self.push_error(Box::new(error));
+        }
+    }
+
+    pub(super) fn report_erasable_syntax_error(&mut self, span: bolt_ts_span::Span) {
+        if self
+            .flags
+            .contains(bolt_ts_config::CompilerOptionFlags::ERASABLE_SYNTAX_ONLY)
+        {
+            std::hint::cold_path();
+            let error = errors::ThisSyntaxIsNotAllowedWhenErasableSyntaxOnlyIsEnabled { span };
             self.push_error(Box::new(error));
         }
     }

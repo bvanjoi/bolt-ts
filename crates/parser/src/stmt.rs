@@ -382,6 +382,11 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let start = self.token.start();
         self.next_token(); // consume `enum`
         let name = self.create_ident(self.is_ident(), None);
+
+        if !self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
+            self.report_erasable_syntax_error(name.span);
+        }
+
         self.check_contextual_ident(name);
         let members = if self.expect(TokenKind::LBrace) {
             let member = self.parse_delimited_list::<false, _>(
@@ -692,6 +697,9 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let expr = self.parse_assign_expr_or_higher::<true>()?;
         self.parse_semi();
         let span = self.new_span(start);
+        if !self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
+            self.report_erasable_syntax_error(span);
+        }
         Ok(self.create_export_assignment::<IS_EXPORT_EQUALS>(span, expr))
     }
 
@@ -775,6 +783,9 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         };
         self.parse_semi();
         let span = self.new_span(start);
+        if !self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
+            self.report_erasable_syntax_error(span);
+        }
         self.create_import_equals_declaration(
             span,
             export_modifier,

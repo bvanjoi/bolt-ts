@@ -9385,6 +9385,14 @@ impl<'cx> TyChecker<'cx> {
             false
         }
     }
+
+    fn report_erasable_syntax_error(&mut self, span: bolt_ts_span::Span) {
+        if self.options().erasable_syntax_only() {
+            std::hint::cold_path();
+            let error = errors::ThisSyntaxIsNotAllowedWhenErasableSyntaxOnlyIsEnabled { span };
+            self.push_error(Box::new(error));
+        }
+    }
 }
 
 macro_rules! global_ty {

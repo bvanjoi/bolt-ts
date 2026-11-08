@@ -1066,3 +1066,10 @@ pub struct AnImplementationCannotBeDeclaredInAmbientContexts {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("This syntax is not allowed when 'erasableSyntaxOnly' is enabled.")]
+pub struct ThisSyntaxIsNotAllowedWhenErasableSyntaxOnlyIsEnabled {
+    #[label(primary)]
+    pub span: Span,
+}

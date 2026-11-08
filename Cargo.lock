@@ -234,6 +234,7 @@ version = "0.1.0"
 dependencies = [
  "bolt_ts_ast",
  "bolt_ts_errors",
+ "bolt_ts_parser_errors",
  "bolt_ts_span",
  "thiserror",
 ]

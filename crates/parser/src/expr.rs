@@ -550,6 +550,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         self.expect(TokenKind::Great);
         let expr = self.parse_simple_unary_expr()?;
         let span = self.new_span(start);
+        self.report_erasable_syntax_error(span);
         let expr = self.create_type_assertion_expression(span, expr, ty);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::TyAssertion(expr),
