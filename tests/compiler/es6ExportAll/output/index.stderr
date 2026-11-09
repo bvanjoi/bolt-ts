@@ -1,0 +1,5 @@
+  × Cannot find module 'server' or its corresponding type declarations.
+   ╭─[../../tests/compiler/es6ExportAll/client.ts:1:15]
+ 1 │ "server"
+   · ────────
+   ╰────

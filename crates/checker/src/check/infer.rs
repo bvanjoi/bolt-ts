@@ -980,6 +980,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_spread_argument_ty_for_effective_call_argument(
+        &mut self,
+        arg: &EffectiveCallArgument<'cx>,
+        rest_ty: &'cx ty::Ty<'cx>,
+        context: Option<InferenceId<'cx>>,
+        check_mode: CheckMode,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        match arg {
+            EffectiveCallArgument::Expression(n) => match n.kind {
+                ast::ExprKind::SpreadElement(expr) => Some(
+                    self.check_expr_with_contextual_ty(expr.expr, rest_ty, context, check_mode),
+                ),
+                _ => None,
+            },
+            EffectiveCallArgument::Synthetic(n) => n.is_spread().then_some(n.ty()),
+        }
+    }
+
     pub(super) fn get_spread_argument_ty(
         &mut self,
         args: &EffectiveCallArguments<'cx>,
@@ -993,14 +1011,13 @@ impl<'cx> TyChecker<'cx> {
         if arg_count > 0
             && index >= arg_count - 1
             && let Some(arg) = args.get(arg_count - 1)
-            && arg.is_spread_argument()
+            && let Some(spread_ty) = self.get_spread_argument_ty_for_effective_call_argument(
+                arg.as_ref(),
+                rest_ty,
+                context,
+                check_mode,
+            )
         {
-            let spread_ty = match arg.as_ref() {
-                EffectiveCallArgument::Expression(n) => {
-                    self.check_expr_with_contextual_ty(n, rest_ty, context, check_mode)
-                }
-                EffectiveCallArgument::Synthetic(n) => n.ty(),
-            };
             return if self.is_array_like_ty(spread_ty) {
                 self.get_mutable_array_or_tuple_ty(spread_ty)
             } else {
@@ -1022,16 +1039,12 @@ impl<'cx> TyChecker<'cx> {
         let mut names = vec![];
         for i in index..arg_count {
             let arg = args.index(i);
-            if arg.is_spread_argument() {
-                let spread_ty = match arg.as_ref() {
-                    EffectiveCallArgument::Expression(n)
-                        if let ast::ExprKind::SpreadElement(n) = n.kind =>
-                    {
-                        self.check_expression::<false>(n.expr, None)
-                    }
-                    EffectiveCallArgument::Synthetic(n) => n.ty(),
-                    _ => unreachable!(),
-                };
+            if let Some(spread_ty) = self.get_spread_argument_ty_for_effective_call_argument(
+                arg.as_ref(),
+                rest_ty,
+                context,
+                check_mode,
+            ) {
                 if self.is_array_like_ty(spread_ty) {
                     tys.push(spread_ty);
                     flags.push(ty::ElementFlags::VARIADIC);

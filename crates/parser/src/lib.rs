@@ -223,6 +223,7 @@ pub fn parse_parallel<'cx, 'p>(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parser_state_parse<'cx, 'p, const VARIANT: u8, const ALWAYS_STRICT: bool>(
     atoms: Arc<Mutex<AtomIntern>>,
     arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,

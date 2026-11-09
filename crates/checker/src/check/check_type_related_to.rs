@@ -1521,9 +1521,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
 
-        // TODO: handle `target.kind.readonly || isMutableArrayOrTuple`
         if (source.kind.is_single_element_generic_tuple_type()
-            && source.as_tuple().is_some_and(|t| t.readonly)
+            && source.as_tuple().is_some_and(|t| !t.readonly)
             && {
                 let ty_arg = self.c.get_ty_arguments(source)[0];
                 result = self.is_related_to(
@@ -1535,17 +1534,22 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 );
                 result != Ternary::FALSE
             })
-            || (target.kind.is_single_element_generic_tuple_type() && {
-                let ty_arg = self.c.get_ty_arguments(target)[0];
-                result = self.is_related_to(
-                    source,
-                    ty_arg,
-                    RecursionFlags::TARGET,
-                    false,
-                    IntersectionState::empty(),
-                );
-                result != Ternary::FALSE
-            })
+            || (target.kind.is_single_element_generic_tuple_type()
+                && (target.as_tuple().is_some_and(|t| t.readonly) || {
+                    let s = self.c.get_base_constraint_of_ty(source).unwrap_or(source);
+                    self.c.is_mutable_array_or_tuple_ty(s)
+                })
+                && {
+                    let ty_arg = self.c.get_ty_arguments(target)[0];
+                    result = self.is_related_to(
+                        source,
+                        ty_arg,
+                        RecursionFlags::TARGET,
+                        false,
+                        IntersectionState::empty(),
+                    );
+                    result != Ternary::FALSE
+                })
         {
             return result;
         }

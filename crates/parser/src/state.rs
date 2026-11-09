@@ -69,6 +69,7 @@ pub(super) struct TokenContext {
 }
 
 impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new<const ALWAYS_STRICT: bool>(
         atoms: Arc<Mutex<AtomIntern>>,
         arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,

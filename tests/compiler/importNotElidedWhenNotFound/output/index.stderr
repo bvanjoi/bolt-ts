@@ -4,16 +4,16 @@
     · ───────
     ╰────
 
-  × Cannot find module 'other_file' or its corresponding type declarations.
-   ╭─[../../tests/compiler/importNotElidedWhenNotFound/index.ts:8:15]
- 8 │ 'other_file'
-   · ────────────
-   ╰────
-
   × Cannot find module 'file' or its corresponding type declarations.
    ╭─[../../tests/compiler/importNotElidedWhenNotFound/index.ts:6:15]
  6 │ 'file'
    · ──────
+   ╰────
+
+  × Cannot find module 'other_file' or its corresponding type declarations.
+   ╭─[../../tests/compiler/importNotElidedWhenNotFound/index.ts:8:15]
+ 8 │ 'other_file'
+   · ────────────
    ╰────
 
   × Cannot find module 'file3' or its corresponding type declarations.
