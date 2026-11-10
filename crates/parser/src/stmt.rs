@@ -405,7 +405,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
 
     fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
         let start = self.token.start();
-        let name = self.parse_prop_name::<false>();
+        let name = self.parse_prop_name::<false, false>();
         let name = match name.kind {
             ast::PropNameKind::Ident(ident) => ast::EnumMemberNameKind::Ident(ident),
             ast::PropNameKind::StringLit { raw, key } => {
@@ -1157,7 +1157,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
             }
         } else {
-            let prop_name = self.parse_prop_name::<true>();
+            let prop_name = self.parse_prop_name::<true, false>();
             self.expect(TokenKind::Colon);
             let name = self.parse_ident_or_pat();
             self.alloc(ast::ObjectBindingName::Prop { prop_name, name })

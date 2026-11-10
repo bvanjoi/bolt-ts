@@ -353,7 +353,10 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         })
     }
 
-    pub(super) fn parse_prop_name<const ALLOW_COMPUTED_PROP_NAMES: bool>(
+    pub(super) fn parse_prop_name<
+        const ALLOW_COMPUTED_PROP_NAME: bool,
+        const ALLOW_PRIVATE_IDENT_PROP_NAME: bool,
+    >(
         &mut self,
     ) -> &'cx ast::PropName<'cx> {
         let kind = match self.token.kind {
@@ -375,7 +378,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         };
         if let Some(kind) = kind {
             self.alloc(ast::PropName { kind })
-        } else if ALLOW_COMPUTED_PROP_NAMES && self.token.kind == TokenKind::LBracket {
+        } else if ALLOW_COMPUTED_PROP_NAME && self.token.kind == TokenKind::LBracket {
             let start = self.token.start();
             self.expect(TokenKind::LBracket);
             let Ok(expr) = self.allow_in_and(Self::parse_expr) else {
@@ -389,24 +392,30 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 kind: ast::PropNameKind::Computed(kind),
             })
         } else if self.token.kind == TokenKind::PrivateIdent {
-            let ident = self.parse_private_ident();
-            let kind = ast::PropNameKind::PrivateIdent(ident);
+            debug_assert!(self.token.kind == TokenKind::PrivateIdent);
+            let name = self.ident_token();
+            debug_assert!(self.atoms.lock().unwrap().get(name).starts_with('#'));
+            let span = self.token.span;
+            if ALLOW_PRIVATE_IDENT_PROP_NAME {
+                if self.target < bolt_ts_config::Target::ES2015
+                    && !self.node_context_flags.contains(ast::NodeFlags::AMBIENT)
+                {
+                    let error = errors::PrivateIdentifiersAreOnlyAvailableWhenTargetingEcmascript2015AndHigher { span };
+                    self.push_error(Box::new(error));
+                }
+            } else if !self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
+                let error = errors::PrivateIdentifiersAreOnlyAvailableWhenTargetingEcmascript2015AndHigher { span };
+                self.push_error(Box::new(error));
+            }
+            let private_ident = self.create_private_identifier(span, name);
+            self.next_token();
+            let kind = ast::PropNameKind::PrivateIdent(private_ident);
             self.alloc(ast::PropName { kind })
         } else {
             let ident = self.parse_ident_name();
             let kind = ast::PropNameKind::Ident(ident);
             self.alloc(ast::PropName { kind })
         }
-    }
-
-    fn parse_private_ident(&mut self) -> &'cx ast::PrivateIdent {
-        debug_assert!(self.token.kind == TokenKind::PrivateIdent);
-        let name = self.ident_token();
-        debug_assert!(self.atoms.lock().unwrap().get(name).starts_with('#'));
-        let span = self.token.span;
-        let private_ident = self.create_private_identifier(span, name);
-        self.next_token();
-        private_ident
     }
 
     #[inline(always)]
@@ -1045,14 +1054,14 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         }
     }
 
-    pub(super) fn parse_getter_accessor_decl(
+    pub(super) fn parse_getter_accessor_decl<const ALLOW_PRIVATE_IDENT_PROP_NAME: bool>(
         &mut self,
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         under_type_context: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
-        let name = self.parse_prop_name::<true>();
+        let name = self.parse_prop_name::<true, ALLOW_PRIVATE_IDENT_PROP_NAME>();
         let _ty_params = self.parse_ty_params();
         if !self.parse_parameters(SignatureFlags::empty()).is_empty() {
             self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
@@ -1070,14 +1079,14 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         Ok(self.create_getter_declaration(span, modifiers, name, ty, body))
     }
 
-    pub(super) fn parse_setter_accessor_decl(
+    pub(super) fn parse_setter_accessor_decl<const ALLOW_PRIVATE_IDENT_PROP_NAME: bool>(
         &mut self,
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         under_type_context: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
-        let name = self.parse_prop_name::<true>();
+        let name = self.parse_prop_name::<true, ALLOW_PRIVATE_IDENT_PROP_NAME>();
         let _ty_params = self.parse_ty_params();
         let params = self.parse_parameters(SignatureFlags::empty());
         let params = if params.is_empty() {

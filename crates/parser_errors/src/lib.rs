@@ -1073,3 +1073,10 @@ pub struct ThisSyntaxIsNotAllowedWhenErasableSyntaxOnlyIsEnabled {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Private identifiers are only available when targeting ECMAScript 2015 and higher.")]
+pub struct PrivateIdentifiersAreOnlyAvailableWhenTargetingEcmascript2015AndHigher {
+    #[label(primary)]
+    pub span: Span,
+}

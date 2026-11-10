@@ -869,22 +869,30 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             check_invalid_modifiers_for_method_like(self);
-            let decl =
-                self.parse_getter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
+            let decl = self.parse_getter_accessor_decl::<false>(
+                start,
+                modifiers,
+                false,
+                SignatureFlags::empty(),
+            )?;
             return Ok(self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::Getter(decl),
             }));
         } else if self.parse_contextual_modifier(TokenKind::Set) {
             check_invalid_modifiers_for_method_like(self);
-            let decl =
-                self.parse_setter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
+            let decl = self.parse_setter_accessor_decl::<false>(
+                start,
+                modifiers,
+                false,
+                SignatureFlags::empty(),
+            )?;
             return Ok(self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::Setter(decl),
             }));
         }
 
         let asterisk_token = self.parse_optional(TokenKind::Asterisk);
-        let name = self.parse_prop_name::<true>();
+        let name = self.parse_prop_name::<true, false>();
         if let Some(question_token) = self.parse_optional(TokenKind::Question) {
             let error = errors::AnObjectMemberCannotBeDeclaredOptional {
                 span: question_token.span,

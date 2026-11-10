@@ -52,6 +52,7 @@ with_option!(
     (no_emit, bool),
     (emit_declaration_only, bool),
     (erasable_syntax_only, bool),
+    (isolated_declarations, bool),
     (no_lib, bool),
     (no_implicit_any, bool),
     (no_implicit_this, bool),
@@ -189,7 +190,9 @@ impl RawCompilerOptions {
         if self.erasable_syntax_only.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::ERASABLE_SYNTAX_ONLY);
         }
-
+        if self.isolated_declarations.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::ISOLATED_DECLARATIONS);
+        }
         match self.use_define_for_class_fields {
             Some(true) => flags.insert(super::CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS),
             None if target >= super::Target::ES2022 => {

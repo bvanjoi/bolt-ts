@@ -2439,3 +2439,20 @@ pub struct ANamespaceDeclarationCannotBeInADifferentFileFromAClassOrFunctionWith
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Imports are not permitted in module augmentations. Consider moving them to the enclosing external module."
+)]
+pub struct ImportsAreNotPermittedInModuleAugmentationsConsiderMovingThemToTheEnclosingExternalModule
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Exports and export assignments are not permitted in module augmentations.")]
+pub struct ExportsAndExportAssignmentsAreNotPermittedInModuleAugmentations {
+    #[label(primary)]
+    pub span: Span,
+}

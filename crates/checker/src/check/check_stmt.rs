@@ -598,6 +598,30 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
+    fn check_module_augmentation_element(
+        &mut self,
+        node: ast::NodeID,
+        _is_global_augmentation: bool,
+    ) {
+        match self.p.node(node) {
+            ast::Node::ExportAssign(ast::ExportAssign { span, .. })
+            | ast::Node::ExportDecl(ast::ExportDecl { span, .. }) => {
+                let error =
+                    errors::ExportsAndExportAssignmentsAreNotPermittedInModuleAugmentations {
+                        span: *span,
+                    };
+                self.push_error(Box::new(error));
+            }
+            ast::Node::ImportDecl(ast::ImportDecl { span, .. }) => {
+                let error = errors::ImportsAreNotPermittedInModuleAugmentationsConsiderMovingThemToTheEnclosingExternalModule { span: *span };
+                self.push_error(Box::new(error));
+            }
+            _ => {
+                // TODO: more case
+            }
+        }
+    }
+
     fn check_module_declaration_worker(
         &mut self,
         id: ast::NodeID,
@@ -613,7 +637,8 @@ impl<'cx> TyChecker<'cx> {
 
         let symbol = self.get_symbol_of_declaration(id);
         let s = self.symbol(symbol);
-        if s.flags.intersects(SymbolFlags::VALUE_MODULE)
+        let flags = s.flags;
+        if flags.intersects(SymbolFlags::VALUE_MODULE)
             && !in_ambient_context
             && self.is_instantiate_module(module_block)
         {
@@ -643,7 +668,14 @@ impl<'cx> TyChecker<'cx> {
         if is_ambient_external_module {
             let nq = self.node_query(id.module());
             if nq.is_external_module_augmentation(id) {
-                // TODO:
+                // TODO: can this move into parser?
+                if let Some(body) = module_block
+                    && (is_global_augmentation || flags.contains(SymbolFlags::TRANSIENT))
+                {
+                    for stmt in body.stmts {
+                        self.check_module_augmentation_element(stmt.id(), is_global_augmentation);
+                    }
+                }
             } else if self
                 .p
                 .get(id.module())

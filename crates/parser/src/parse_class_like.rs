@@ -356,7 +356,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
         let asterisk = self.parse_optional(TokenKind::Asterisk).map(|t| t.span);
-        let name = self.parse_prop_name::<true>();
+        let name = self.parse_prop_name::<true, true>();
         let question_token = self.parse_optional(TokenKind::Question);
         if is_js_like_variant(VARIANT)
             && let Some(t) = question_token
@@ -551,7 +551,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         }
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            let decl = self.parse_getter_accessor_decl(
+            let decl = self.parse_getter_accessor_decl::<true>(
                 start,
                 modifiers,
                 under_type_context(self),
@@ -561,7 +561,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                 kind: ast::ClassElemKind::Getter(decl),
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            let decl = self.parse_setter_accessor_decl(
+            let decl = self.parse_setter_accessor_decl::<true>(
                 start,
                 modifiers,
                 under_type_context(self),
