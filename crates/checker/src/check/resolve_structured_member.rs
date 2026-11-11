@@ -1118,7 +1118,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if let Some(index_symbol) = members.get(&SymbolName::Index) {
-            index_infos = self.get_index_infos_of_index_symbol(*index_symbol);
+            index_infos = self.get_index_infos_of_index_symbol(*index_symbol, None);
         } else {
             let mut fallback_index_infos = vec![];
             if let Some(base_ctor_index_info) = base_ctor_index_info {

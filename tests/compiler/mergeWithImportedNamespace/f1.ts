@@ -1,0 +1,1 @@
+export namespace N { export var x = 1; }

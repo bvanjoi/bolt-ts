@@ -1400,79 +1400,68 @@ impl<'cx> TyChecker<'cx> {
         };
 
         for index_info in index_infos {
-            if !self.is_type_assignable_to(prop_ty, index_info.val_ty) {
-                let local_index_declaration = if let Some(n) = index_info.declaration
-                    && let s = self.final_res(n.id)
-                    && self.get_parent_of_symbol(s) == ty.symbol()
-                {
-                    Some(n.id)
-                } else {
-                    None
+            let local_index_declaration = if let Some(n) = index_info.declaration
+                && let s = self.final_res(n.id)
+                && self.get_parent_of_symbol(s) == ty.symbol()
+            {
+                Some(n.id)
+            } else {
+                None
+            };
+            let error_node = if let Some(local_prop_declaration) = local_prop_declaration {
+                Some(local_prop_declaration)
+            } else if let Some(local_index_declaration) = local_index_declaration {
+                Some(local_index_declaration)
+            } else if let Some(interface_declaration) = interface_declaration
+                && !self.get_base_tys(ty).iter().any(|base| {
+                    let name = self.symbol(prop).name;
+                    self.get_prop_of_object_ty(base, name).is_some()
+                        && self.get_index_ty_of_ty(base, index_info.key_ty).is_some()
+                })
+            {
+                Some(interface_declaration)
+            } else {
+                None
+            };
+            if let Some(error_node) = error_node
+                && !self.is_type_assignable_to(prop_ty, index_info.val_ty)
+            {
+                let prop_decl = self.get_symbol_decl(prop).unwrap();
+                let prop_node = self.p.node(prop_decl);
+                let prop_name = match prop_node {
+                    ast::Node::ClassPropElem(prop) => prop.name,
+                    ast::Node::PropSignature(prop) => prop.name,
+                    ast::Node::ClassMethodElem(prop) => prop.name,
+                    ast::Node::MethodSignature(prop) => prop.name,
+                    ast::Node::GetterDecl(prop) => prop.name,
+                    _ => unreachable!("{:#?}", prop_node),
                 };
-                let error_node = if let Some(local_prop_declaration) = local_prop_declaration {
-                    Some(local_prop_declaration)
-                } else if let Some(local_index_declaration) = local_index_declaration {
-                    Some(local_index_declaration)
-                } else if let Some(interface_declaration) = interface_declaration
-                    && !self.get_base_tys(ty).iter().any(|base| {
-                        let name = self.symbol(prop).name;
-                        self.get_prop_of_object_ty(base, name).is_some()
-                            && self.get_index_ty_of_ty(base, index_info.key_ty).is_some()
-                    })
-                {
-                    Some(interface_declaration)
-                } else {
-                    None
+                let prop_name = match prop_name.kind {
+                    ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
+                    ast::PropNameKind::NumLit(num) => num.val.to_string(),
+                    ast::PropNameKind::StringLit { raw, .. } => {
+                        format!("\"{}\"", self.atoms.get(raw.val))
+                    }
+                    ast::PropNameKind::Computed(_) => "[...]".to_string(),
+                    ast::PropNameKind::PrivateIdent(_) => todo!(),
+                    ast::PropNameKind::BigIntLit(_) => todo!(),
                 };
-                if let Some(error_node) = error_node {
-                    let prop_decl = self.get_symbol_decl(prop).unwrap();
-                    let prop_node = self.p.node(prop_decl);
-                    let prop_name = match prop_node {
-                        ast::Node::ClassPropElem(prop) => prop.name,
-                        ast::Node::PropSignature(prop) => prop.name,
-                        ast::Node::ClassMethodElem(prop) => prop.name,
-                        ast::Node::MethodSignature(prop) => prop.name,
-                        _ => unreachable!("{:#?}", prop_node),
-                    };
-                    let prop_name = match prop_name.kind {
-                        ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
-                        ast::PropNameKind::NumLit(num) => num.val.to_string(),
-                        ast::PropNameKind::StringLit { raw, .. } => {
-                            format!("\"{}\"", self.atoms.get(raw.val))
-                        }
-                        ast::PropNameKind::Computed(_) => "[...]".to_string(),
-                        ast::PropNameKind::PrivateIdent(_) => todo!(),
-                        ast::PropNameKind::BigIntLit(_) => todo!(),
-                    };
-                    let error_node = self.p.node(error_node);
-                    let error_span = if let Some(name) = error_node.name() {
-                        name.span()
-                    } else {
-                        error_node.span()
-                    };
-                    let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
-                        span: error_span,
-                        prop: prop_name,
-                        ty_b: self.print_ty(prop_ty, None).to_string(),
-                        ty_c: self.print_ty(index_info.key_ty, None).to_string(),
-                        index_ty_d: self.print_ty(index_info.val_ty, None).to_string(),
-                    };
-                    self.push_error(Box::new(error));
-                }
+                let error_node = self.p.node(error_node);
+                let error_span = if let Some(name) = error_node.name() {
+                    name.span()
+                } else {
+                    error_node.span()
+                };
+                let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
+                    span: error_span,
+                    prop: prop_name,
+                    ty_b: self.print_ty(prop_ty, None).to_string(),
+                    ty_c: self.print_ty(index_info.key_ty, None).to_string(),
+                    index_ty_d: self.print_ty(index_info.val_ty, None).to_string(),
+                };
+                self.push_error(Box::new(error));
             }
         }
-
-        // if ty.kind.as_object_interface().is_some() {
-        //     let base_tys = self
-        //         .get_ty_links(ty.id)
-        //         .expect_structured_members()
-        //         .base_tys;
-        //     for base_ty in base_tys {
-        //         self.check_index_constraint_for_prop(base_ty, prop, prop_name_ty, prop_ty);
-        //     }
-        // } else {
-        //     // unreachable!("{:#?}", ty)
-        // }
     }
 
     fn get_literal_ty_from_prop_name(
@@ -1639,7 +1628,7 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
         for prop in self.properties_of_object_type(ty) {
-            if !(IS_STATIC_INDEX && self.symbol(*prop).flags.intersects(SymbolFlags::PROTOTYPE)) {
+            if !(IS_STATIC_INDEX && self.symbol(*prop).flags.contains(SymbolFlags::PROTOTYPE)) {
                 let prop_name_ty = self.get_literal_ty_from_prop(
                     *prop,
                     TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,

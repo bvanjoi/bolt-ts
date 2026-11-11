@@ -118,7 +118,7 @@ fn get_is_deferred_context<'cx: 'a, 'a>(
         }
         ast::Node::FnDecl(ast::FnDecl { name, .. }) => last_location
             .is_none_or(|last_location| name.is_none_or(|name| name.id != last_location)),
-
+        ast::Node::ClassCtor(_) => true,
         ast::Node::ClassMethodElem(ast::ClassMethodElem { name, .. })
         | ast::Node::ObjectMethodMember(ast::ObjectMethodMember { name, .. })
         | ast::Node::GetterDecl(ast::GetterDecl { name, .. })

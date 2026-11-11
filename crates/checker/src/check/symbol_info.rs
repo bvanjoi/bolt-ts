@@ -1041,8 +1041,17 @@ impl<'cx> super::TyChecker<'cx> {
         let s = self.get_mut_transient_symbols().get_mut(late_symbol);
         if s.decls.is_none() {
             s.decls = Some([decl].into());
+        } else if self
+            .symbol(self.final_res(decl))
+            .is_replaceable_by_method
+            .is_none_or(|b| !b)
+        {
+            let s = self.get_mut_transient_symbols().get_mut(late_symbol);
+            let Some(decls) = &mut s.decls else {
+                unreachable!()
+            };
+            decls.push(decl);
         }
-        // TODO: is_replace_by_method
     }
 
     pub(super) fn get_transient_symbols(&self) -> &Symbols {
