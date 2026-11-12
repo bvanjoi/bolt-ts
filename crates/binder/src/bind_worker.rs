@@ -787,8 +787,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             _ => unreachable!(),
         };
         if self.node_query().is_in_js_file(node.id) {
+            // TODO: javascript case
             return;
         }
+        // bind_special_property_assignment
         let Some(parent_symbol) = self
             .lookup_symbol_for_prop_access(expr, self.block_scope_container.unwrap())
             .or_else(|| self.lookup_symbol_for_prop_access(expr, self.container.unwrap()))
@@ -859,11 +861,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         prop_access: ast::NodeID,
         prop_access_parent: ast::NodeID,
     ) -> Option<SymbolID> {
-        let namespace_symbol = self.lookup_symbol_for_prop_access(
-            prop_name.id(),
-            self.block_scope_container
-                .unwrap_or(self.container.unwrap()),
-        );
+        let name = prop_name.id();
+        let mut namespace_symbol = None;
+        if let Some(block_scope_container) = self.block_scope_container {
+            namespace_symbol = self.lookup_symbol_for_prop_access(name, block_scope_container);
+        }
+        if namespace_symbol.is_none()
+            && let Some(container) = self.container
+        {
+            namespace_symbol = self.lookup_symbol_for_prop_access(name, container);
+        }
+        // TODO: is_toplevel
         self.bind_potentially_new_expando_member_to_namespace::<IS_PROTOTYPE_PROPERTY>(
             prop_access,
             prop_access_parent,
