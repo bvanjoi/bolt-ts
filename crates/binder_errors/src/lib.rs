@@ -101,3 +101,11 @@ pub struct FunctionDeclarationsAreNotAllowedInsideBlocksInStrictModeWhenTargetin
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot redeclare identifier '{duplicate_name}' in catch clause.")]
+pub struct CannotRedeclareIdentifierXInCatchClause {
+    #[label(primary)]
+    pub span: Span,
+    pub duplicate_name: String,
+}

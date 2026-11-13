@@ -14,6 +14,7 @@ use bolt_ts_ast::BinOpKind;
 use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::keyword::is_push_or_unshift;
 use bolt_ts_ast::r#trait::VarLike;
+use bolt_ts_binder_errors as errors;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_getter_decl_children(&mut self, n: &'cx ast::GetterDecl<'cx>) {
@@ -76,6 +77,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.bind(stmt.try_block.id);
         self.flow_nodes
             .add_antecedent(normal_exit_label, self.current_flow.unwrap());
+
         if let Some(catch) = stmt.catch_clause {
             self.current_flow = Some(self.finish_flow_label(exception_label));
             exception_label = self.flow_nodes.create_branch_label();
@@ -85,6 +87,34 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             self.bind(catch.id);
             self.flow_nodes
                 .add_antecedent(normal_exit_label, self.current_flow.unwrap());
+
+            if catch.var.is_some()
+                && let Some(locals) = self.locals.get(&catch.block.id)
+            {
+                let catch_clause_locals = self.locals.get(&catch.id).unwrap();
+                let redeclared = catch_clause_locals
+                    .0
+                    .keys()
+                    .filter_map(|&name| {
+                        if let Some(block_local) = locals.0.get(&name)
+                            && let s = self.symbols.get(*block_local)
+                            && let Some(value_declaration) = s.value_decl
+                            && s.flags.contains(SymbolFlags::BLOCK_SCOPED_VARIABLE)
+                        {
+                            Some((name, value_declaration))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                for (name, value_declaration) in redeclared {
+                    let error = errors::CannotRedeclareIdentifierXInCatchClause {
+                        span: self.p.node(value_declaration).span(),
+                        duplicate_name: name.to_string(self.atoms),
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
         }
         self.current_return_target = save_return_target;
         self.current_exception_target = save_exception_target;
