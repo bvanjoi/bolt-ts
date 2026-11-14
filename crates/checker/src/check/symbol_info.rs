@@ -1041,8 +1041,17 @@ impl<'cx> super::TyChecker<'cx> {
         let s = self.get_mut_transient_symbols().get_mut(late_symbol);
         if s.decls.is_none() {
             s.decls = Some([decl].into());
+        } else if self
+            .symbol(self.final_res(decl))
+            .is_replaceable_by_method
+            .is_none_or(|b| !b)
+        {
+            let s = self.get_mut_transient_symbols().get_mut(late_symbol);
+            let Some(decls) = &mut s.decls else {
+                unreachable!()
+            };
+            decls.push(decl);
         }
-        // TODO: is_replace_by_method
     }
 
     pub(super) fn get_transient_symbols(&self) -> &Symbols {
@@ -1154,7 +1163,21 @@ fn error_no_module_member_symbol(
 ) {
     let n = this.p.node(spec_name_id);
     let spec_name = n.import_export_spec_name().unwrap();
-    report_non_exported_member(this, spec_name_id, spec_name, module_symbol, module_name);
+    if this
+        .symbol(module_symbol)
+        .exports
+        .as_ref()
+        .is_some_and(|exports| exports.0.contains_key(&SymbolName::ExportDefault))
+    {
+        let error = errors::ModuleXHasNoExportedMemberYDidYouMeanToUseImportYFromXInstead {
+            span: this.p.node(spec_name_id).span(),
+            member: this.atoms.get(spec_name).to_string(),
+            module: format!("\"{}\"", this.atoms.get(module_name)),
+        };
+        this.push_error(Box::new(error));
+    } else {
+        report_non_exported_member(this, spec_name_id, spec_name, module_symbol, module_name);
+    }
 }
 
 fn report_non_exported_member(
@@ -1176,75 +1199,74 @@ fn report_non_exported_member(
         None
     };
     if let Some(local_symbol) = local_symbol {
-        let decl = s.exports().and_then(|exports| {
-            exports.0.values().find_map(|export| {
-                // TODO: use `get_symbol_if_same_reference`
-                let s = binder_symbol(this, *export);
-                if s.flags == SymbolFlags::ALIAS {
-                    let decl = s.decls.as_ref().unwrap()[0];
-                    if let Some(spec) = this.p.node(decl).as_export_named_spec() {
-                        match spec.prop_name.kind {
-                            ast::ModuleExportNameKind::Ident(ident) if ident.name == spec_name => {
-                                return Some(decl);
-                            }
-                            _ => (),
-                        }
-                    }
-                }
-                None
-            })
-        });
-        let symbol_span = this
-            .p
-            .node(decls_of_symbol(local_symbol, this).as_ref().unwrap()[0])
-            .ident_name()
-            .unwrap()
-            .span;
-        let error: bolt_ts_errors::BoxedDiag = if let Some(decl) = decl {
-            let mut helper = vec![];
-            helper.push(
-                errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::NameIsDeclaredHere(
-                    errors::NameIsDeclaredHere {
-                        span: symbol_span,
-                        name: this.atoms.get(spec_name).to_string(),
-                    },
-                ),
-            );
-            let target_name = match this.p.node(decl) {
-                ast::Node::ExportNamedSpec(n) => match n.name.kind {
-                    ast::ModuleExportNameKind::Ident(ident) => ident.name,
-                    ast::ModuleExportNameKind::StringLit(lit) => lit.val,
-                },
-                _ => unreachable!(),
-            };
-            helper.push(
-                errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::ExportedAliasHere(
-                    errors::ExportedAliasHere {
-                        span: this.p.node(decl).span(),
-                        name: this.atoms.get(spec_name).to_string(),
-                    },
-                ),
-            );
-            let error = errors::ModuleADeclaresBLocallyButItIsExportedAsC {
-                span: this.p.node(spec_name_id).span(),
-                module_name: this.atoms.get(module_name).to_string(),
-                symbol_name: this.atoms.get(spec_name).to_string(),
-                target_name: this.atoms.get(target_name).to_string(),
-                related: helper,
-            };
-            Box::new(error)
+        if let Some(&exported_equals_symbol) = s
+            .exports
+            .as_ref()
+            .and_then(|exports| exports.0.get(&SymbolName::ExportEquals))
+        {
+            if this
+                .get_symbol_if_same_reference(exported_equals_symbol, local_symbol)
+                .is_some()
+            {
+                // TODO: resolve_invalid_import_equals_export_member
+            } else {
+                let error = errors::ModuleXHasNoExportedMemberY {
+                    span: this.p.node(spec_name_id).span(),
+                    module: this.atoms.get(module_name).to_string(),
+                    member: this.atoms.get(spec_name).to_string(),
+                };
+                this.push_error(Box::new(error));
+            }
         } else {
-            Box::new(errors::ModuleADeclaresBLocallyButItIsNotExported {
-                span: this.p.node(spec_name_id).span(),
-                module_name: this.atoms.get(module_name).to_string(),
-                symbol_name: this.atoms.get(spec_name).to_string(),
-                related: [errors::NameIsDeclaredHere {
-                    span: symbol_span,
-                    name: this.atoms.get(spec_name).to_string(),
-                }],
-            })
-        };
-        this.push_error(error);
+            // TODO: remove clone
+            let exports = s.exports.clone();
+            let exported_symbol = exports.as_ref().and_then(|exports| {
+                exports.0.values().find(|symbol| {
+                    this.get_symbol_if_same_reference(**symbol, local_symbol)
+                        .is_some()
+                })
+            });
+            let mut helper = vec![];
+            if let Some(decls) = this.symbol(local_symbol).decls.clone() {
+                for decl in decls {
+                    helper.push(
+                        errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::NameIsDeclaredHere(
+                            errors::NameIsDeclaredHere {
+                                span: this.p.node(decl).ident_name().unwrap().span,
+                                name: this.atoms.get(spec_name).to_string(),
+                            },
+                        ),
+                    );
+                    // TODO: show exported alias position later
+                    // helper.push(
+                    //     errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::ExportedAliasHere(
+                    //         errors::ExportedAliasHere {
+                    //             span: todo!(),
+                    //             name: this.atoms.get(spec_name).to_string(),
+                    //         },
+                    //     ),
+                    // );
+                }
+            };
+            if let Some(exported_symbol) = exported_symbol {
+                let error = errors::ModuleADeclaresBLocallyButItIsExportedAsC {
+                    span: this.p.node(spec_name_id).span(),
+                    module_name: this.atoms.get(module_name).to_string(),
+                    symbol_name: this.atoms.get(spec_name).to_string(),
+                    target_name: this.symbol(*exported_symbol).name.to_string(&this.atoms),
+                    related: helper,
+                };
+                this.push_error(Box::new(error));
+            } else {
+                let error = errors::ModuleADeclaresBLocallyButItIsNotExported {
+                    span: this.p.node(spec_name_id).span(),
+                    module_name: this.atoms.get(module_name).to_string(),
+                    symbol_name: this.atoms.get(spec_name).to_string(),
+                    related: helper,
+                };
+                this.push_error(Box::new(error));
+            }
+        }
     } else {
         use ast::Node::*;
         let span = match this.p.node(spec_name_id) {
@@ -1299,7 +1321,8 @@ fn get_target_of_export_spec<const DONT_RESOLVE_ALIAS: bool>(
                 let p = this.parent(node).unwrap();
                 let p = this.p.node(p).expect_specs_export();
                 if p.module.is_some() {
-                    todo!()
+                    // todo!()
+                    None
                 } else {
                     Some(this.final_res(ident.id))
                 }
@@ -1371,6 +1394,70 @@ fn get_target_of_import_clause<'cx, const DONT_RECUR_ALIAS: bool>(
     })
 }
 
+fn is_only_importable_as_default(this: &mut TyChecker<'_>) -> bool {
+    let m = *this.config.compiler_options().module();
+    if m >= bolt_ts_config::Module::Node16 && m <= bolt_ts_config::Module::NodeNext {
+        // TODO:
+        return false;
+    }
+    false
+}
+
+fn report_non_default_export<'cx>(
+    this: &mut TyChecker<'_>,
+    module_symbol: SymbolID,
+    node: &'cx ast::ImportClause<'cx>,
+) {
+    let Some(name) = node.name.as_ref() else {
+        unreachable!()
+    };
+    let s = this.symbol(module_symbol);
+    let Some(exports) = s.exports.as_ref() else {
+        return;
+    };
+    let import_clause_s = this.symbol(this.final_res(node.id));
+    let parent = this.parent(node.id).unwrap();
+    let parent = this.p.node(parent).expect_import_decl();
+    let module = this.atoms.get(parent.module.val);
+    if exports.0.contains_key(&import_clause_s.name) {
+        let error = errors::ModuleXHasNoDefaultExportDidYouMeanToUseImportYFromXInstead {
+            span: name.span,
+            module: module.to_string(),
+            name: import_clause_s.name.to_string(&this.atoms),
+        };
+        this.push_error(Box::new(error));
+    } else {
+        let error = errors::ModuleXHasNoDefaultExport {
+            span: name.span,
+            module: module.to_string(),
+        };
+        this.push_error(Box::new(error));
+        //     if let Some(export_star) = exports.0.get(&SymbolName::ExportStar)
+        //     && let Some(list) = this.symbol(*export_star).decls.clone()//TODO: remove clone
+        //     && let default_export = list.into_iter().find(|&d| {
+        //         if let Some(module_spec) = this
+        //             .p
+        //             .node(d)
+        //             .as_export_decl()
+        //             .and_then(|d| d.module_spec())
+        //             && let Some(module_symbol) = this.resolve_external_module_name(d, module_spec.val)
+        //             && this
+        //                 .symbol(module_symbol)
+        //                 .exports
+        //                 .as_ref()
+        //                 .is_some_and(|e| e.0.contains_key(&SymbolName::ExportDefault))
+        //         {
+        //             true
+        //         } else {
+        //             false
+        //         }
+        //     })
+        // {
+
+        // }
+    }
+}
+
 fn get_target_of_module_default<const DONT_RESOLVE_ALIAS: bool>(
     this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
@@ -1387,12 +1474,19 @@ fn get_target_of_module_default<const DONT_RESOLVE_ALIAS: bool>(
             node,
         )
     };
-    if export_default_symbol.is_none() {
-        let module_spec = this
-            .node_query(node.module())
-            .get_module_spec_for_import_or_export(node)
-            .unwrap();
-        error_no_module_member_symbol(this, module_symbol, module_spec.val, node);
+    let has_default_only = is_only_importable_as_default(this);
+    if export_default_symbol.is_none() && !has_default_only {
+        if this.symbol(module_symbol).has_export_assignment_symbol() {
+            // TODO:
+        } else if let ast::Node::ImportClause(n) = this.p.node(node) {
+            report_non_default_export(this, module_symbol, n);
+        } else {
+            let module_spec = this
+                .node_query(node.module())
+                .get_module_spec_for_import_or_export(node)
+                .unwrap();
+            error_no_module_member_symbol(this, module_symbol, module_spec.val, node);
+        }
     }
     // TODO: mark_symbol_of_alias_decl_if_ty_only
     export_default_symbol

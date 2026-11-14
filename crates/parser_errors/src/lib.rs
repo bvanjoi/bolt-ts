@@ -850,6 +850,13 @@ pub struct TypeParametersCannotAppearOnAConstructorDeclaration {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An ambient module declaration is only allowed at the top level in a file.")]
+pub struct AnAmbientModuleDeclarationIsOnlyAllowedAtTheTopLevelInAFile {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A namespace declaration is only allowed at the top level of a namespace or module.")]
 pub struct ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule {
     #[label(primary)]
@@ -1022,4 +1029,54 @@ pub struct ThisParameterIsNotAllowedWithUseStrictDirective {
     pub span: Span,
     #[label("use strict directive used here")]
     pub use_strict_directive_span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An identifier or keyword cannot immediately follow a numeric literal.")]
+pub struct AnIdentifierOrKeywordCannotImmediatelyFollowANumericLiteral {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An import declaration can only be used at the top level of a module.")]
+pub struct AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfAModule {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("The '{modifier}' modifier can only be used in TypeScript files.")]
+pub struct TheXModifierCanOnlyBeUsedInTypeScriptFiles {
+    #[label(primary)]
+    pub span: Span,
+    pub modifier: &'static str,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An import declaration cannot have modifiers.")]
+pub struct AnImportDeclarationCannotHaveModifiers {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An implementation cannot be declared in ambient contexts.")]
+pub struct AnImplementationCannotBeDeclaredInAmbientContexts {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("This syntax is not allowed when 'erasableSyntaxOnly' is enabled.")]
+pub struct ThisSyntaxIsNotAllowedWhenErasableSyntaxOnlyIsEnabled {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Private identifiers are only available when targeting ECMAScript 2015 and higher.")]
+pub struct PrivateIdentifiersAreOnlyAvailableWhenTargetingEcmascript2015AndHigher {
+    #[label(primary)]
+    pub span: Span,
 }

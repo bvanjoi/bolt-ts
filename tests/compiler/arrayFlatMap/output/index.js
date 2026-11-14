@@ -3,6 +3,6 @@
 //@compiler-options: lib=[es2019]
 var array = [];
 var readonlyArray = [];
-array.flatMap(() => ([]));
-// ok
+array.flatMap(() => ([]));// ok
+
 readonlyArray.flatMap(() => ([]));

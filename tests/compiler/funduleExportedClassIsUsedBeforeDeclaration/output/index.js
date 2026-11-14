@@ -2,6 +2,6 @@
 //@ run-fail
 // interface before module declaration
 // uses defined below class in module
-
 // function merged with module
+
 new B.C();

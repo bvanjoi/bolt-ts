@@ -1,0 +1,13 @@
+  × Property 'createdAt' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/keyofGenericExtendingClassDoubleLayer/index.ts:6:12]
+ 6 │ createdAt
+   · ─────────
+   ╰────
+
+  × Property 'age' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/keyofGenericExtendingClassDoubleLayer/index.ts:15:12]
+ 15 │ age
+    · ───
+    ╰────

@@ -4,23 +4,23 @@ class C {
   get Foo() {
     return 'foo';
   }
-  set // ok
-  Foo(foo) {}
+  set// ok
+   Foo(foo) {}
   get Bar// ok - type inferred from getter return statement
   () {
     return 'foo';
   }
   set Bar(// ok
-  bar) {}
-// ok - type must be declared
+  bar) {}// ok - type must be declared
+  
 }
 var o1 = {
   get Foo() {
     return 0;
   },
   set Foo(val) {}  
-};
-// ok - types agree (inference)
+};// ok - types agree (inference)
+
 var o2 = {
   get Foo() {
     return 0;

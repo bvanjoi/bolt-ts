@@ -5,8 +5,8 @@ var E = {};
 (function (E) {
 
   E[E['A'] = 0] = 'A'
-  E[E['B'] = 0] = // Ok
-  'B'
+  E[E['B'] = 0] =// Ok
+   'B'
   E[E['C'] = 0] = 'C'
 })(E);
 function foo(x) {
@@ -17,8 +17,8 @@ foo(E.A);
 class A {
   a;
 }
-// Ok
-class B {
+class// Ok
+ B {
   b;
 }
 function bar(x) {

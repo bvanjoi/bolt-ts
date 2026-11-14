@@ -2,13 +2,13 @@
 function doThing(x) {}
 class A {
   static n;
-  p = doThing(A);
-// OK
+  p = doThing(A);// OK
+  
 }
 class B extends A {
-  p1 = doThing(A);
-  // OK
-  p2 = doThing(B);
-// OK
+  p1 = doThing(A);// OK
+  
+  p2 = doThing(B);// OK
+  
 }
 doThing(B);

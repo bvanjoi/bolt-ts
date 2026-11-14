@@ -1,0 +1,5 @@
+  × The operand of a 'delete' operator must be optional.
+   ╭─[../../tests/compiler/keywordExpressionInternalComments/index.ts:8:20]
+ 8 │ Array.toString
+   · ──────────────
+   ╰────

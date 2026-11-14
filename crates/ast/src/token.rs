@@ -326,7 +326,7 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         use TokenKind::*;
         match self {
             EqGreat => "=>",
@@ -451,7 +451,7 @@ impl TokenKind {
             Undefined => "undefined",
             Override => "override",
             Accessor => "accessor",
-            _ => unreachable!("{:#?}", self),
+            _ => unreachable!(),
         }
     }
 }

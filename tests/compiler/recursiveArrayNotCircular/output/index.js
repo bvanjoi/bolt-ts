@@ -9,7 +9,7 @@ var ActionType = {};
   ActionType[ActionType['Batch'] = 0] = 'Batch'
 })(ActionType);
 function assertNever(a) {
-  throw new Error('Unreachable!')
+  throw new Error('Unreachable!');
 }
 function reducer(action) {
   switch (action.type) {

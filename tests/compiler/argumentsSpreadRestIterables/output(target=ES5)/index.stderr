@@ -1,0 +1,167 @@
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:10:25]
+ 10 │ ...itNum
+    · ────────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:10:28]
+ 10 │ itNum
+    · ─────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:13:32]
+ 13 │ ...itNum
+    · ────────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:13:35]
+ 13 │ itNum
+    · ─────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:16:38]
+ 16 │ ...itNum
+    · ────────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:16:41]
+ 16 │ itNum
+    · ─────
+    ╰────
+
+  × Type '"hello"' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:21:18]
+ 21 │ ..."hello"
+    · ──────────
+    ╰────
+
+  × Type '"hello"' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:21:21]
+ 21 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:24:18]
+ 24 │ ...itNum
+    · ────────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:24:21]
+ 24 │ itNum
+    · ─────
+    ╰────
+
+  × Type '"hello"' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:27:24]
+ 27 │ ..."hello"
+    · ──────────
+    ╰────
+
+  × Type '"hello"' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:27:27]
+ 27 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:30:24]
+ 30 │ ...itNum
+    · ────────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:30:27]
+ 30 │ itNum
+    · ─────
+    ╰────
+
+  × Type '"hello"' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:36:16]
+ 36 │ ..."hello"
+    · ──────────
+    ╰────
+
+  × Type '"hello"' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:36:19]
+ 36 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:39:16]
+ 39 │ ...itNum
+    · ────────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:39:19]
+ 39 │ itNum
+    · ─────
+    ╰────
+
+  × Type '"hello"' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:42:22]
+ 42 │ ..."hello"
+    · ──────────
+    ╰────
+
+  × Type '"hello"' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:42:25]
+ 42 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:45:22]
+ 45 │ ...itNum
+    · ────────
+    ╰────
+
+  × Type 'Iterable<number, any, any>' can only be iterated through when using
+  │ the '--downlevelIteration' flag or with a '--target' of 'es2015' or
+  │ higher.
+    ╭─[../../tests/compiler/argumentsSpreadRestIterables/index.ts:45:25]
+ 45 │ itNum
+    · ─────
+    ╰────

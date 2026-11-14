@@ -11,3 +11,10 @@ var g: Foo<Foo<string>> = {
     t: 42 //~ ERROR: Type 'number' is not assignable to type 'string'.
   }
 }
+
+const id = <T>(x: T) => x;
+const nest = <T>(x: T) => id({ nested: { tag: 0, ...x } });
+const eight = <T>(x: T) => nest(nest(nest(nest(nest(nest(nest(nest(x))))))));
+const value = eight(eight(eight(eight(eight({ value: 0 })))));
+declare function consume<T>(x: typeof value): T;
+consume(value);

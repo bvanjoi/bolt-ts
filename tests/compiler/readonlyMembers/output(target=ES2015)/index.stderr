@@ -1,0 +1,95 @@
+  × Cannot assign to 'a' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:11:3]
+ 11 │ a
+    · ─
+    ╰────
+
+  × Cannot assign to 'b' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:13:3]
+ 13 │ b
+    · ─
+    ╰────
+
+  × Cannot assign to 'c' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:23:14]
+ 23 │ c
+    · ─
+    ╰────
+
+  × Cannot assign to 'a' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:41:14]
+ 41 │ a
+    · ─
+    ╰────
+
+  × Cannot assign to 'b' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:43:14]
+ 43 │ b
+    · ─
+    ╰────
+
+  × Cannot assign to 'c' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:45:14]
+ 45 │ c
+    · ─
+    ╰────
+
+  × Cannot assign to 'a' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:55:3]
+ 55 │ a
+    · ─
+    ╰────
+
+  × Cannot assign to 'a' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:60:3]
+ 60 │ a
+    · ─
+    ╰────
+
+  × Cannot assign to 'A' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:70:3]
+ 70 │ A
+    · ─
+    ╰────
+
+  × Cannot assign to 'a' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:78:3]
+ 78 │ a
+    · ─
+    ╰────
+
+  × Index signature in type '{ [x: string]: string }' only permits reading.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:85:1]
+ 85 │ xx["foo"]
+    · ─────────
+    ╰────
+
+  × Index signature in type '{ [x: number]: string }' only permits reading.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:89:1]
+ 89 │ yy[1]
+    · ─────
+    ╰────
+
+  × Cannot assign to 'a' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:26:18]
+ 26 │ a
+    · ─
+    ╰────
+
+  × Cannot assign to 'b' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:28:18]
+ 28 │ b
+    · ─
+    ╰────
+
+  × Cannot assign to 'c' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:30:18]
+ 30 │ c
+    · ─
+    ╰────
+
+  × Cannot assign to 'c' because it is a read-only property.
+    ╭─[../../tests/compiler/readonlyMembers/index.ts:36:18]
+ 36 │ c
+    · ─
+    ╰────

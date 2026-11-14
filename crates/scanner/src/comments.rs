@@ -47,7 +47,7 @@ impl CommentsAtToken {
 
 #[derive(Debug, Default)]
 pub struct LeadingTrailingComments {
-    comments: IndexMap<u32, Option<CommentsAtToken>>,
+    comments: IndexMap<u32, CommentsAtToken>,
 }
 
 impl LeadingTrailingComments {
@@ -61,7 +61,8 @@ impl LeadingTrailingComments {
     #[track_caller]
     pub fn mark_no_comments(&mut self, pos: u32) {
         self.ensure_pos_incremental(pos);
-        self.comments.entry(pos).or_insert(None);
+        let prev = self.comments.insert(pos, CommentsAtToken::default());
+        debug_assert!(prev.is_none(), "pos: {pos}");
     }
 
     #[track_caller]
@@ -69,23 +70,24 @@ impl LeadingTrailingComments {
         self.ensure_pos_incremental(pos);
         match self.comments.entry(pos) {
             indexmap::map::Entry::Occupied(occ) => {
-                let Some(occ) = occ.into_mut() else {
-                    // Trying to add leading comment at pos {pos} where no comments are allowed
-                    unreachable!();
-                };
+                let occ = occ.into_mut();
                 debug_assert!(!occ.leading.contains(&comment));
                 occ.leading.push(comment);
             }
             indexmap::map::Entry::Vacant(vac) => {
                 let mut comments_at_token = CommentsAtToken::default();
                 comments_at_token.leading.push(comment);
-                vac.insert(Some(comments_at_token));
+                vac.insert(comments_at_token);
             }
         }
     }
 
-    pub fn get_comments_by_index(&self, index: usize) -> Option<(&u32, &Option<CommentsAtToken>)> {
+    pub fn get_comments_by_index(&self, index: usize) -> Option<(&u32, &CommentsAtToken)> {
         self.comments.get_index(index)
+    }
+
+    pub fn last(&self) -> Option<(&u32, &CommentsAtToken)> {
+        self.comments.last()
     }
 
     #[track_caller]
@@ -93,17 +95,14 @@ impl LeadingTrailingComments {
         self.ensure_pos_incremental(pos);
         match self.comments.entry(pos) {
             indexmap::map::Entry::Occupied(occ) => {
-                let Some(occ) = occ.into_mut() else {
-                    // Trying to add trailing comment at pos {pos} where no comments are allowed
-                    unreachable!();
-                };
+                let occ = occ.into_mut();
                 debug_assert!(!occ.trailing.contains(&comment));
                 occ.trailing.push(comment);
             }
             indexmap::map::Entry::Vacant(vac) => {
                 let mut comments_at_token = CommentsAtToken::default();
                 comments_at_token.trailing.push(comment);
-                vac.insert(Some(comments_at_token));
+                vac.insert(comments_at_token);
             }
         }
     }

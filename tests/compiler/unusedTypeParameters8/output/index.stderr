@@ -1,0 +1,5 @@
+  × 'T' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedTypeParameters8/b.ts:1:13]
+ 1 │ T
+   · ─
+   ╰────

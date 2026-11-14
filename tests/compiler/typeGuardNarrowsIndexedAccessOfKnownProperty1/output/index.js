@@ -42,8 +42,8 @@ function check(z, c) {
       break;
     
   }
-  c[0// fine, typescript sees "xx" | "yy"
-  ];
+  c[0]// fine, typescript sees "xx" | "yy"
+  ;
   switch (c[0]) {
     case 'aa':
       var aa = c[1]// should be number

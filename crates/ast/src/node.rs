@@ -545,8 +545,10 @@ impl<'cx> Node<'cx> {
                 | TyParam(_)
                 | NsImport(_)
                 | ImportShorthandSpec(_)
+                | ImportNamedSpec(_)
                 | ImportEqualsDecl(_)
                 | ExportNamedSpec(_)
+                | ImportClause(_)
                 | ExportShorthandSpec(_)
                 | GetterDecl(_)
                 | SetterDecl(_)
@@ -558,6 +560,7 @@ impl<'cx> Node<'cx> {
                 | ObjectBindingElem(_)
                 | CallSigDecl(_)
                 | CtorSigDecl(_)
+                | TypeAliasDecl(_)
         )
     }
 

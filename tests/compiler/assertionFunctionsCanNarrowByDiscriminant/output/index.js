@@ -7,8 +7,8 @@ var animal = {
   canMeow: true  
 };
 assertEqual(animal.type, 'cat');
-animal.canMeow;
-// since is cat, should not be an error
+animal.canMeow;// since is cat, should not be an error
+
 var animalOrUndef = {
   type: 'cat',
   canMeow: true  

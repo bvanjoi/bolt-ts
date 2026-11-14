@@ -23,6 +23,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             && self.try_parse(Lookahead::next_token_can_follow_modifier)
     }
 
+    // TODO(pref): actually we can build a const table for different scenes to reduce parse time.
     pub(super) fn parse_modifier<
         const STOP_ON_START_OF_CLASS_STATIC_BLOCK: bool,
         const PERMIT_CONST_AS_MODIFIER: bool,

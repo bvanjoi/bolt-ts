@@ -9,8 +9,8 @@ function goo1(x) {
 }
 function goo2(x) {
   if (x.foo !== undefined && x.kind === 'A') {
-    x.foo.length;
-  // Error, intervening discriminant guard
+    x.foo.length;// Error, intervening discriminant guard
+    
   }
   
 }
@@ -46,8 +46,8 @@ function foo5(x) {
 }
 function foo6(x) {
   if (x.foo !== undefined && x.qux) {
-    x.foo.length;
-  // Error, intervening discriminant guard
+    x.foo.length;// Error, intervening discriminant guard
+    
   }
   
 }

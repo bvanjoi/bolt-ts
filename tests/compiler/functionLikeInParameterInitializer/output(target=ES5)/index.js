@@ -25,7 +25,7 @@ export function baz2(func = function () {
 }
 export function baz3(func = class {
   x = foo;
-//~[target=ES2015]^ ERROR: Cannot find name 'foo'.
-}) {
+}//~[target=ES2015]^ ERROR: Cannot find name 'foo'.
+) {
   var foo = 'in';
 }

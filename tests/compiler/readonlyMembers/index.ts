@@ -1,0 +1,101 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/readonlyMembers.ts`, Apache-2.0 License
+
+//@[target=ES5]     compiler-options: target=es5
+//@[target=ES2015]  compiler-options: target=es2015
+
+interface X {
+    readonly a: number;
+    readonly b?: number;
+}
+var x: X = { a: 0 };
+x.a = 1;  // Error
+//~^ ERROR: Cannot assign to 'a' because it is a read-only property.
+x.b = 1;  // Error
+//~^ ERROR: Cannot assign to 'b' because it is a read-only property.
+
+class C {
+    readonly a: number;
+    readonly b = 1;
+    get c() { return 1 }
+    constructor() {
+        this.a = 1;  // Ok
+        this.b = 1;  // Ok
+        this.c = 1;  // Error
+        //~^ ERROR: Cannot assign to 'c' because it is a read-only property.
+        const f = () => {
+            this.a = 1;  // Error
+        //~^ ERROR: Cannot assign to 'a' because it is a read-only property.
+            this.b = 1;  // Error
+        //~^ ERROR: Cannot assign to 'b' because it is a read-only property.
+            this.c = 1;  // Error
+        //~^ ERROR: Cannot assign to 'c' because it is a read-only property.
+        };
+        (() => {
+            this.a = 1;  // Ok
+            this.b = 1;  // Ok
+            this.c = 1;  // Error
+        //~^ ERROR: Cannot assign to 'c' because it is a read-only property.
+        })();
+    }
+    foo() {
+        this.a = 1;  // Error
+        //~^ ERROR: Cannot assign to 'a' because it is a read-only property.
+        this.b = 1;  // Error
+        //~^ ERROR: Cannot assign to 'b' because it is a read-only property.
+        this.c = 1;  // Error
+        //~^ ERROR: Cannot assign to 'c' because it is a read-only property.
+    }
+}
+
+var o = {
+    get a() { return 1 },
+    get b() { return 1 },
+    set b(value) { }
+};
+o.a = 1;  // Error
+//~^ ERROR: Cannot assign to 'a' because it is a read-only property.
+o.b = 1;
+
+var p: { readonly a: number, b: number } = { a: 1, b: 1 };
+p.a = 1;  // Error
+//~^ ERROR: Cannot assign to 'a' because it is a read-only property.
+p.b = 1;
+var q: { a: number, b: number } = p;
+q.a = 1;
+q.b = 1;
+
+enum E {
+    A, B, C
+}
+E.A = 1;  // Error
+//~^ ERROR: Cannot assign to 'A' because it is a read-only property.
+
+namespace N {
+    export const a = 1;
+    export let b = 1;
+    export var c = 1;
+}
+N.a = 1;  // Error
+//~^ ERROR: Cannot assign to 'a' because it is a read-only property.
+N.b = 1;
+N.c = 1;
+
+declare let xx: { readonly [x: string]: string };
+let s = xx["foo"];
+xx["foo"] = "abc";  // Error
+//~^ ERROR: Index signature in type '{ [x: string]: string }' only permits reading.
+
+declare let yy: { readonly [x: number]: string, [x: string]: string };
+yy[1] = "abc";  // Error
+//~^ ERROR: Index signature in type '{ [x: number]: string }' only permits reading.
+yy["foo"] = "abc";
+
+
+class C0 {
+    readonly a: number;
+    constructor() {
+        (() => {
+            this.a = 1;  // Ok
+        })();
+    }
+}

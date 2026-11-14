@@ -7,28 +7,36 @@ declare namespace M {
     class C {
         get X() { return 1; }
         //~^ ERROR: An implementation cannot be declared in type contexts.
+        //~| ERROR: An implementation cannot be declared in ambient contexts.
         set X(v) { }
         //~^ ERROR: An implementation cannot be declared in type contexts.
         //~| ERROR: Property 'X' implicitly has type 'any', because its set accessor lacks a parameter type annotation.
+        //~| ERROR: An implementation cannot be declared in ambient contexts.
 
         static get Y() { return 1; }
         //~^ ERROR: An implementation cannot be declared in type contexts.
+        //~| ERROR: An implementation cannot be declared in ambient contexts.
         static set Y(v) { }
         //~^ ERROR: An implementation cannot be declared in type contexts.
         //~| ERROR: Property 'Y' implicitly has type 'any', because its set accessor lacks a parameter type annotation.
+        //~| ERROR: An implementation cannot be declared in ambient contexts.
     }
 }
 
 declare class C {
     get X() { return 1; }
     //~^ ERROR: An implementation cannot be declared in type contexts.
+    //~| ERROR: An implementation cannot be declared in ambient contexts.
     set X(v) { }
     //~^ ERROR: An implementation cannot be declared in type contexts.
     //~| ERROR: Property 'X' implicitly has type 'any', because its set accessor lacks a parameter type annotation.
+    //~| ERROR: An implementation cannot be declared in ambient contexts.
 
     static get Y() { return 1; }
     //~^ ERROR: An implementation cannot be declared in type contexts.
+    //~| ERROR: An implementation cannot be declared in ambient contexts.
     static set Y(v) { }
     //~^ ERROR: An implementation cannot be declared in type contexts.
+    //~| ERROR: An implementation cannot be declared in ambient contexts.
     //~| ERROR: Property 'Y' implicitly has type 'any', because its set accessor lacks a parameter type annotation.
 }

@@ -65,8 +65,8 @@ var foo = (value// Repro from #50567
   }
   
   if (value === 'xyz') {
-    return value;
-  // Type '{}' is not assignable to type 'string'.
+    return value;// Type '{}' is not assignable to type 'string'.
+    
   }
   
   return '';

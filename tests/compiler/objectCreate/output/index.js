@@ -14,10 +14,10 @@ var e = Object.create// {a: number, b: string }
 ({});
 var o = Object.// object | {a: number, b: string }
 create(// {}
-({}));
-// object
-var a = Object.create(null, {});
-// any
+({}));// object
+
+var a = Object.create(null, {});// any
+
 var a = Object.create({
   a: 1,
   b: ''  

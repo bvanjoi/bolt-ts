@@ -1,0 +1,6 @@
+  × Type 'ArrayIterator<any>' can only be iterated through when using the
+  │ '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    ╭─[../../tests/compiler/argumentsObjectIterator02_ES5/index.ts:10:21]
+ 10 │ blah()
+    · ──────
+    ╰────

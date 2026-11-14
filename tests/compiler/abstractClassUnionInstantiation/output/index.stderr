@@ -1,17 +1,3 @@
-  × Property 'a' has no initializer and is not definitely assigned in the
-  │ constructor.
-   ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:5:28]
- 5 │ a
-   · ─
-   ╰────
-
-  × Property 'b' has no initializer and is not definitely assigned in the
-  │ constructor.
-   ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:7:28]
- 7 │ b
-   · ─
-   ╰────
-
   × Cannot create an instance of an abstract class.
     ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:18:5]
  18 │ cls1
@@ -75,4 +61,18 @@ Warning:
    ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:5:16]
  5 │ AbstractA
    · ─────────
+   ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:5:28]
+ 5 │ a
+   · ─
+   ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:7:28]
+ 7 │ b
+   · ─
    ╰────

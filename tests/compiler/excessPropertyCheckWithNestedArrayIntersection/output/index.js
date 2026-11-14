@@ -3,8 +3,8 @@
 var repro = {
   dataType: {
       fields: [{
-          key: 'bla',
-      // should be OK: Not excess
+          key: 'bla',// should be OK: Not excess
+      
       value: null      
     }]    
   }  

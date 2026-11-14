@@ -11,4 +11,5 @@ declare class B {
     get length() { return 0; }
     //~^ ERROR: An implementation cannot be declared in type contexts.
     //~| ERROR: Property 'length' implicitly has type 'any', because its get accessor lacks a return type annotation.
+    //~| ERROR: An implementation cannot be declared in ambient contexts.
 }

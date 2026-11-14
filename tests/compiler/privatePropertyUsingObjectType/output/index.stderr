@@ -1,0 +1,27 @@
+  × Property '_filterProviders' has no initializer and is not definitely
+  │ assigned in the constructor.
+   ╭─[../../tests/compiler/privatePropertyUsingObjectType/index.ts:7:13]
+ 7 │ _filterProviders
+   · ────────────────
+   ╰────
+
+  × Property '_filterProviders2' has no initializer and is not definitely
+  │ assigned in the constructor.
+   ╭─[../../tests/compiler/privatePropertyUsingObjectType/index.ts:9:13]
+ 9 │ _filterProviders2
+   · ─────────────────
+   ╰────
+
+  × Property '_filterProviders3' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privatePropertyUsingObjectType/index.ts:11:13]
+ 11 │ _filterProviders3
+    · ─────────────────
+    ╰────
+
+  × Property '_filterProviders4' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privatePropertyUsingObjectType/index.ts:13:13]
+ 13 │ _filterProviders4
+    · ─────────────────
+    ╰────

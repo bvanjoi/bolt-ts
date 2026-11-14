@@ -8,6 +8,7 @@ function f<T extends number>() {
     var v = {
         [t]: 0
         //~^ ERROR: Variable 't' is used before being assigned.
+        //~| ERROR: Variable 't' is used before being assigned.
     }
     return t + t;
     //~^ ERROR: Variable 't' is used before being assigned.

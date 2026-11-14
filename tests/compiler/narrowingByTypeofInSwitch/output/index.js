@@ -134,8 +134,8 @@ function testAny(x) {
       return ;
     
   }
-  assertAll(x);
-// is any
+  assertAll(x);// is any
+  
 }
 function a1(x) {
   return x;
@@ -255,13 +255,13 @@ function exhaustiveChecksGenerics(x) {
       return x;
     
     case 'function':
-      return (x)(42);
+      return (x)(42);// Can't narrow generic
+      
     
-    // Can't narrow generic
     case 'object':
-      return (x).x;
+      return (x).x;// Can't narrow generic
+      
     
-  // Can't narrow generic
   }
 }
 function multipleGeneric(xy) {

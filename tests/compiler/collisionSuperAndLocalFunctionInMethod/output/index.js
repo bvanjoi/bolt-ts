@@ -12,19 +12,19 @@ class Foo {
 }
 class b extends Foo {
   foo() {
-    function _super() {}
-  // should be error
+    function _super() {}// should be error
+    
   }
-  _super() {}
-// No Error
+  _super() {}// No Error
+  
 }
 class c extends Foo {
   foo() {
     var x = () => {
-      function _super() {}
-    // should be error
+      function _super() {}// should be error
+      
     };
   }
-  _super() {// No error
-  }
+  _super() {}// No error
+  
 }

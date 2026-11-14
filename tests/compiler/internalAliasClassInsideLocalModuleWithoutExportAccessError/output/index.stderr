@@ -1,0 +1,5 @@
+  × Property 'c' does not exist on type 'typeof m3'.
+    ╭─[../../tests/compiler/internalAliasClassInsideLocalModuleWithoutExportAccessError/index.ts:22:26]
+ 22 │ c
+    · ─
+    ╰────

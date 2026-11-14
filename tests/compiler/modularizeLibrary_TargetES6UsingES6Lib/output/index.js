@@ -5,8 +5,8 @@
 function f(x, y, z) {
   return Array.from(arguments);
 }
-f(1, 2, 3);
-// no error
+f(1, 2, 3);// no error
+
 // Using ES6 collection
 var m = new Map();
 m.clear();
@@ -27,18 +27,18 @@ var o = {
 o.hasOwnProperty(Symbol.hasInstance);
 // Using Es6 proxy
 var t = {};
-var p = new Proxy(t, {})// Using ES6 reflect
-;
-Reflect.isExtensible({})// Using Es6 regexp
-;
+var p = new Proxy(t, {});
+// Using ES6 reflect
+Reflect.isExtensible({});
+// Using Es6 regexp
 var reg = new RegExp('/s');
-reg.flags// Using ES6 string
-;
+reg.flags;
+// Using ES6 string
 var str = 'Hello world';
-str.includes('hello', 0)// Using ES6 symbol
-;
-var s = Symbol()// Using ES6 wellknown-symbol
-;
+str.includes('hello', 0);
+// Using ES6 symbol
+var s = Symbol();
+// Using ES6 wellknown-symbol
 var o1 = {
   [Symbol.hasInstance](value) {
     return false;

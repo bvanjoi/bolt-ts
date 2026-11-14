@@ -1,0 +1,5 @@
+  × 'string' index signatures are incompatible.
+    ╭─[../../tests/compiler/emptyObjectNotSubtypeOfIndexSignatureContainingObject2/index.ts:46:10]
+ 46 │ result
+    · ──────
+    ╰────

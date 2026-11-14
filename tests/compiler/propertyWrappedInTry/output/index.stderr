@@ -1,0 +1,53 @@
+  × Expected '}'.
+   ╭─[../../tests/compiler/propertyWrappedInTry/index.ts:9:5]
+ 9 │ try
+   · ───
+   ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/propertyWrappedInTry/index.ts:11:9]
+ 11 │ public
+    · ──────
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/propertyWrappedInTry/index.ts:17:5]
+ 17 │ public
+    · ──────
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/propertyWrappedInTry/index.ts:17:12]
+ 17 │ baz()
+    · ─────
+    ╰────
+
+  × A 'return' statement can only be used within a function body.
+    ╭─[../../tests/compiler/propertyWrappedInTry/index.ts:19:9]
+ 19 │ return
+    · ──────
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/propertyWrappedInTry/index.ts:23:1]
+ 23 │ }
+    · ─
+    ╰────
+
+  × Cannot find name 'bar'.
+    ╭─[../../tests/compiler/propertyWrappedInTry/index.ts:11:16]
+ 11 │ bar
+    · ───
+    ╰────
+
+  × Cannot find name 'someInitThatMightFail'.
+    ╭─[../../tests/compiler/propertyWrappedInTry/index.ts:11:22]
+ 11 │ someInitThatMightFail
+    · ─────────────────────
+    ╰────
+
+  × Cannot find name 'baz'.
+    ╭─[../../tests/compiler/propertyWrappedInTry/index.ts:17:12]
+ 17 │ baz
+    · ───
+    ╰────

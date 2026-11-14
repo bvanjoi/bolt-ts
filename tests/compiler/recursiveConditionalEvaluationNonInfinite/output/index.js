@@ -2,7 +2,7 @@
 //@compiler-options: target=es2015
 //@run-fail
 
-var y = x;
+var y = x;// Error
 
-// Error
+
 var b = a;

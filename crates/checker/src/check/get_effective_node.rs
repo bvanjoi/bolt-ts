@@ -324,15 +324,6 @@ impl EffectiveCallArgument<'_> {
             EffectiveCallArgument::Synthetic(n) => n.span,
         }
     }
-
-    pub fn is_spread_argument(&self) -> bool {
-        match self {
-            EffectiveCallArgument::Expression(n) => {
-                matches!(n.kind, ast::ExprKind::SpreadElement(_))
-            }
-            EffectiveCallArgument::Synthetic(n) => n.is_spread,
-        }
-    }
 }
 
 pub enum EffectiveCallArguments<'cx> {

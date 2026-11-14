@@ -1,4 +1,4 @@
-  × Type '"val"' cannot be used to index type 'B[Exclude]'.
+  × Type '"val"' cannot be used to index type 'B[Exclude<keyof B, K>]'.
    ╭─[../../tests/compiler/infiniteConstraints/index.ts:9:37]
  9 │ B[Exclude<keyof B, K>]["val"]
    · ─────────────────────────────

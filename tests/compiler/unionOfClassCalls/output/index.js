@@ -13,13 +13,13 @@ switch (tmp.get('t')) {
   
 }
 var arr// from https://github.com/microsoft/TypeScript/issues/36390
- = [];
-// Works with Array<number | string>
+ = [];// Works with Array<number | string>
+
 var arr1 = [];
 var arr2 = [];
 arr.map((a, index) => (index));
-// This case still doesn't work because `reduce` has multiple overloads :(
-arr.reduce((acc, a, index) => ([]), []);
+arr// This case still doesn't work because `reduce` has multiple overloads :(
+.reduce((acc, a, index) => ([]), []);
 arr.forEach((a, index) => (index));
 arr1.map((a, index) => (index));
 arr1.reduce((acc, a, index) => ([a]), []);

@@ -1,0 +1,17 @@
+  × 'g' is declared but its value is never read.
+    ╭─[../../tests/compiler/noUnusedLocals_selfReference_skipsBlockLocations/index.ts:14:22]
+ 14 │ g
+    · ─
+    ╰────
+
+  × 'h' is declared but its value is never read.
+    ╭─[../../tests/compiler/noUnusedLocals_selfReference_skipsBlockLocations/index.ts:19:22]
+ 19 │ h
+    · ─
+    ╰────
+
+  × 'f' is declared but its value is never read.
+   ╭─[../../tests/compiler/noUnusedLocals_selfReference_skipsBlockLocations/index.ts:7:14]
+ 7 │ f
+   · ─
+   ╰────

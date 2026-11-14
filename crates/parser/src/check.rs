@@ -25,13 +25,25 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         });
     }
 
-    pub(super) fn check_module_declaration_error(&mut self, span: bolt_ts_span::Span) {
+    pub(super) fn check_module_declaration_error<
+        const IS_GLOBAL_SCOPE_AUGMENTATION: bool,
+        const IS_STRING_AUGMENTATION: bool,
+    >(
+        &mut self,
+        span: bolt_ts_span::Span,
+    ) {
         self.check_module_element_context(|this| {
-            let error =
-                errors::ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule {
-                    span,
-                };
-            this.push_error(Box::new(error));
+            if IS_GLOBAL_SCOPE_AUGMENTATION || IS_STRING_AUGMENTATION {
+                let error =
+                    errors::AnAmbientModuleDeclarationIsOnlyAllowedAtTheTopLevelInAFile { span };
+                this.push_error(Box::new(error));
+            } else {
+                let error =
+                    errors::ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule {
+                        span,
+                    };
+                this.push_error(Box::new(error));
+            }
         });
     }
 
@@ -43,13 +55,11 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         });
     }
 
-    fn is_in_module_or_namespace(&self) -> bool {
-        self.parse_context
-            .intersects(ParseContext::TOP_LEVEL.union(ParseContext::MODULE_BLOCK))
-    }
-
     pub(super) fn check_module_element_context(&mut self, push_error: impl FnOnce(&mut Self)) {
-        if self.is_in_module_or_namespace() {
+        if self
+            .parse_context
+            .intersects(ParseContext::TOP_LEVEL.union(ParseContext::MODULE_BLOCK_TOP_LEVEL))
+        {
             return;
         }
 
@@ -86,6 +96,23 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     self.push_error(Box::new(error));
                 }
             }
+        }
+    }
+
+    pub(super) fn check_fn_implement_in_ambient(
+        &mut self,
+        name_span: Option<bolt_ts_span::Span>,
+        body: &'cx ast::BlockStmt<'cx>,
+    ) {
+        if self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
+            let span = match name_span {
+                Some(name_span) => name_span,
+                None => {
+                    bolt_ts_span::Span::new(body.span.lo(), body.span.lo() + 1, body.span.module())
+                }
+            };
+            let error = errors::AnImplementationCannotBeDeclaredInAmbientContexts { span };
+            self.push_error(Box::new(error));
         }
     }
 }

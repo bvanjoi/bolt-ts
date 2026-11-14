@@ -14,8 +14,8 @@ class Other extends Doing {
       super.instanceMethod();
     };
   }
-  objectLiteralInsideAnInstanceMethod// in an object literal inside a instance method
-  () {
+  objectLiteralInsideAnInstanceMethod(// in an object literal inside a instance method
+  ) {
     return {
           a: () => {
         super.instanceMethod();
@@ -23,13 +23,13 @@ class Other extends Doing {
       b: super.instanceMethod()      
     };
   }
-  get accessor// in a getter
-  () {
+  get accessor(// in a getter
+  ) {
     super.instanceMethod();
     return 0;
   }
-  set accessor(// in a setter
-  value) {
+  set accessor(value// in a setter
+  ) {
     super.instanceMethod();
   }
   constructor() {super();super.instanceMethod();}

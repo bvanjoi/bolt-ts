@@ -1,0 +1,37 @@
+  × Function declarations are not allowed inside blocks in strict mode when
+  │ targeting 'ES5'.
+   ╭─[../../tests/compiler/blockScopedSameNameFunctionDeclarationES5/index.ts:8:18]
+ 8 │ foo
+   · ───
+   ╰────
+
+  × Function declarations are not allowed inside blocks in strict mode when
+  │ targeting 'ES5'.
+    ╭─[../../tests/compiler/blockScopedSameNameFunctionDeclarationES5/index.ts:15:18]
+ 15 │ foo
+    · ───
+    ╰────
+
+  × Expected 0 arguments, but got 1.
+    ╭─[../../tests/compiler/blockScopedSameNameFunctionDeclarationES5/index.ts:11:9]
+ 11 │ foo
+    · ───
+    ╰────
+
+  × Expected 0 arguments, but got 1.
+    ╭─[../../tests/compiler/blockScopedSameNameFunctionDeclarationES5/index.ts:18:9]
+ 18 │ foo
+    · ───
+    ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/blockScopedSameNameFunctionDeclarationES5/index.ts:22:5]
+ 22 │ foo
+    · ───
+    ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/blockScopedSameNameFunctionDeclarationES5/index.ts:26:1]
+ 26 │ foo
+    · ───
+    ╰────

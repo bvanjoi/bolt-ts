@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/bindingPatternCannotBeOnlyInferenceSource.ts`, Apache-2.0 License
 
+//@compiler-options: target=es2015
 //@compiler-options: strictNullChecks
 
 declare function f<T>(): T;
@@ -8,11 +9,11 @@ const {} = f();       // error (only in strictNullChecks)
 const { p1 } = f();   // error
 //~^ ERROR: Property '"p1"' does not exist on type 'unknown'.
 const [] = f();       // error
-//~^ ERROR: Type 'unknown' is not an array type.
+//~^ ERROR: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
 //~| ERROR: Object is of type 'unknown'.
 const [e1, e2] = f(); // error
-//~^ ERROR: Type 'unknown' is not an array type.
-//~| ERROR: Type 'unknown' is not an array type.
+//~^ ERROR: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
+//~| ERROR: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
 
 // Repro from #43605
 type Dispatch<A = { type: any; [extraProps: string]: any }> = { <T extends A>(action: T): T };

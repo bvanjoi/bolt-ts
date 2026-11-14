@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 
 use super::PResult;
 use super::const_variant::is_dts_variant;
+use super::const_variant::is_js_like_variant;
 use super::parsing_ctx::ParseContext;
 use super::parsing_ctx::ParsingContext;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
@@ -52,6 +53,7 @@ pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) target: Target,
     /// cache these tokens to prevent scan multiple times during lookahead.
     pub(super) tokens: FxHashMap<usize, TokenContext>,
+    pub(super) flags: bolt_ts_config::CompilerOptionFlags,
 }
 
 #[derive(Debug)]
@@ -67,6 +69,7 @@ pub(super) struct TokenContext {
 }
 
 impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new<const ALWAYS_STRICT: bool>(
         atoms: Arc<Mutex<AtomIntern>>,
         arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
@@ -75,6 +78,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         module_id: ModuleID,
         file_path: &std::path::Path,
         target: Target,
+        flags: bolt_ts_config::CompilerOptionFlags,
     ) -> Self {
         debug_assert!(file_path.is_normalized());
         let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
@@ -83,6 +87,9 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         let mut node_context_flags = ast::NodeFlags::empty();
         if is_dts_variant(VARIANT) {
             node_context_flags |= ast::NodeFlags::AMBIENT;
+        }
+        if is_js_like_variant(VARIANT) {
+            node_context_flags |= ast::NodeFlags::JAVASCRIPT_FILE;
         }
         Self {
             input,
@@ -119,6 +126,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             labels: Default::default(),
             target,
             tokens: FxHashMap::default(),
+            flags,
         }
     }
 
@@ -596,6 +604,17 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                 span: ident.span,
                 identifier: self.atoms.lock().unwrap().get(ident.name).to_string(),
             };
+            self.push_error(Box::new(error));
+        }
+    }
+
+    pub(super) fn report_erasable_syntax_error(&mut self, span: bolt_ts_span::Span) {
+        if self
+            .flags
+            .contains(bolt_ts_config::CompilerOptionFlags::ERASABLE_SYNTAX_ONLY)
+        {
+            std::hint::cold_path();
+            let error = errors::ThisSyntaxIsNotAllowedWhenErasableSyntaxOnlyIsEnabled { span };
             self.push_error(Box::new(error));
         }
     }

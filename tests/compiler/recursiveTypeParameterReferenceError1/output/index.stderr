@@ -16,13 +16,6 @@
     · ─
     ╰────
 
-  × Property 'x' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:16:5]
- 16 │ x
-    · ─
-    ╰────
-
   × Variable 'f2' is used before being assigned.
     ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:23:10]
  23 │ f2
@@ -45,4 +38,11 @@
     ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:27:5]
  27 │ r21
     · ───
+    ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:16:5]
+ 16 │ x
+    · ─
     ╰────

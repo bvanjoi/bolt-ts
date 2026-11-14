@@ -1,0 +1,41 @@
+  × Cannot export 'Cls1'. Only local declarations can be exported from a
+  │ module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration4/file2.ts:1:9]
+ 1 │ Cls1
+   · ────
+   ╰────
+
+  × Cannot export 'Cls1'. Only local declarations can be exported from a
+  │ module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration4/file2.ts:1:15]
+ 1 │ Cls1
+   · ────
+   ╰────
+
+  × Cannot export 'Cls2'. Only local declarations can be exported from a
+  │ module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration4/file2.ts:4:9]
+ 4 │ Cls2
+   · ────
+   ╰────
+
+  × Cannot export 'Cls2'. Only local declarations can be exported from a
+  │ module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration4/file2.ts:4:15]
+ 4 │ Cls2
+   · ────
+   ╰────
+
+  × Cannot export 'Cls1'. Only local declarations can be exported from a
+  │ module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration4/file2.ts:7:9]
+ 7 │ Cls1
+   · ────
+   ╰────
+
+  × Cannot export 'Cls2'. Only local declarations can be exported from a
+  │ module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration4/file2.ts:9:9]
+ 9 │ Cls2
+   · ────
+   ╰────

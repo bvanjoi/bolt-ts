@@ -1,0 +1,18 @@
+  × Property 'n' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/moduleAugmentationImportsAndExports1/f2.ts:2:5]
+ 2 │ n
+   · ─
+   ╰────
+
+  × Type '() => undefined' is not assignable to type '() => B'.
+   ╭─[../../tests/compiler/moduleAugmentationImportsAndExports1/f3.ts:4:1]
+ 4 │ A.prototype.foo
+   · ───────────────
+   ╰────
+
+  × Variable 'a' is used before being assigned.
+   ╭─[../../tests/compiler/moduleAugmentationImportsAndExports1/f4.ts:5:9]
+ 5 │ a
+   · ─
+   ╰────

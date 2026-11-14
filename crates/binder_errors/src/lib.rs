@@ -17,6 +17,16 @@ pub struct DuplicateIdentifier {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot redeclare block-scoped variable '{name}'.")]
+pub struct CannotRedeclareBlockScopedVariableX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+    #[label("Previous definition here")]
+    pub original_span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Enum declarations can only merge with namespace or other enum declarations.")]
 pub struct EnumDeclarationsCanOnlyMergeWithNamespaceOrOtherEnumDeclarations {
     #[label(primary)]
@@ -63,4 +73,39 @@ pub struct InvalidUseOfXInStrictMode {
     #[label(primary)]
     pub span: Span,
     pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Class definitions are automatically in strict mode."
+)]
+pub struct FunctionDeclarationsAreNotAllowedInsideBlocksInStrictModeWhenTargetingEs5ClassDefinitionsAreAutomaticallyInStrictMode
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Modules are automatically in strict mode."
+)]
+pub struct FunctionDeclarationsAreNotAllowedInsideBlocksInStrictModeWhenTargetingEs5ModulesAreAutomaticallyInStrictMode
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'.")]
+pub struct FunctionDeclarationsAreNotAllowedInsideBlocksInStrictModeWhenTargetingEs5 {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot redeclare identifier '{duplicate_name}' in catch clause.")]
+pub struct CannotRedeclareIdentifierXInCatchClause {
+    #[label(primary)]
+    pub span: Span,
+    pub duplicate_name: String,
 }

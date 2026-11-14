@@ -1,0 +1,13 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/argumentsObjectIterator03_ES5.ts`, Apache-2.0 License
+
+//@[target=ES5]     compiler-options: target=es5
+//@[target=ES2015]  compiler-options: target=es2015
+
+function asReversedTuple(a: number, b: string, c: boolean): [boolean, string, number] {
+    let [x, y, z] = arguments;
+    //~[target=ES5]^      ERROR: Type 'IArguments' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    //~[target=ES5]|      ERROR: Type 'IArguments' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    //~[target=ES5]|      ERROR: Type 'IArguments' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+    return [z, y, x];
+}
+

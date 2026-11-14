@@ -3,5 +3,5 @@
 //@compiler-options: declaration
 //@run-fail
 var x1 = f1();
-var x2 = // Z<string, number>
-f2({}, {}, {}, {});
+var x2 =// Z<string, number>
+ f2({}, {}, {}, {});

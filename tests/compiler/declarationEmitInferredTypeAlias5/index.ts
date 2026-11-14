@@ -1,0 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/declarationEmitInferredTypeAlias5.ts`, Apache-2.0 License
+
+//@compiler-options: module=commonjs
+//@compiler-options: target=es2015
+//@compiler-options: declaration
+//@compiler-options: skipDefaultLibCheck

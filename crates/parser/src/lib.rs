@@ -223,6 +223,7 @@ pub fn parse_parallel<'cx, 'p>(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parser_state_parse<'cx, 'p, const VARIANT: u8, const ALWAYS_STRICT: bool>(
     atoms: Arc<Mutex<AtomIntern>>,
     arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
@@ -231,10 +232,11 @@ fn parser_state_parse<'cx, 'p, const VARIANT: u8, const ALWAYS_STRICT: bool>(
     module_id: ModuleID,
     file_path: &std::path::Path,
     target: Target,
+    flags: CompilerOptionFlags,
 ) -> ParseResult<'cx> {
     debug_assert!(VARIANT != 0);
     let mut s = ParserState::<{ VARIANT }>::new::<ALWAYS_STRICT>(
-        atoms, arena, nodes, input, module_id, file_path, target,
+        atoms, arena, nodes, input, module_id, file_path, target, flags,
     );
     s.parse();
 
@@ -289,30 +291,30 @@ pub fn parse<'cx, 'p>(
                 (true, true) => {
                     if is_default_lib {
                         parser_state_parse::<{ $variant }, true>(
-                            atoms, arena, nodes, input, module_id, file_path, target,
+                            atoms, arena, nodes, input, module_id, file_path, target, flags,
                         )
                     } else {
                         parser_state_parse::<{ $variant | PRESERVE_COMMENT }, true>(
-                            atoms, arena, nodes, input, module_id, file_path, target,
+                            atoms, arena, nodes, input, module_id, file_path, target, flags,
                         )
                     }
                 }
                 (true, false) => parser_state_parse::<{ $variant }, true>(
-                    atoms, arena, nodes, input, module_id, file_path, target,
+                    atoms, arena, nodes, input, module_id, file_path, target, flags,
                 ),
                 (false, true) => {
                     if is_default_lib {
                         parser_state_parse::<{ $variant }, false>(
-                            atoms, arena, nodes, input, module_id, file_path, target,
+                            atoms, arena, nodes, input, module_id, file_path, target, flags,
                         )
                     } else {
                         parser_state_parse::<{ $variant | PRESERVE_COMMENT }, false>(
-                            atoms, arena, nodes, input, module_id, file_path, target,
+                            atoms, arena, nodes, input, module_id, file_path, target, flags,
                         )
                     }
                 }
                 (false, false) => parser_state_parse::<{ $variant }, false>(
-                    atoms, arena, nodes, input, module_id, file_path, target,
+                    atoms, arena, nodes, input, module_id, file_path, target, flags,
                 ),
             }
         };

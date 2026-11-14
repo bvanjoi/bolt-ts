@@ -11,3 +11,14 @@ for ( [{
 }] of [[{
   abc: 1  
 }]]) ;
+var K = {};
+(function (K) {
+
+  K[K['ID'] = 'id'] = 'ID'
+})(K);
+function f({[K.ID]: id, ...rest}) {
+  return {
+      [K.ID]: id,
+    ...rest    
+  };
+}

@@ -1,0 +1,11 @@
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/circularInlineMappedGenericTupleTypeNoCrash/index.ts:17:12]
+ 17 │ new Foo<[...Elements, "abc"]>(...this.elements, { bar: "abc" })
+    · ───────────────────────────────────────────────────────────────
+    ╰────
+
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/circularInlineMappedGenericTupleTypeNoCrash/index.ts:17:12]
+ 17 │ new Foo<[...Elements, "abc"]>(...this.elements, { bar: "abc" })
+    · ───────────────────────────────────────────────────────────────
+    ╰────

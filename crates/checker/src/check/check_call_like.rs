@@ -976,7 +976,8 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(spread_arg_index) = effective_call_arguments.get_spared_argument_index()
         {
             return spread_arg_index >= effective_minimum_arguments
-                && spread_arg_index < effective_parameter_count;
+                && (self.has_effective_rest_param(sig)
+                    || spread_arg_index < effective_parameter_count);
         }
 
         if arg_count > effective_parameter_count && !self.has_effective_rest_param(sig) {
@@ -1347,6 +1348,12 @@ impl<'cx> TyChecker<'cx> {
                             false,
                             Some(infer_ctx),
                         );
+                        if candidate.get_non_array_rest_ty(self).is_some()
+                            && !self.has_correct_arity(effective_call_arguments, check_candidate)
+                        {
+                            *candidate_for_argument_arity_error = Some(check_candidate);
+                            continue;
+                        }
                     };
 
                     if self.get_signature_applicability_error::<false>(

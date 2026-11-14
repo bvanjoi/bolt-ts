@@ -16,3 +16,4 @@ var M = {};
   var X = R
   
 })(M);
+var A = M
