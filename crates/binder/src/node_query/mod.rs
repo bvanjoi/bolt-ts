@@ -836,8 +836,13 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_this_in_type_query(&self, mut id: ast::NodeID) -> bool {
-        let mut n = self.node(id);
-        if !n.is_this_expr() {
+        let n = self.node(id);
+        // type A = typeof this.xxx;
+        //                 ~~~~ current this node is `Identifier`, maybe a better way is mark this node to `ThisType`?
+        let Some(ident) = n.as_ident() else {
+            return false;
+        };
+        if ident.name != keyword::KW_THIS {
             return false;
         }
 
@@ -846,14 +851,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             if let Some(qualified) = p.as_qualified_name()
                 && qualified.left.id() == id
             {
-                n = p;
                 id = p_id;
                 continue;
             }
             break;
         }
 
-        n.is_type_alias_decl()
+        let Some(p_id) = self.parent(id) else {
+            return false;
+        };
+        self.node(p_id).is_typeof_ty()
     }
 
     pub fn access_kind(&self, id: ast::NodeID) -> AccessKind {

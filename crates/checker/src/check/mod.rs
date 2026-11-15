@@ -2220,9 +2220,8 @@ impl<'cx> TyChecker<'cx> {
                     .expect_object_reference();
                 let ty = ty.target.kind.expect_object_interface();
                 ty.this_ty.unwrap()
-                // TODO: get_flow_type_reference
             };
-            return Some(this_ty);
+            return Some(self.get_flow_ty_of_reference(node, this_ty, None, None, None));
         }
 
         if container.is_program() {
@@ -9146,7 +9145,7 @@ impl<'cx> TyChecker<'cx> {
             let mut result = DeclarationSpaces::empty();
             let symbol = this.get_symbol_of_declaration(node);
             let target = this.resolve_alias(symbol);
-            if let Some(decls) = this.binder.symbol(target).decls.as_ref() {
+            if let Some(decls) = this.symbol(target).decls.as_ref() {
                 for decl in decls.clone() {
                     result |= this.get_declaration_spaces(decl);
                 }

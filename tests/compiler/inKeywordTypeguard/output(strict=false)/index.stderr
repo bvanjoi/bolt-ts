@@ -1,0 +1,138 @@
+  × Property 'b' does not exist on type 'A'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:14:11]
+ 14 │ b
+    · ─
+    ╰────
+
+  × Property 'a' does not exist on type 'B'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:17:11]
+ 17 │ a
+    · ─
+    ╰────
+
+  × Property 'b' does not exist on type 'A'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:24:11]
+ 24 │ b
+    · ─
+    ╰────
+
+  × Property 'a' does not exist on type 'B'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:27:11]
+ 27 │ a
+    · ─
+    ╰────
+
+  × Property 'b' does not exist on type 'AWithOptionalProp |
+  │ BWithOptionalProp'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:39:11]
+ 39 │ b
+    · ─
+    ╰────
+
+  × Property 'b' does not exist on type 'AWithMethod'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:55:11]
+ 55 │ b
+    · ─
+    ╰────
+
+  × Property 'a' does not exist on type 'AWithMethod & Record<"c", unknown> |
+  │ BWithMethod & Record<"c", unknown>'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:63:11]
+ 63 │ a
+    · ─
+    ╰────
+
+  × Property 'b' does not exist on type 'AWithMethod & Record<"c", unknown> |
+  │ BWithMethod & Record<"c", unknown>'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:65:11]
+ 65 │ b
+    · ─
+    ╰────
+
+  × Property 'a' does not exist on type 'AWithMethod | BWithMethod'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:68:11]
+ 68 │ a
+    · ─
+    ╰────
+
+  × Property 'b' does not exist on type 'AWithMethod | BWithMethod'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:70:11]
+ 70 │ b
+    · ─
+    ╰────
+
+  × Property 'b' does not exist on type 'A | C | D'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:82:11]
+ 82 │ b
+    · ─
+    ╰────
+
+  × Property 'a' does not exist on type 'B'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:85:11]
+ 85 │ a
+    · ─
+    ╰────
+
+  × Property 'b' does not exist on type 'A'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:95:32]
+ 95 │ b
+    · ─
+    ╰────
+
+  × Property 'a' does not exist on type 'B'.
+    ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:98:32]
+ 98 │ a
+    · ─
+    ╰────
+
+  × Property 'b' does not exist on type 'A'.
+     ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:108:39]
+ 108 │ b
+     · ─
+     ╰────
+
+  × Property 'a' does not exist on type 'B'.
+     ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:111:39]
+ 111 │ a
+     · ─
+     ╰────
+
+  × Property 'a' does not exist on type 'never'.
+     ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:123:26]
+ 123 │ a
+     · ─
+     ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'unknown'.
+     ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:185:16]
+ 185 │ x
+     · ─
+     ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'unknown'.
+     ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:190:21]
+ 190 │ x
+     · ─
+     ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T'.
+     ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:218:16]
+ 218 │ x
+     · ─
+     ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T'.
+     ╭─[../../tests/compiler/inKeywordTypeguard/index.ts:223:21]
+ 223 │ x
+     · ─
+     ╰────
