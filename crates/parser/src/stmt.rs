@@ -1060,6 +1060,10 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             );
             let span = self.new_span(start);
             let clause = self.create_class_implements_clause(span, list);
+            if is_js_like_variant(VARIANT) {
+                let error = errors::ImplementsClausesCanOnlyBeUsedInTypeScriptFiles { span };
+                self.push_error(Box::new(error));
+            }
             Some(clause)
         } else {
             None

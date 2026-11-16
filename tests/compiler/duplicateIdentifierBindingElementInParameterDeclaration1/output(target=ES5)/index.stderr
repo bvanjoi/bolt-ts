@@ -1,0 +1,744 @@
+  × Duplicate identifier 'a'.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:17]
+ 6 │ a, [a
+   · ┬   ─
+   · ╰── Previous definition here
+   ╰────
+
+  × Duplicate identifier 'b'.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:27]
+ 6 │ b]], {b
+   · ┬     ─
+   · ╰── Previous definition here
+   ╰────
+
+  × Duplicate identifier 'a'.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:22:17]
+ 22 │ a, a
+    · ┬  ─
+    · ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier 'b'.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:32:19]
+ 32 │ b}, {b
+    · ┬    ─
+    · ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier 'c'.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:17]
+ 38 │ c,[c
+    · ┬  ─
+    · ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier 'c'.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:22]
+ 38 │ c,[c],[[c
+    · ┬       ─
+    · ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier 'd'.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:20]
+ 68 │ d, d:{d
+    · ┬     ─
+    · ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier 'e'.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:21]
+ 80 │ e, e: {e
+    · ┬      ─
+    · ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier 'e'.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:27]
+ 80 │ e, e: {e}}, {e
+    · ┬            ─
+    · ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier 'e'.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:34]
+ 80 │ e, e: {e}}, {e}, [d,e
+    · ┬                   ─
+    · ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier 'e'.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:39]
+ 80 │ e, e: {e}}, {e}, [d,e, [[e
+    · ┬                        ─
+    · ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier 'e'.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:48]
+ 80 │ e, e: {e}}, {e}, [d,e, [[e]]], ...e
+    · ┬                                 ─
+    · ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier 'f'.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:123:20]
+ 123 │ f, ...f
+     · ┬     ─
+     · ╰── Previous definition here
+     ╰────
+
+  × Parameter 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:13]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:17]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:21]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:17]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:21]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:17]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:21]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:17]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:21]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:17]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:21]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:27]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:6:27]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:22:14]
+ 22 │ a
+    · ─
+    ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:22:17]
+ 22 │ a
+    · ─
+    ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:22:14]
+ 22 │ a
+    · ─
+    ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:22:17]
+ 22 │ a
+    · ─
+    ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:22:14]
+ 22 │ a
+    · ─
+    ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:22:17]
+ 22 │ a
+    · ─
+    ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:22:14]
+ 22 │ a
+    · ─
+    ╰────
+
+  × Binding element 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:22:17]
+ 22 │ a
+    · ─
+    ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:32:14]
+ 32 │ b
+    · ─
+    ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:32:14]
+ 32 │ b
+    · ─
+    ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:32:19]
+ 32 │ b
+    · ─
+    ╰────
+
+  × Binding element 'b' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:32:19]
+ 32 │ b
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:14]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:17]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:22]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:14]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:17]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:22]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:14]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:17]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:22]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:14]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:17]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:22]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:14]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:17]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:22]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:14]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:17]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:22]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:14]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:17]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:22]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:14]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:17]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:22]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:14]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:17]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:38:22]
+ 38 │ c
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:14]
+ 68 │ d
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:20]
+ 68 │ d
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:14]
+ 68 │ d
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:20]
+ 68 │ d
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:14]
+ 68 │ d
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:20]
+ 68 │ d
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:14]
+ 68 │ d
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:20]
+ 68 │ d
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:14]
+ 68 │ d
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:68:20]
+ 68 │ d
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:14]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:21]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:14]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:21]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:14]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:21]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:14]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:21]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:14]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:21]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:27]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:27]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:32]
+ 80 │ d
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:34]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:39]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:32]
+ 80 │ d
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:34]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:39]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:32]
+ 80 │ d
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:34]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:39]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:32]
+ 80 │ d
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:34]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:39]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:32]
+ 80 │ d
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:34]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:39]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:32]
+ 80 │ d
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:34]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:39]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:32]
+ 80 │ d
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:34]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:39]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'd' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:32]
+ 80 │ d
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:34]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Binding element 'e' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:39]
+ 80 │ e
+    · ─
+    ╰────
+
+  × Rest parameter 'e' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:80:44]
+ 80 │  ...e
+    · ─────
+    ╰────
+
+  × Binding element 'f' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:123:14]
+ 123 │ f
+     · ─
+     ╰────
+
+  × Binding element 'f' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:123:20]
+ 123 │ f
+     · ─
+     ╰────
+
+  × Binding element 'f' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:123:14]
+ 123 │ f
+     · ─
+     ╰────
+
+  × Binding element 'f' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:123:20]
+ 123 │ f
+     · ─
+     ╰────
+
+  × Binding element 'f' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:123:14]
+ 123 │ f
+     · ─
+     ╰────
+
+  × Binding element 'f' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:123:20]
+ 123 │ f
+     · ─
+     ╰────
+
+  × Binding element 'f' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:123:14]
+ 123 │ f
+     · ─
+     ╰────
+
+  × Binding element 'f' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:123:20]
+ 123 │ f
+     · ─
+     ╰────
+
+  × Parameter 'a' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:133:13]
+ 133 │ a
+     · ─
+     ╰────
+
+  × Parameter 'a' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/duplicateIdentifierBindingElementInParameterDeclaration1/index.ts:133:24]
+ 133 │ a
+     · ─
+     ╰────

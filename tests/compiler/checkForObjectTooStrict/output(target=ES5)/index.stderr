@@ -1,0 +1,6 @@
+  × Class name cannot be 'Object' when targeting ES5 and above with module
+  │ CommonJS.
+   ╭─[../../tests/compiler/checkForObjectTooStrict/index.ts:9:18]
+ 9 │ Object
+   · ──────
+   ╰────

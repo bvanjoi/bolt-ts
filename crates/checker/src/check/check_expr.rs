@@ -354,14 +354,15 @@ impl<'cx> TyChecker<'cx> {
                 ast::TokenKind::Plus,
                 node.span,
             ),
-            Sub | Mul | Div | Mod => self.check_binary_like_expr_for_sub_or_mul_or_div_or_mod(
-                left,
-                left_ty,
-                right,
-                right_ty,
-                op.into(),
-                node.span,
-            ),
+            Sub | Mul | Div | Mod | Exp => self
+                .check_binary_like_expr_for_sub_or_mul_or_div_or_mod(
+                    left,
+                    left_ty,
+                    right,
+                    right_ty,
+                    op.into(),
+                    node.span,
+                ),
             BitOr => {
                 let _leftt = self.check_non_null_type(left_ty, left.id());
                 let _rightt = self.check_non_null_type(right_ty, right.id());
@@ -494,7 +495,6 @@ impl<'cx> TyChecker<'cx> {
             Instanceof => self.check_instanceof_expr(left, left_ty, right, right_ty),
             In => self.check_in_expr(left, left_ty, right, right_ty),
             Satisfies => todo!(),
-
             Comma => {
                 if !matches!(
                     self.config.compiler_options().allow_unreachable_code(),
@@ -510,7 +510,6 @@ impl<'cx> TyChecker<'cx> {
                 right_ty
             }
             BitXor => self.number_ty,
-            Exp => self.number_ty,
             Nullish => {
                 self.check_nullish_coalesce_op_left(node);
                 if self.has_type_facts(left_ty, TypeFacts::EQ_UNDEFINED_OR_NULL) {
@@ -2725,7 +2724,7 @@ impl<'cx> TyChecker<'cx> {
                 ast::TokenKind::PlusEq,
                 assign.span,
             ),
-            SubEq | MulEq | DivEq | ModEq => self
+            SubEq | MulEq | DivEq | ModEq | AsteriskAsteriskEq => self
                 .check_binary_like_expr_for_sub_or_mul_or_div_or_mod(
                     assign.left,
                     l,
@@ -2737,7 +2736,6 @@ impl<'cx> TyChecker<'cx> {
             ShlEq => self.undefined_ty,
             ShrEq => self.undefined_ty,
             UShrEq => self.undefined_ty,
-            AsteriskAsteriskEq => self.undefined_ty,
             BitOrEq | BitAndEq | BitXorEq => self.check_bin_expr_for_normal(
                 assign.span,
                 l,
@@ -3287,6 +3285,8 @@ impl<'cx> TyChecker<'cx> {
                 || op_kind == ast::TokenKind::MinusEq
                 || op_kind == ast::TokenKind::Asterisk
                 || op_kind == ast::TokenKind::AsteriskEq
+                || op_kind == ast::TokenKind::AsteriskAsterisk
+                || op_kind == ast::TokenKind::AsteriskAsteriskEq
                 || op_kind == ast::TokenKind::Slash
                 || op_kind == ast::TokenKind::SlashEq
                 || op_kind == ast::TokenKind::Percent
@@ -3309,7 +3309,7 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(Box::new(error));
             self.number_ty
         } else {
-            let _left_okk = self.check_arithmetic_op_ty(left_ty, true, |this| {
+            let _left_ok = self.check_arithmetic_op_ty(left_ty, true, |this| {
                 let error =
                     errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
                         span: left.span(),
@@ -3317,7 +3317,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                 this.push_error(Box::new(error));
             });
-            let _right_okk = self.check_arithmetic_op_ty(right_ty, true, |this| {
+            let _right_ok = self.check_arithmetic_op_ty(right_ty, true, |this| {
                 let error =
                     errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
                         span: right.span(),
@@ -3325,7 +3325,34 @@ impl<'cx> TyChecker<'cx> {
                     };
                 this.push_error(Box::new(error));
             });
-            self.number_ty
+
+            let result_ty;
+            if (self.is_type_assignable_to_kind::<false>(left_ty, TypeFlags::ANY_OR_UNKNOWN)
+                && self.is_type_assignable_to_kind::<false>(right_ty, TypeFlags::ANY_OR_UNKNOWN))
+                || !(left_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LIKE)
+                    || right_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LIKE))
+            {
+                result_ty = self.number_ty;
+            } else if self.is_type_assignable_to_kind::<false>(left_ty, TypeFlags::BIG_INT_LIKE)
+                && self.is_type_assignable_to_kind::<false>(right_ty, TypeFlags::BIG_INT_LIKE)
+            {
+                match op_kind {
+                    ast::TokenKind::AsteriskAsterisk | ast::TokenKind::AsteriskAsteriskEq
+                        if *self.options().target() < Target::ES2016 =>
+                    {
+                        let error = errors::ExponentiationCannotBePerformedOnBigintValuesUnlessTheTargetOptionIsSetToEs2016OrLater {
+                            span: op_span,
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                    _ => {}
+                }
+                result_ty = self.bigint_ty;
+            } else {
+                result_ty = self.error_ty;
+            }
+
+            result_ty
         }
     }
 }

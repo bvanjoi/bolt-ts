@@ -1,0 +1,13 @@
+  × Exponentiation cannot be performed on 'bigint' values unless the 'target'
+  │ option is set to 'es2016' or later.
+   ╭─[../../tests/compiler/bigIntWithTargetLessThanES2016/index.ts:6:1]
+ 6 │ BigInt(1) ** BigInt(1)
+   · ──────────────────────
+   ╰────
+
+  × Exponentiation cannot be performed on 'bigint' values unless the 'target'
+  │ option is set to 'es2016' or later.
+    ╭─[../../tests/compiler/bigIntWithTargetLessThanES2016/index.ts:10:1]
+ 10 │ num **= BigInt(2)
+    · ─────────────────
+    ╰────

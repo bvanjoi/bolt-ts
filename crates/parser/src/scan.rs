@@ -1732,7 +1732,8 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                 if report_error {
                     let flags = ch_to_regexp_flags(ch);
                     if let Some(flags) = flags {
-                        if regexp_flags.intersects(flags) {
+                        debug_assert!(flags.bits() == 1);
+                        if regexp_flags.contains(flags) {
                             todo!("duplicate regexp flags")
                         } else if (regexp_flags | flags)
                             .contains(RegularExpressionFlags::ANY_UNICODE_MODE)

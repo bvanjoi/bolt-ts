@@ -2456,3 +2456,12 @@ pub struct ExportsAndExportAssignmentsAreNotPermittedInModuleAugmentations {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Exponentiation cannot be performed on 'bigint' values unless the 'target' option is set to 'es2016' or later."
+)]
+pub struct ExponentiationCannotBePerformedOnBigintValuesUnlessTheTargetOptionIsSetToEs2016OrLater {
+    #[label(primary)]
+    pub span: Span,
+}

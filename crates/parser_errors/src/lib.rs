@@ -1080,3 +1080,10 @@ pub struct PrivateIdentifiersAreOnlyAvailableWhenTargetingEcmascript2015AndHighe
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'implements' clauses can only be used in TypeScript files.")]
+pub struct ImplementsClausesCanOnlyBeUsedInTypeScriptFiles {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -14,6 +14,8 @@ class Test {
     this.data.find(function (d) {
       return d === this.data.length
       //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
+      //~| ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
+      //~| ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
     })
   }
 
@@ -39,8 +41,6 @@ class Test {
     function (d) {
       return d === this.data.length
       //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
-      //~| ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
-      //~| ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
       //~| ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
       //~| ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
     }, this)

@@ -1,0 +1,1 @@
+declare namespace X { export interface bar { } }

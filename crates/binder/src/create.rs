@@ -145,7 +145,7 @@ impl BinderState<'_, '_, '_> {
                                 // TODO: delay error reporting
                             } else if old_symbol
                                 .flags
-                                .intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE)
+                                .contains(SymbolFlags::BLOCK_SCOPED_VARIABLE)
                             {
                                 let error = Box::new(errors::CannotRedeclareBlockScopedVariableX {
                                     span: declaration_name.span(),
