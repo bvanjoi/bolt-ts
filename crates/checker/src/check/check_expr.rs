@@ -1817,8 +1817,7 @@ impl<'cx> TyChecker<'cx> {
 
             if ty.flags.contains(TypeFlags::ENUM_LITERAL)
                 && let ast::ExprKind::PropAccess(access) = loc.kind
-                && let s = this.final_res(access.expr.id())
-                // && let Some(s) = this.get_node_links(access.expr.id()).get_resolved_symbol()
+                && let Some(s) = this.get_node_links(access.expr.id()).get_resolved_symbol()
                 && this.binder.symbol(s).flags.intersects(SymbolFlags::ENUM)
             {
                 let result = match ty.kind {
@@ -3326,13 +3325,12 @@ impl<'cx> TyChecker<'cx> {
                 this.push_error(Box::new(error));
             });
 
-            let result_ty;
             if (self.is_type_assignable_to_kind::<false>(left_ty, TypeFlags::ANY_OR_UNKNOWN)
                 && self.is_type_assignable_to_kind::<false>(right_ty, TypeFlags::ANY_OR_UNKNOWN))
                 || !(left_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LIKE)
                     || right_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LIKE))
             {
-                result_ty = self.number_ty;
+                self.number_ty
             } else if self.is_type_assignable_to_kind::<false>(left_ty, TypeFlags::BIG_INT_LIKE)
                 && self.is_type_assignable_to_kind::<false>(right_ty, TypeFlags::BIG_INT_LIKE)
             {
@@ -3347,12 +3345,10 @@ impl<'cx> TyChecker<'cx> {
                     }
                     _ => {}
                 }
-                result_ty = self.bigint_ty;
+                self.bigint_ty
             } else {
-                result_ty = self.error_ty;
+                self.error_ty
             }
-
-            result_ty
         }
     }
 }

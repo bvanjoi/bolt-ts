@@ -1,0 +1,12 @@
+  × This condition will always return 'false'.
+   ╭─[../../tests/compiler/importAliasFromNamespace/usage.ts:9:13]
+ 9 │ Internal.WhichThing.A
+   · ─────────────────────
+   ╰────
+
+  × Property '_which' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/importAliasFromNamespace/usage.ts:5:17]
+ 5 │ _which
+   · ──────
+   ╰────
