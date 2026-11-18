@@ -1861,10 +1861,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let source_has_rest_param = self.has_effective_rest_param(source);
         let target_has_rest_param = self.has_effective_rest_param(target);
-        if source_has_rest_param != target_has_rest_param {
-            return false;
-        }
-        true
+        source_has_rest_param == target_has_rest_param
     }
 
     fn append_index_info(

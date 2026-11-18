@@ -1,0 +1,11 @@
+  × Overload signatures must all be ambient or non-ambient.
+     ╭─[../../tests/compiler/contextualTyping/index.ts:194:18]
+ 194 │ EF1
+     · ───
+     ╰────
+
+  × Property 'x' is missing.
+     ╭─[../../tests/compiler/contextualTyping/index.ts:229:5]
+ 229 │ x
+     · ─
+     ╰────

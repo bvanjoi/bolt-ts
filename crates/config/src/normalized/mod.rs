@@ -59,11 +59,13 @@ bitflags::bitflags! {
         const PRESERVE_SYMLINKS                         = 1 << 29;
         const PRESERVE_CONST_ENUMS                      = 1 << 30;
 
-        const ALWAYS_STRICT                             = 1 << 31;
-        const CHECK_JS                                  = 1 << 32;
-        const DECLARATION                               = 1 << 33;
-        const DOWNLEVEL_ITERATION                       = 1 << 34;
-        const ISOLATED_DECLARATIONS                     = 1 << 35;
+        const ISOLATED_DECLARATIONS                     = 1 << 31;
+        const ISOLATED_MODULES                          = 1 << 32;
+
+        const ALWAYS_STRICT                             = 1 << 33;
+        const CHECK_JS                                  = 1 << 34;
+        const DECLARATION                               = 1 << 35;
+        const DOWNLEVEL_ITERATION                       = 1 << 36;
     }
 }
 
@@ -241,6 +243,11 @@ impl NormalizedCompilerOptions {
     pub const fn emit_declaration_only(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::EMIT_DECLARATION_ONLY)
+    }
+
+    #[inline(always)]
+    pub const fn isolated_modules(&self) -> bool {
+        self.flags.contains(CompilerOptionFlags::ISOLATED_MODULES)
     }
 
     #[inline(always)]

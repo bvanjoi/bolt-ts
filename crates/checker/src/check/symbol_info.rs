@@ -138,7 +138,7 @@ impl<'cx> super::TyChecker<'cx> {
         self.get_mut_symbol_links(symbol)
             .set_alias_target(Symbol::RESOLVING);
         let s = binder_symbol(self, symbol);
-        assert!(s.flags.contains(SymbolFlags::ALIAS), "symbol: {s:#?}");
+        debug_assert!(s.flags.contains(SymbolFlags::ALIAS), "symbol: {s:#?}");
         let node = s.get_decl_of_alias_symbol(&self.p).unwrap_or_else(|| {
             let decls = s
                 .decls

@@ -9,6 +9,8 @@ fn main() {
         .parent()
         .unwrap()
         .parent()
+        .unwrap()
+        .parent()
         .unwrap();
     let root = project_root::get_project_root().unwrap();
     let lib_resource_dir = root.join(LIB_RESOURCE_RELATIVE_PATH);
@@ -19,6 +21,9 @@ fn main() {
         let filename = p.file_name().unwrap();
         {
             let out_dir = out_dir.join("deps");
+            if !out_dir.exists() {
+                std::fs::create_dir_all(&out_dir).unwrap();
+            }
             let target = out_dir.join(filename);
             if target.is_file() {
                 let _ = std::fs::remove_file(target.as_path());

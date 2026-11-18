@@ -3873,7 +3873,12 @@ impl<'cx> TyChecker<'cx> {
                     if s.flags.contains(SymbolFlags::REGULAR_ENUM) {
                         (decl.span, errors::DeclKind::Enum)
                     } else {
-                        return;
+                        debug_assert!(s.flags.contains(SymbolFlags::CONST_ENUM));
+                        if self.options().isolated_modules() {
+                            (decl.span, errors::DeclKind::Enum)
+                        } else {
+                            return;
+                        }
                     }
                 }
                 ast::Node::ArrayBinding(n) => (n.span, errors::DeclKind::BlockScopedVariable),
