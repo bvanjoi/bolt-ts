@@ -96,7 +96,7 @@ fn check_for_test_default_lib_file_count(target: bolt_ts_config::RawTarget) -> u
         .with_compiler_options(bolt_ts_config::RawCompilerOptions::default().with_target(target));
     let default_lib_dir = project_root::get_project_root()
         .unwrap()
-        .join("target/debug/build");
+        .join("target/debug");
     let result = run(default_lib_dir, atoms, fs, tsconfig);
     result.files
 }

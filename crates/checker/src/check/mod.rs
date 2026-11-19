@@ -7584,6 +7584,7 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::BlockModuleDecl(_) | ast::Node::Program(_)
         ));
         let module_symbol = self.get_symbol_of_declaration(node);
+        // TODO: can we use `debug_assert!(get_exports_checked().is_none())` here?
         if self
             .get_symbol_links(module_symbol)
             .get_exports_checked()
@@ -7636,7 +7637,7 @@ impl<'cx> TyChecker<'cx> {
                 if exported_declarations_count <= 1 {
                     return None;
                 }
-                // TODO: !is_duplicated_common_js_expxort
+                // TODO: !is_duplicated_common_js_export
                 Some(
                     decls
                         .iter()
@@ -7654,16 +7655,38 @@ impl<'cx> TyChecker<'cx> {
             .flatten()
             .collect::<Vec<_>>();
         for decl in redeclared_exports {
-            let decl = self.p.node(decl);
-            let span = if let Some(name) = decl.ident_name() {
-                name.span
-            } else {
-                decl.span()
+            let (name, span) = match self.p.node(decl) {
+                n if n
+                    .modifier_flags()
+                    .is_some_and(|flags| flags.contains(ast::ModifierFlags::DEFAULT)) =>
+                {
+                    ("default".to_string(), n.span())
+                }
+                ast::Node::VarDecl(n) if let ast::BindingKind::Ident(name) = n.name.kind => {
+                    (self.atoms.get(name.name).to_string(), n.span)
+                }
+                ast::Node::ObjectBindingElem(n) => match n.name {
+                    ast::ObjectBindingName::Shorthand(n) => {
+                        (self.atoms.get(n.name).to_string(), n.span)
+                    }
+                    ast::ObjectBindingName::Prop { name, .. }
+                        if let ast::BindingKind::Ident(name) = name.kind =>
+                    {
+                        (self.atoms.get(name.name).to_string(), n.span)
+                    }
+                    _ => unreachable!(),
+                },
+                ast::Node::ArrayBinding(n) if let ast::BindingKind::Ident(name) = n.name.kind => {
+                    (self.atoms.get(name.name).to_string(), n.span)
+                }
+                n => match n.ident_name() {
+                    Some(ident_name) => {
+                        (self.atoms.get(ident_name.name).to_string(), ident_name.span)
+                    }
+                    None => ("default".to_string(), n.span()),
+                },
             };
-            let error = errors::CannotRedeclareExportedVariableX {
-                span,
-                name: "default".to_string(),
-            };
+            let error = errors::CannotRedeclareExportedVariableX { span, name };
             self.push_error(Box::new(error));
         }
 

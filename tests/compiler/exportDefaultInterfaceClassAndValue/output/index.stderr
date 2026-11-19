@@ -5,13 +5,13 @@
    ╰────
 
   × Cannot redeclare exported variable 'default'.
-   ╭─[../../tests/compiler/exportDefaultInterfaceClassAndValue/index.ts:9:22]
- 9 │ Foo
-   · ───
+   ╭─[../../tests/compiler/exportDefaultInterfaceClassAndValue/index.ts:9:16]
+ 9 │ class Foo {}
+   · ────────────
    ╰────
 
   × Cannot redeclare exported variable 'default'.
-    ╭─[../../tests/compiler/exportDefaultInterfaceClassAndValue/index.ts:11:26]
- 11 │ Foo
-    · ───
+    ╭─[../../tests/compiler/exportDefaultInterfaceClassAndValue/index.ts:11:16]
+ 11 │ interface Foo {}
+    · ────────────────
     ╰────

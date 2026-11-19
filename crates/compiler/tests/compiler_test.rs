@@ -36,7 +36,7 @@ fn eval_in_test<'cx>(
     let fs = LocalFS::new(&mut atoms);
     let default_lib_dir = project_root::get_project_root()
         .unwrap()
-        .join("target/debug/build");
+        .join("target/debug");
     let default_libs = bolt_ts_libs::LIBS
         .iter()
         .map(|filename| default_lib_dir.join(filename))
