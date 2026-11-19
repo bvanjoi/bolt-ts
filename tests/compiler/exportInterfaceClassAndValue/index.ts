@@ -5,5 +5,5 @@
 
 export const foo = 1
 export declare class foo {}
-//~^ ERROR: Duplicate identifier 'foo'.
+//~^ ERROR: Cannot redeclare block-scoped variable 'foo'.
 export interface foo {}

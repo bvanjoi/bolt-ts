@@ -314,6 +314,11 @@ impl Symbol {
                 .is_some_and(|ns| ns.block.is_none())
         })
     }
+    pub fn has_export_assignment_symbol(&self) -> bool {
+        self.exports
+            .as_ref()
+            .is_some_and(|exports| exports.0.contains_key(&SymbolName::ExportEquals))
+    }
 }
 
 bolt_ts_utils::module_index!(SymbolID);

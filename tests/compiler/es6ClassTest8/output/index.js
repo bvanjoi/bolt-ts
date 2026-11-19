@@ -6,8 +6,8 @@ function f1(x) {
 }
 class C {
   constructor() {var bar = (function () {
-      return bar;
-    // 'bar' should be resolvable
+      return bar;// 'bar' should be resolvable
+      
     });
     var b = f1(f1(bar));}
 }

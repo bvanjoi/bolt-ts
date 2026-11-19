@@ -3,21 +3,21 @@
 class a {}
 class b1 extends a {
   constructor(_super) {// should be error
-    super();}
+  super();}
 }
 class b2 extends a {
   constructor(_super) {// should be error
-    super();}
+  super();}
 }
 class b3 extends a {
   // no code gen - no error
-  constructor// no code gen - no error
-  (_super) {// should be error
-    super();}
+  // no code gen - no error
+  constructor(_super) {// should be error
+  super();}
 }
 class b4 extends a {
   // no code gen - no error
-  constructor// no code gen - no error
-  (_super) {// should be error
-    super();}
+  // no code gen - no error
+  constructor(_super) {// should be error
+  super();}
 }

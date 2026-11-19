@@ -1,0 +1,12 @@
+  × Property '___foo' does not exist on type '{ __foo: 10; }'.
+   ╭─[../../tests/compiler/spellingSuggestionLeadingUnderscores01/abc.ts:5:3]
+ 5 │ ___foo
+   · ──────
+   ╰────
+
+  × Object literal may only specify known properties, and '___foo' does not
+  │ exist in type '{ __foo: number; }'.
+   ╭─[../../tests/compiler/spellingSuggestionLeadingUnderscores01/def.ts:6:5]
+ 6 │ ___foo
+   · ──────
+   ╰────

@@ -1,3 +1,15 @@
+  × Expected 2 type arguments, but got 1.
+    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:13:14]
+ 13 │ <number>
+    · ────────
+    ╰────
+
+  × Expected 2 type arguments, but got 3.
+    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:16:14]
+ 16 │ <number, number, number>
+    · ────────────────────────
+    ╰────
+
   × Property 'x' has no initializer and is not definitely assigned in the
   │ constructor.
    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:5:3]
@@ -11,15 +23,3 @@
  8 │ y
    · ─
    ╰────
-
-  × Expected 2 type arguments, but got 1.
-    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:13:14]
- 13 │ <number>
-    · ────────
-    ╰────
-
-  × Expected 2 type arguments, but got 3.
-    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:16:14]
- 16 │ <number, number, number>
-    · ────────────────────────
-    ╰────

@@ -11,13 +11,6 @@ Advice:
    · ───
    ╰────
 
-Advice: 
-  ☞ 'bar' has been alias here.
-   ╭─[../../tests/compiler/importNonExportedMember/a.ts:3:15]
- 3 │ bar as baz
-   · ──────────
-   ╰────
-
   × Expected 0 arguments, but got 1.
    ╭─[../../tests/compiler/importNonExportedMember/index.ts:6:1]
  6 │ foo

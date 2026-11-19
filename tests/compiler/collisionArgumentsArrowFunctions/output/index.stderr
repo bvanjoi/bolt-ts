@@ -1,30 +1,12 @@
   × Invalid use of 'arguments' in strict mode.
-   ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:5:25]
- 5 │ arguments
-   · ─────────
-   ╰────
-
-  × Invalid use of 'arguments' in strict mode.
    ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:8:7]
  8 │ arguments
    · ─────────
    ╰────
 
   × Invalid use of 'arguments' in strict mode.
-    ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:11:12]
- 11 │ arguments
-    · ─────────
-    ╰────
-
-  × Invalid use of 'arguments' in strict mode.
     ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:14:7]
  14 │ arguments
-    · ─────────
-    ╰────
-
-  × Invalid use of 'arguments' in strict mode.
-    ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:17:18]
- 17 │ arguments
     · ─────────
     ╰────
 
@@ -43,6 +25,24 @@
   × Invalid use of 'arguments' in strict mode.
     ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:28:7]
  28 │ arguments
+    · ─────────
+    ╰────
+
+  × Invalid use of 'arguments' in strict mode.
+   ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:5:25]
+ 5 │ arguments
+   · ─────────
+   ╰────
+
+  × Invalid use of 'arguments' in strict mode.
+    ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:11:12]
+ 11 │ arguments
+    · ─────────
+    ╰────
+
+  × Invalid use of 'arguments' in strict mode.
+    ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:17:18]
+ 17 │ arguments
     · ─────────
     ╰────
 

@@ -1,0 +1,5 @@
+  × Property 'inNestedFunction' does not exist on type '() => void'.
+    ╭─[../../tests/compiler/expandoFunctionNestedAssigments/index.ts:14:23]
+ 14 │ inNestedFunction
+    · ────────────────
+    ╰────

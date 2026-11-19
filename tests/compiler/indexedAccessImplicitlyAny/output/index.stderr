@@ -1,0 +1,12 @@
+  × Property 'foo' does not exist on type 'I'.
+   ╭─[../../tests/compiler/indexedAccessImplicitlyAny/index.ts:8:3]
+ 8 │ foo
+   · ───
+   ╰────
+
+  × Element implicitly has an 'any' type because expression of type '"foo"'
+  │ can't be used to index type 'I'.
+    ╭─[../../tests/compiler/indexedAccessImplicitlyAny/index.ts:10:1]
+ 10 │ i["foo"]
+    · ────────
+    ╰────

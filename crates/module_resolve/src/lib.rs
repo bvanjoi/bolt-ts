@@ -52,7 +52,7 @@ bitflags::bitflags! {
         const ImplementationFiles = Self::TypeScript.bits() | Self::JavaScript.bits();
     }
 
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct ResolveFlags: u8 {
         const PRESERVE_SYMLINKS     = 1 << 0;
         const NO_DTS_RESOLUTION     = 1 << 1;
@@ -107,6 +107,7 @@ struct SearchResult {
     is_external_library_import: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ContainingFile {
     directory: PathId,
 }
@@ -716,6 +717,7 @@ pub enum ResolutionMode {
     CommonJS,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ResolverOptions<'options> {
     pub module_resolution: NormalizedModuleResolution,
     pub custom_conditions: &'options [String],

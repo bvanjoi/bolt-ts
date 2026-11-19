@@ -4,11 +4,11 @@
 function insertInterface(callbackType) {
   for ( var memberType of callbackType.members) {
     if (memberType.type === 'const') {
-      memberType.idlType;
-    // string
+      memberType.idlType;// string
+      
     } else if (memberType.type === 'operation') {
-      memberType.idlType.origin;
-      // string
+      memberType.idlType.origin;// string
+      
       (memberType.idlType);
     }
     
@@ -18,19 +18,19 @@ function insertInterface(callbackType) {
 function insertInterface2(callbackType) {
   for ( var memberType of callbackType.members) {
     if (memberType.type === 'operation') {
-      memberType.idlType.origin;
-    // string
+      memberType.idlType.origin;// string
+      
     }
     
   }
 }
 function foo(memberType) {
   if (memberType.type === 'const') {
-    memberType.idlType;
-  // string
+    memberType.idlType;// string
+    
   } else if (memberType.type === 'operation') {
-    memberType.idlType.origin;
-  // string
+    memberType.idlType.origin;// string
+    
   }
   
   

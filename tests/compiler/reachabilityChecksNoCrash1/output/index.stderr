@@ -1,0 +1,67 @@
+  × Expected ','.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:54]
+ 7 │ !
+   · ─
+   ╰────
+
+  × Identifier expected.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:54]
+ 7 │ !
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:54]
+ 7 │ !
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:70]
+ 7 │ <
+   · ─
+   ╰────
+
+  × Identifier expected.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:70]
+ 7 │ <
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:70]
+ 7 │ <
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:72]
+ 7 │ >
+   · ─
+   ╰────
+
+  × Parameter 'asyncIterable' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:41]
+ 7 │ asyncIterable
+   · ─────────────
+   ╰────
+
+  × Parameter '' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:54]
+   ╰────
+
+  × Parameter 'AsyncIterable' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:56]
+ 7 │  AsyncIterable
+   · ──────────────
+   ╰────
+
+  × Parameter '' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:70]
+   ╰────
+
+  × Parameter 'T' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/reachabilityChecksNoCrash1/index.ts:7:71]
+ 7 │ T
+   · ─
+   ╰────

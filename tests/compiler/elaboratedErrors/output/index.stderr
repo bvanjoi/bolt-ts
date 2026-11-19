@@ -5,13 +5,6 @@
     · ────
     ╰────
 
-  × Property 'read' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/elaboratedErrors/index.ts:16:3]
- 16 │ read
-    · ────
-    ╰────
-
   × Property 'x' is missing.
     ╭─[../../tests/compiler/elaboratedErrors/index.ts:27:1]
  27 │ x
@@ -34,4 +27,11 @@
     ╭─[../../tests/compiler/elaboratedErrors/index.ts:35:1]
  35 │ y
     · ─
+    ╰────
+
+  × Property 'read' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/elaboratedErrors/index.ts:16:3]
+ 16 │ read
+    · ────
     ╰────

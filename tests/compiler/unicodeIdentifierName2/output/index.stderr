@@ -1,0 +1,29 @@
+  × Invalid character.
+   ╭─[../../tests/compiler/unicodeIdentifierName2/index.ts:5:6]
+ 5 │ ₁
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/unicodeIdentifierName2/index.ts:5:6]
+ 5 │ ₁
+   · ─
+   ╰────
+
+  × Invalid character.
+   ╭─[../../tests/compiler/unicodeIdentifierName2/index.ts:5:28]
+ 5 │ ₁
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/unicodeIdentifierName2/index.ts:5:28]
+ 5 │ ₁
+   · ─
+   ╰────
+
+  × Argument expression expected.
+   ╭─[../../tests/compiler/unicodeIdentifierName2/index.ts:5:28]
+ 5 │ ₁
+   · ─
+   ╰────

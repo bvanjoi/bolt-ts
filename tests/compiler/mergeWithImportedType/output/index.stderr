@@ -1,0 +1,5 @@
+  × Import declaration conflicts with local declaration of 'E'.
+   ╭─[../../tests/compiler/mergeWithImportedType/f2.ts:1:9]
+ 1 │ E
+   · ─
+   ╰────

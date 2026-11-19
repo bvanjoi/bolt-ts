@@ -1,0 +1,41 @@
+  × Module './es6ImportDefaultBindingFollowedWithNamedImportInEs5_0' has no
+  │ default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportInEs5/es6ImportDefaultBindingFollowedWithNamedImportInEs5_1.ts:1:8]
+ 1 │ defaultBinding1
+   · ───────────────
+   ╰────
+
+  × Module './es6ImportDefaultBindingFollowedWithNamedImportInEs5_0' has no
+  │ default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportInEs5/es6ImportDefaultBindingFollowedWithNamedImportInEs5_1.ts:3:8]
+ 3 │ defaultBinding2
+   · ───────────────
+   ╰────
+
+  × Module './es6ImportDefaultBindingFollowedWithNamedImportInEs5_0' has no
+  │ default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportInEs5/es6ImportDefaultBindingFollowedWithNamedImportInEs5_1.ts:6:8]
+ 6 │ defaultBinding3
+   · ───────────────
+   ╰────
+
+  × Module './es6ImportDefaultBindingFollowedWithNamedImportInEs5_0' has no
+  │ default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportInEs5/es6ImportDefaultBindingFollowedWithNamedImportInEs5_1.ts:9:8]
+ 9 │ defaultBinding4
+   · ───────────────
+   ╰────
+
+  × Module './es6ImportDefaultBindingFollowedWithNamedImportInEs5_0' has no
+  │ default export.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportInEs5/es6ImportDefaultBindingFollowedWithNamedImportInEs5_1.ts:13:8]
+ 13 │ defaultBinding5
+    · ───────────────
+    ╰────
+
+  × Module './es6ImportDefaultBindingFollowedWithNamedImportInEs5_0' has no
+  │ default export.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportInEs5/es6ImportDefaultBindingFollowedWithNamedImportInEs5_1.ts:16:8]
+ 16 │ defaultBinding6
+    · ───────────────
+    ╰────

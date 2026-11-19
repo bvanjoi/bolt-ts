@@ -1,0 +1,23 @@
+  × Type '{ [asyncIterator]: (_: number) => Generator<number, void,
+  │ undefined>; }' must have a '[Symbol.asyncIterator]()' method that returns
+  │ an async iterator.
+    ╭─[../../tests/compiler/asyncIteratorExtraParameters/index.ts:16:27]
+ 16 │ iter
+    · ────
+    ╰────
+
+  × Type '{ [asyncIterator]: (_: number) => Generator<number, void,
+  │ undefined>; }' must have a '[Symbol.asyncIterator]()' method that returns
+  │ an async iterator.
+    ╭─[../../tests/compiler/asyncIteratorExtraParameters/index.ts:19:12]
+ 19 │ iter
+    · ────
+    ╰────
+
+  × Type '{ [asyncIterator]: (_: number) => Generator<number, void,
+  │ undefined>; }' must have a '[Symbol.asyncIterator]()' method that returns
+  │ an async iterator.
+    ╭─[../../tests/compiler/asyncIteratorExtraParameters/index.ts:19:12]
+ 19 │ iter
+    · ────
+    ╰────

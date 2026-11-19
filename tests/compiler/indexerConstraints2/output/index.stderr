@@ -4,20 +4,6 @@
     · ────────
     ╰────
 
-  × Property 'a' has no initializer and is not definitely assigned in the
-  │ constructor.
-   ╭─[../../tests/compiler/indexerConstraints2/index.ts:5:11]
- 5 │ a
-   · ─
-   ╰────
-
-  × Property 'b' has no initializer and is not definitely assigned in the
-  │ constructor.
-   ╭─[../../tests/compiler/indexerConstraints2/index.ts:7:21]
- 7 │ b
-   · ─
-   ╰────
-
   × 'number' index type 'A' is not assignable to 'string' index type 'B'.
     ╭─[../../tests/compiler/indexerConstraints2/index.ts:15:5]
  15 │ [n: number]: A
@@ -70,3 +56,17 @@
  87 │ [u: "foo" | "bar"]: A;
     · ──────────────────────
     ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/indexerConstraints2/index.ts:5:11]
+ 5 │ a
+   · ─
+   ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/indexerConstraints2/index.ts:7:21]
+ 7 │ b
+   · ─
+   ╰────

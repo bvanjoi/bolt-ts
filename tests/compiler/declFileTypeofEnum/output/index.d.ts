@@ -7,6 +7,6 @@ enum days {
   saturday = 5,
   sunday = 6
 }
-var weekendDay: days.saturday;
+var weekendDay: days;
 var daysOfMonth: { monday: days.monday; tuesday: days.tuesday; wednesday: days.wednesday; thursday: days.thursday; friday: days.friday; saturday: days.saturday; sunday: days.sunday; };
 var daysOfYear: typeof days;

@@ -1,45 +1,3 @@
-  × Property 'value' has no initializer and is not definitely assigned in the
-  │ constructor.
-   ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:6:5]
- 6 │ value
-   · ─────
-   ╰────
-
-  × Property 'value' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:10:5]
- 10 │ value
-    · ─────
-    ╰────
-
-  × Property 'id' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:12:5]
- 12 │ id
-    · ──
-    ╰────
-
-  × Property 'value' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:16:5]
- 16 │ value
-    · ─────
-    ╰────
-
-  × Property 'id' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:18:5]
- 18 │ id
-    · ──
-    ╰────
-
-  × Property 'name' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:20:5]
- 20 │ name
-    · ────
-    ╰────
-
   × Generic type 'One<T>' requires 1 type argument.
     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:24:16]
  24 │ One
@@ -142,13 +100,6 @@
     · ────────────────
     ╰────
 
-  × Property 'value' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:74:5]
- 74 │ value
-    · ─────
-    ╰────
-
   × Generic type 'X<T>' requires 1 type argument.
     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:80:15]
  80 │ X
@@ -209,62 +160,6 @@
      · ─
      ╰────
 
-  × Property 'p1' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:80:5]
- 80 │ p1
-    · ──
-    ╰────
-
-  × Property 'p2' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:83:5]
- 83 │ p2
-    · ──
-    ╰────
-
-  × Property 'p3' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:86:5]
- 86 │ p3
-    · ──
-    ╰────
-
-  × Property 'p4' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:89:5]
- 89 │ p4
-    · ──
-    ╰────
-
-  × Property 'p6' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:94:5]
- 94 │ p6
-    · ──
-    ╰────
-
-  × Property 'p7' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:97:5]
- 97 │ p7
-    · ──
-    ╰────
-
-  × Property 'p8' has no initializer and is not definitely assigned in the
-  │ constructor.
-     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:100:5]
- 100 │ p8
-     · ──
-     ╰────
-
-  × Property 'p9' has no initializer and is not definitely assigned in the
-  │ constructor.
-     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:103:5]
- 103 │ p9
-     · ──
-     ╰────
-
   × Generic type 'X<T>' requires 1 type argument.
      ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:111:15]
  111 │ X
@@ -323,4 +218,109 @@
      ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:129:9]
  129 │ Y
      · ─
+     ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:6:5]
+ 6 │ value
+   · ─────
+   ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:10:5]
+ 10 │ value
+    · ─────
+    ╰────
+
+  × Property 'id' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:12:5]
+ 12 │ id
+    · ──
+    ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:16:5]
+ 16 │ value
+    · ─────
+    ╰────
+
+  × Property 'id' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:18:5]
+ 18 │ id
+    · ──
+    ╰────
+
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:20:5]
+ 20 │ name
+    · ────
+    ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:74:5]
+ 74 │ value
+    · ─────
+    ╰────
+
+  × Property 'p1' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:80:5]
+ 80 │ p1
+    · ──
+    ╰────
+
+  × Property 'p2' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:83:5]
+ 83 │ p2
+    · ──
+    ╰────
+
+  × Property 'p3' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:86:5]
+ 86 │ p3
+    · ──
+    ╰────
+
+  × Property 'p4' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:89:5]
+ 89 │ p4
+    · ──
+    ╰────
+
+  × Property 'p6' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:94:5]
+ 94 │ p6
+    · ──
+    ╰────
+
+  × Property 'p7' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:97:5]
+ 97 │ p7
+    · ──
+    ╰────
+
+  × Property 'p8' has no initializer and is not definitely assigned in the
+  │ constructor.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:100:5]
+ 100 │ p8
+     · ──
+     ╰────
+
+  × Property 'p9' has no initializer and is not definitely assigned in the
+  │ constructor.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:103:5]
+ 103 │ p9
+     · ──
      ╰────

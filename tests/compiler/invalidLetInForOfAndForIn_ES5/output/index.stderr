@@ -1,0 +1,89 @@
+  × Identifier expected. 'let' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:9:5]
+ 9 │ let
+   · ───
+   ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:13]
+ 10 │ [
+    · ─
+    ╰────
+
+  × Expected ']'.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:14]
+ 10 │ 1
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:14]
+ 10 │ 1
+    · ─
+    ╰────
+
+  × Expected ';'.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:14]
+ 10 │ 1
+    · ─
+    ╰────
+
+  × Expected ';'.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:19]
+ 10 │ ]
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:19]
+ 10 │ ]
+    · ─
+    ╰────
+
+  × Expected ')'.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:19]
+ 10 │ ]
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:19]
+ 10 │ ]
+    · ─
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:19]
+ 10 │ ]
+    · ─
+    ╰────
+
+  × A destructuring declaration must have an initializer.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:13]
+ 10 │ [
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:19]
+ 10 │ ]
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:20]
+ 10 │ )
+    · ─
+    ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:14]
+ 10 │ 1
+    · ─
+    ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+    ╭─[../../tests/compiler/invalidLetInForOfAndForIn_ES5/index.ts:10:14]
+ 10 │ 1,2
+    · ───
+    ╰────

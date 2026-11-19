@@ -1,0 +1,6 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/exportDefaultAbstractClass/a.ts:1:35]
+ 1 │ a
+   · ─
+   ╰────

@@ -1,0 +1,24 @@
+  × Cannot redeclare identifier 'e' in catch clause.
+   ╭─[../../tests/compiler/redeclareParameterInCatchBlock/index.ts:9:11]
+ 9 │ e = null
+   · ────────
+   ╰────
+
+  × Cannot redeclare identifier 'e' in catch clause.
+    ╭─[../../tests/compiler/redeclareParameterInCatchBlock/index.ts:16:9]
+ 16 │ e
+    · ─
+    ╰────
+
+  × Cannot redeclare identifier 'b' in catch clause.
+    ╭─[../../tests/compiler/redeclareParameterInCatchBlock/index.ts:23:15]
+ 23 │ b
+    · ─
+    ╰────
+
+  × Cannot redeclare block-scoped variable 'x'.
+    ╭─[../../tests/compiler/redeclareParameterInCatchBlock/index.ts:29:21]
+ 29 │ x, b: x
+    · ┬     ─
+    · ╰── Previous definition here
+    ╰────

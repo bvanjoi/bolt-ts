@@ -1,4 +1,4 @@
-  × Type 'Yadda | Awaited' is not assignable to type 'T'.
+  × Type 'Yadda | Awaited<T>' is not assignable to type 'T'.
    ╭─[../../tests/compiler/doNotElaborateAssignabilityToTypeParameters/index.ts:8:10]
  8 │ yaddable
    · ────────

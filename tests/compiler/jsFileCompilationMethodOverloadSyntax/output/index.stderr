@@ -1,0 +1,19 @@
+  × Signature declarations can only be used in TypeScript files.
+   ╭─[../../tests/compiler/jsFileCompilationMethodOverloadSyntax/index.js:8:3]
+ 8 │ foo();
+   · ──────
+   ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/jsFileCompilationMethodOverloadSyntax/index.js:8:3]
+ 8 │ foo
+   · ───
+   ╰────
+
+  × 'foo', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+   ╭─[../../tests/compiler/jsFileCompilationMethodOverloadSyntax/index.js:8:3]
+ 8 │ foo();
+   · ──────
+   ╰────

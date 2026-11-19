@@ -40,10 +40,10 @@ var m1 = {};
     f11_private() {
       return new C2_private();
     }
-    f12_public() {
-      // error
-      return new C2_private();
-    //error
+    f12_public() {// error
+    
+      return new C2_private();//error
+      
     }
   }
   m1.C3_public = C3_public;

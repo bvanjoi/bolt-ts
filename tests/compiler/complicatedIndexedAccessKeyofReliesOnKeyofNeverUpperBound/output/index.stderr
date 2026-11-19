@@ -1,0 +1,7 @@
+  × Type '{ type: T; localChannelId: string; }' is not assignable to type
+  │ 'NewChannel<ChannelOfType<T, TextChannel> | ChannelOfType<T,
+  │ EmailChannel>>'.
+    ╭─[../../tests/compiler/complicatedIndexedAccessKeyofReliesOnKeyofNeverUpperBound/index.ts:37:12]
+ 37 │ { type, localChannelId }
+    · ────────────────────────
+    ╰────

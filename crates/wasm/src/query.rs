@@ -1,4 +1,4 @@
-// use bolt_ts_optimize::IrOutput;
+// use bolt_ts_emit::IrOutput;
 // use indexmap::IndexMap;
 // use wasm_bindgen::prelude::*;
 

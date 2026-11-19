@@ -4,8 +4,8 @@ var obj = {
   debugger: 2,
   break: 3,
   function: 4  
-}//This compiles.
-;
+};
+//This compiles.
 var obj2 = {
   if: 0,
   while: 1,

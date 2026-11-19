@@ -11,18 +11,18 @@ class C {
         break;
       
       case 'B':
-        break;
+        break;// should not error
+        
       
-    // should not error
     }
   }
 }
 // D should be AB, not "A"
 
-expectAB(c.D);
-// ok
-c.D = 'B';
-// ok
+expectAB(c.D);// ok
+
+c.D = 'B';// ok
+
 // Static property should work the same way
 class D {
   static SD = DEFAULT;

@@ -11,12 +11,12 @@ var Z = {};
     }
     M.bar = bar;
     
-  })(M);
-  Z// Should call Z.M.bar
-  .M = M;
+  })(M);// Should call Z.M.bar
   
-})(Z);
-// Should call Z.M.bar
+  Z.M = M;
+  
+})(Z);// Should call Z.M.bar
+
 var A = {};
 (function (A) {
 

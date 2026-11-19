@@ -5,8 +5,8 @@ var a = {};
 
   var x;
   
-  var b // should not be an error
-  = {};
+  var b// should not be an error
+   = {};
   (function (b) {
   
     var y = x;

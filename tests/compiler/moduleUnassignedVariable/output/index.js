@@ -5,8 +5,8 @@ var Bar = {};
 (function (Bar) {
 
   var a = 1;
-  Bar.a // Correct: return Bar.a
-  = a
+  Bar.a// Correct: return Bar.a
+   = a
   
   function fooA() {
     return a;

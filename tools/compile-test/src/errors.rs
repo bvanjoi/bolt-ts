@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
 use std::path::Path;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use self::WhichLine::*;
@@ -47,6 +48,7 @@ impl fmt::Display for ErrorKind {
 
 #[derive(Debug)]
 pub struct Error {
+    pub file: PathBuf,
     pub line_num: usize,
     /// What kind of message we expect (e.g., warning, error, suggestion).
     /// `None` if not specified or unknown message kind.
@@ -88,21 +90,27 @@ pub fn load_errors(testfile: &Path, revision: Option<&str>) -> Vec<Error> {
         .enumerate()
         .filter_map(|(line_num, line)| {
             let line = line.ok()?;
-            parse_expected(last_nonfollow_error, line_num + 1, &line, revision).map(
-                |(which, error)| {
-                    match which {
-                        FollowPrevious(_) => {}
-                        _ => last_nonfollow_error = Some(error.line_num),
-                    }
-
-                    error
-                },
+            parse_expected(
+                testfile.to_path_buf(),
+                last_nonfollow_error,
+                line_num + 1,
+                &line,
+                revision,
             )
+            .map(|(which, error)| {
+                match which {
+                    FollowPrevious(_) => {}
+                    _ => last_nonfollow_error = Some(error.line_num),
+                }
+
+                error
+            })
         })
         .collect()
 }
 
 fn parse_expected(
+    file: PathBuf,
     last_nonfollow_error: Option<usize>,
     line_num: usize,
     line: &str,
@@ -168,6 +176,7 @@ fn parse_expected(
     Some((
         which,
         Error {
+            file,
             line_num,
             kind,
             msg,

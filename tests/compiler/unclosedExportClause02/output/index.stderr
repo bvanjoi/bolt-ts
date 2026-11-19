@@ -1,0 +1,29 @@
+  × Expected '}'.
+   ╭─[../../tests/compiler/unclosedExportClause02/t2.ts:1:13]
+ 1 │ from
+   · ────
+   ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/unclosedExportClause02/t3.ts:1:10]
+ 1 │ from
+   · ────
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/unclosedExportClause02/t4.ts:1:17]
+ 1 │ from
+   · ────
+   ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/unclosedExportClause02/t4.ts:1:17]
+ 1 │ from
+   · ────
+   ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/unclosedExportClause02/t5.ts:1:18]
+ 1 │ from
+   · ────
+   ╰────

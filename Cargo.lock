@@ -160,7 +160,6 @@ version = "0.1.0"
 dependencies = [
  "bolt_ts_utils",
  "nohash-hasher",
- "paste",
  "rustc-hash",
 ]
 
@@ -234,6 +233,7 @@ version = "0.1.0"
 dependencies = [
  "bolt_ts_ast",
  "bolt_ts_errors",
+ "bolt_ts_parser_errors",
  "bolt_ts_span",
  "thiserror",
 ]
@@ -253,13 +253,13 @@ dependencies = [
  "bolt_ts_config",
  "bolt_ts_early_resolve",
  "bolt_ts_ecma_rules",
+ "bolt_ts_emit",
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
  "bolt_ts_middle",
  "bolt_ts_module_graph",
  "bolt_ts_module_resolve",
- "bolt_ts_optimize",
  "bolt_ts_parser",
  "bolt_ts_path",
  "bolt_ts_span",
@@ -271,7 +271,6 @@ dependencies = [
  "dir-test",
  "expect-test",
  "glob",
- "include_dir",
  "indexmap",
  "nohash-hasher",
  "paste",
@@ -345,6 +344,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "bolt_ts_emit"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.9.4",
+ "bolt_ts_arena",
+ "bolt_ts_ast",
+ "bolt_ts_atom",
+ "bolt_ts_binder",
+ "bolt_ts_checker",
+ "bolt_ts_config",
+ "bolt_ts_ecma_logical",
+ "bolt_ts_parser",
+ "bolt_ts_scanner",
+ "bolt_ts_span",
+ "bolt_ts_utils",
+ "nohash-hasher",
+ "paste",
+ "rustc-hash",
+]
+
+[[package]]
 name = "bolt_ts_errors"
 version = "0.1.0"
 dependencies = [
@@ -365,7 +385,6 @@ dependencies = [
  "indexmap",
  "nohash-hasher",
  "rustc-hash",
- "serde",
  "serde_json",
  "vfs",
 ]
@@ -379,10 +398,10 @@ dependencies = [
  "bolt_ts_atom",
  "bolt_ts_compiler",
  "bolt_ts_config",
+ "bolt_ts_emit",
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
- "bolt_ts_optimize",
  "bolt_ts_span",
  "indexmap",
  "serde_json",
@@ -421,7 +440,6 @@ dependencies = [
  "bolt_ts_arena",
  "bolt_ts_ast",
  "bolt_ts_atom",
- "bolt_ts_binder",
  "bolt_ts_config",
  "bolt_ts_errors",
  "bolt_ts_fs",
@@ -475,43 +493,9 @@ dependencies = [
 name = "bolt_ts_napi"
 version = "0.1.0"
 dependencies = [
- "bolt_ts_atom",
- "bolt_ts_compiler",
- "bolt_ts_config",
- "bolt_ts_errors",
- "bolt_ts_fs",
- "bolt_ts_libs",
- "bolt_ts_optimize",
- "bolt_ts_span",
- "indexmap",
  "napi",
  "napi-build",
  "napi-derive",
- "serde",
- "serde_json",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "bolt_ts_optimize"
-version = "0.1.0"
-dependencies = [
- "bitflags 2.9.4",
- "bolt_ts_arena",
- "bolt_ts_ast",
- "bolt_ts_ast_visitor",
- "bolt_ts_atom",
- "bolt_ts_binder",
- "bolt_ts_checker",
- "bolt_ts_config",
- "bolt_ts_ecma_logical",
- "bolt_ts_parser",
- "bolt_ts_scanner",
- "bolt_ts_span",
- "bolt_ts_utils",
- "nohash-hasher",
- "paste",
- "rustc-hash",
 ]
 
 [[package]]
@@ -528,25 +512,18 @@ dependencies = [
  "bolt_ts_ecma_logical",
  "bolt_ts_ecma_rules",
  "bolt_ts_errors",
- "bolt_ts_fs",
  "bolt_ts_libs",
  "bolt_ts_middle",
- "bolt_ts_module_resolve",
  "bolt_ts_parser_errors",
  "bolt_ts_path",
  "bolt_ts_scanner",
  "bolt_ts_span",
- "bolt_ts_tracing",
  "bolt_ts_utils",
  "indexmap",
  "nohash-hasher",
  "paste",
- "pretty-duration",
  "rayon",
  "rustc-hash",
- "serde_json",
- "thin-vec",
- "tracing",
 ]
 
 [[package]]
@@ -578,7 +555,6 @@ version = "0.1.0"
 name = "bolt_ts_scanner"
 version = "0.1.0"
 dependencies = [
- "bitflags 2.9.4",
  "bolt_ts_atom",
  "bolt_ts_ecma_logical",
  "indexmap",
@@ -630,20 +606,6 @@ dependencies = [
 name = "bolt_ts_wasm"
 version = "0.1.0"
 dependencies = [
- "bolt_ts_atom",
- "bolt_ts_compiler",
- "bolt_ts_config",
- "bolt_ts_errors",
- "bolt_ts_fs",
- "bolt_ts_libs",
- "bolt_ts_optimize",
- "bolt_ts_span",
- "console_error_panic_hook",
- "indexmap",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "wasm-bindgen",
  "wasm-bindgen-test",
 ]
 
@@ -659,13 +621,9 @@ dependencies = [
  "bolt_ts_binder",
  "bolt_ts_checker_errors",
  "bolt_ts_config",
- "bolt_ts_early_resolve",
  "bolt_ts_ecma_rules",
  "bolt_ts_errors",
- "bolt_ts_fs",
  "bolt_ts_middle",
- "bolt_ts_module_graph",
- "bolt_ts_module_resolve",
  "bolt_ts_parser",
  "bolt_ts_span",
  "bolt_ts_utils",
@@ -689,9 +647,6 @@ dependencies = [
 [[package]]
 name = "bootstrap"
 version = "0.1.0"
-dependencies = [
- "serde_json",
-]
 
 [[package]]
 name = "build-github-ci"
@@ -866,16 +821,6 @@ name = "condtype"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf0a07a401f374238ab8e2f11a104d2851bf9ce711ec69804834de8af45c7af"
-
-[[package]]
-name = "console_error_panic_hook"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
-dependencies = [
- "cfg-if",
- "wasm-bindgen",
-]
 
 [[package]]
 name = "convert_case"
@@ -1349,25 +1294,6 @@ checksum = "3acae9609540aa318d1bc588455225fb2085b9ed0c4f6bd0d9d5bcd86f1a0344"
 dependencies = [
  "icu_normalizer",
  "icu_properties",
-]
-
-[[package]]
-name = "include_dir"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "923d117408f1e49d914f1a379a309cffe4f18c05cf4e3d12e613a15fc81bd0dd"
-dependencies = [
- "include_dir_macros",
-]
-
-[[package]]
-name = "include_dir_macros"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cab85a7ed0bd5f0e76d93846e0147172bed2e2d3f859bcc33a8d9699cad1a75"
-dependencies = [
- "proc-macro2",
- "quote",
 ]
 
 [[package]]
@@ -1978,12 +1904,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustversion"
-version = "1.0.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7c45b9784283f1b2e7fb61b42047c2fd678ef0960d4f6f1eba131594cc369d4"
-
-[[package]]
 name = "ryu"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2018,17 +1938,6 @@ checksum = "0dca6411025b24b60bfa7ec1fe1f8e710ac09782dca409ee8237ba74b51295fd"
 dependencies = [
  "serde_core",
  "serde_derive",
-]
-
-[[package]]
-name = "serde-wasm-bindgen"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
-dependencies = [
- "js-sys",
- "serde",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -2600,7 +2509,6 @@ checksum = "1edc8929d7499fc4e8f0be2262a241556cfc54a0bea223790e71446f2aab1ef5"
 dependencies = [
  "cfg-if",
  "once_cell",
- "rustversion",
  "wasm-bindgen-macro",
 ]
 

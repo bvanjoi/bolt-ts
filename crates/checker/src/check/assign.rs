@@ -107,7 +107,7 @@ impl<'cx> TyChecker<'cx> {
             return self.get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(name);
         }
 
-        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(elem) {
+        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(elem.id) {
             self.report_implicit_any(elem.id, self.any_ty, None);
         }
 
@@ -142,7 +142,7 @@ impl<'cx> TyChecker<'cx> {
                 .get_ty_from_binding_pattern::<INCLUDE_PATTERN_IN_TY, REPORT_ERROR>(elem.name);
         }
 
-        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(elem) {
+        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(elem.id) {
             self.report_implicit_any(elem.id, self.any_ty, None);
         }
 
@@ -193,21 +193,18 @@ impl<'cx> TyChecker<'cx> {
             .enumerate()
             .rev()
             .find_map(|(idx, e)| {
-                if rest_elements.is_none_or(|rest| !std::ptr::eq(e, rest)) {
-                    return None;
-                }
-                match e.kind {
-                    ast::ArrayBindingElemKind::Omit(_) => None,
-                    ast::ArrayBindingElemKind::Binding(binding) => {
-                        if binding.init.is_none() {
-                            Some(idx + 1)
-                        } else {
-                            None
-                        }
+                if rest_elements.is_none_or(|rest| !std::ptr::eq(e, rest))
+                    && match e.kind {
+                        ast::ArrayBindingElemKind::Omit(_) => false,
+                        ast::ArrayBindingElemKind::Binding(binding) => binding.init.is_none(),
                     }
+                {
+                    Some(idx + 1)
+                } else {
+                    None
                 }
             })
-            .map_or(0, |idx| idx + 1);
+            .unwrap_or(0);
         let element_flags = elements
             .iter()
             .enumerate()

@@ -2,8 +2,8 @@
 class TestClass {
   bar(x) {}
   foo(x) {
-    this.bar(x);
-  // should not error
+    this.bar(x);// should not error
+    
   }
 }
 class TestClass2 {
@@ -11,7 +11,7 @@ class TestClass2 {
     return 0;
   }
   foo(x) {
-    return this.bar(x);
-  // should not error
+    return this.bar(x);// should not error
+    
   }
 }

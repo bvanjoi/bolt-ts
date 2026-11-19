@@ -1,0 +1,5 @@
+  × 'test' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedImports4/file2.ts:1:21]
+ 1 │ test
+   · ────
+   ╰────

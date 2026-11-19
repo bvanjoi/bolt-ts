@@ -1,0 +1,71 @@
+  × Cannot find module 'M3' or its corresponding type declarations.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:52:16]
+ 52 │ "M3"
+    · ────
+    ╰────
+
+  × Import declarations in a namespace cannot reference a module.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:45:25]
+ 45 │ "M2"
+    · ────
+    ╰────
+
+  × Import declarations in a namespace cannot reference a module.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:47:20]
+ 47 │ "M4"
+    · ────
+    ╰────
+
+  × Import declarations in a namespace cannot reference a module.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:49:32]
+ 49 │ "M5"
+    · ────
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:29:5]
+ 29 │ export {M_V as v}
+    · ─────────────────
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:31:5]
+ 31 │ export {M_I as i}
+    · ─────────────────
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:33:5]
+ 33 │ export {M_C as c}
+    · ─────────────────
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:35:5]
+ 35 │ export {M_M as m}
+    · ─────────────────
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:37:5]
+ 37 │ export {M_MU as mu}
+    · ───────────────────
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:39:5]
+ 39 │ export {M_F as f}
+    · ─────────────────
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:41:5]
+ 41 │ export {M_E as e}
+    · ─────────────────
+    ╰────
+
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/es5ModuleInternalNamedImports/index.ts:43:5]
+ 43 │ export {M_A as a}
+    · ─────────────────
+    ╰────

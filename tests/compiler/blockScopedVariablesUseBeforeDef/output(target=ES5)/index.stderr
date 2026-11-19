@@ -1,0 +1,159 @@
+  × Block-scoped variable 'x' used before its declaration.
+   ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:9:13]
+ 9 │ x
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'x' is defined here
+    ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:11:9]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Block-scoped variable 'x' used before its declaration.
+    ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:74:20]
+ 74 │ x
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'x' is defined here
+    ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:77:9]
+ 77 │ x
+    · ─
+    ╰────
+
+  × Block-scoped variable 'x' used before its declaration.
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:110:12]
+ 110 │ x
+     · ─
+     ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'x' is defined here
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:113:9]
+ 113 │ x
+     · ─
+     ╰────
+
+  × Block-scoped variable 'a' used before its declaration.
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:135:22]
+ 135 │ a
+     · ─
+     ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'a' is defined here
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:135:10]
+ 135 │ a
+     · ─
+     ╰────
+
+  × Enum 'Enum' used before its declaration.
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:170:20]
+ 170 │ Enum
+     · ────
+     ╰────
+
+Advice: 
+  ☞ Enum 'Enum' is defined here
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:173:5]
+ 173 │ ╭─▶ enum Enum {
+ 174 │ │           No = 0,
+ 175 │ │           Yes = 1,
+ 176 │ ╰─▶     }
+     ╰────
+
+  × Block-scoped variable 'x' used before its declaration.
+    ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:66:20]
+ 66 │ x
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'x' is defined here
+    ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:69:9]
+ 69 │ x
+    · ─
+    ╰────
+
+  × Block-scoped variable 'a' used before its declaration.
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:122:28]
+ 122 │ a
+     · ─
+     ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'a' is defined here
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:119:9]
+ 119 │ a
+     · ─
+     ╰────
+
+  × Block-scoped variable 'a' used before its declaration.
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:124:21]
+ 124 │ a
+     · ─
+     ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'a' is defined here
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:119:9]
+ 119 │ a
+     · ─
+     ╰────
+
+  × Block-scoped variable 'a' used before its declaration.
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:135:22]
+ 135 │ a
+     · ─
+     ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'a' is defined here
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:135:10]
+ 135 │ a
+     · ─
+     ╰────
+
+  × Block-scoped variable 'foo' used before its declaration.
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:143:9]
+ 143 │ foo
+     · ───
+     ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'foo' is defined here
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:151:11]
+ 151 │ foo = 1
+     · ───────
+     ╰────
+
+  × Block-scoped variable 'foo' used before its declaration.
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:147:9]
+ 147 │ foo
+     · ───
+     ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'foo' is defined here
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:151:11]
+ 151 │ foo = 1
+     · ───────
+     ╰────
+
+  × Enum 'Enum' used before its declaration.
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:170:20]
+ 170 │ Enum
+     · ────
+     ╰────
+
+Advice: 
+  ☞ Enum 'Enum' is defined here
+     ╭─[../../tests/compiler/blockScopedVariablesUseBeforeDef/index.ts:173:5]
+ 173 │ ╭─▶ enum Enum {
+ 174 │ │           No = 0,
+ 175 │ │           Yes = 1,
+ 176 │ ╰─▶     }
+     ╰────

@@ -5,21 +5,21 @@ class MyClass {
   property;
   property2;
   constructor() {var variable = 'something';
-    this.property = `foo`// Correctly inferred as `string`
-    ;
-    this.property2 = `foo-${variable}`// Causes an error
-    ;
-    var localProperty = `foo-${variable}`// Correctly inferred as `string`
-    ;}
+    this.property = `foo`;// Correctly inferred as `string`
+    
+    this.property2 = `foo-${variable}`;// Causes an error
+    
+    var localProperty = `foo-${variable}`;// Correctly inferred as `string`
+    }
 }
 class MyClass2 {
   property;
   property2;
   constructor() {var variable = 'something';
-    this.property = `foo`// Correctly inferred as `string`
-    ;
-    this.property2 = `foo-${variable}`// Causes an error
-    ;
-    var localProperty = `foo-${variable}`// Correctly inferred as `string`
-    ;}
+    this.property = `foo`;// Correctly inferred as `string`
+    
+    this.property2 = `foo-${variable}`;// Causes an error
+    
+    var localProperty = `foo-${variable}`;// Correctly inferred as `string`
+    }
 }

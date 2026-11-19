@@ -3,3 +3,15 @@
  20 │ thing
     · ─────
     ╰────
+
+  × Expected 2 arguments, but got 1.
+    ╭─[../../tests/compiler/asyncFunctionReturnExpressionErrorSpans/index.ts:33:1]
+ 33 │ f
+    · ─
+    ╰────
+
+  × Expected 2 arguments, but got 1.
+    ╭─[../../tests/compiler/asyncFunctionReturnExpressionErrorSpans/index.ts:35:1]
+ 35 │ f
+    · ─
+    ╰────

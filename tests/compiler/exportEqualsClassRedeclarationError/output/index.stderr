@@ -1,0 +1,18 @@
+  × Duplicate identifier 'someProp'.
+    ╭─[../../tests/compiler/exportEqualsClassRedeclarationError/index.ts:12:16]
+  7 │ someProp(): number {
+    · ────┬───
+    ·     ╰── Previous definition here
+  8 │         return 0;
+  9 │     }
+ 10 │ 
+ 11 │     static set someProp(value: number) {}
+ 12 │     static set someProp
+    ·                ────────
+    ╰────
+
+  × Duplicate identifier 'someProp'.
+    ╭─[../../tests/compiler/exportEqualsClassRedeclarationError/index.ts:12:16]
+ 12 │ someProp
+    · ────────
+    ╰────

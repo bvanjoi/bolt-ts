@@ -1,0 +1,5 @@
+  × 't2' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedImports8/file2.ts:1:41]
+ 1 │ test2 as t2
+   · ───────────
+   ╰────

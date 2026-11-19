@@ -31,7 +31,7 @@ class GetSetMonster {
   }
   set health(value) {
     if (value < 0) {
-      throw new Error('Health must be non-negative.')
+      throw new Error('Health must be non-negative.');
     }
     
     this._health = value;

@@ -1,0 +1,39 @@
+  × Enum 'E' used before its declaration.
+   ╭─[../../tests/compiler/blockScopedEnumVariablesUseBeforeDef_isolatedModules/index.ts:8:12]
+ 8 │ E
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Enum 'E' is defined here
+    ╭─[../../tests/compiler/blockScopedEnumVariablesUseBeforeDef_isolatedModules/index.ts:10:5]
+ 10 │ enum E { A }
+    · ────────────
+    ╰────
+
+  × Enum 'E' used before its declaration.
+    ╭─[../../tests/compiler/blockScopedEnumVariablesUseBeforeDef_isolatedModules/index.ts:14:12]
+ 14 │ E
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Enum 'E' is defined here
+    ╭─[../../tests/compiler/blockScopedEnumVariablesUseBeforeDef_isolatedModules/index.ts:16:11]
+ 16 │ enum E { A }
+    · ────────────
+    ╰────
+
+  × Enum 'AfterObject' used before its declaration.
+    ╭─[../../tests/compiler/blockScopedEnumVariablesUseBeforeDef_isolatedModules/index.ts:20:8]
+ 20 │ AfterObject
+    · ───────────
+    ╰────
+
+Advice: 
+  ☞ Enum 'AfterObject' is defined here
+    ╭─[../../tests/compiler/blockScopedEnumVariablesUseBeforeDef_isolatedModules/index.ts:24:7]
+ 24 │ ╭─▶ enum AfterObject {
+ 25 │ │       A = 2,
+ 26 │ ╰─▶ }
+    ╰────

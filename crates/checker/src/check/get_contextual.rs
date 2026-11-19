@@ -245,7 +245,7 @@ impl<'cx> TyChecker<'cx> {
             }
             ParenExpr(n) => {
                 if self.node_query(n.id.module()).is_in_js_file(n.id) {
-                    todo!()
+                    // TODO: JS Doc
                 }
                 self.get_contextual_ty(n.id, flags)
             }

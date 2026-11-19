@@ -1,0 +1,12 @@
+  × Not all code paths return a value.
+    ╭─[../../tests/compiler/reachabilityChecks7/index.ts:19:16]
+ 19 │ f3
+    · ──
+    ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+    ╭─[../../tests/compiler/reachabilityChecks7/index.ts:24:22]
+ 24 │ Promise<number>
+    · ───────────────
+    ╰────

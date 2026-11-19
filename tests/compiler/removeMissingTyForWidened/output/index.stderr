@@ -24,9 +24,9 @@
 
   × Non-abstract class 'WrongConcreteExtendedBar' does not implement inherited
   │ abstract member 'barMethod' from class 'ExtendedBar<typeof Bar> & Bar'.
-     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:265:3]
- 265 │ class WrongConcreteExtendedBar extends withBar(Bar) {}
-     · ──────────────────────────────────────────────────────
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:265:9]
+ 265 │ WrongConcreteExtendedBar
+     · ────────────────────────
      ╰────
 
   × Type 'boolean' is not assignable to type 'false'.

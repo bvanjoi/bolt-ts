@@ -4,6 +4,12 @@
    · ─────
    ╰────
 
+  × Duplicate identifier 'a'.
+    ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:17:5]
+ 17 │ a
+    · ─
+    ╰────
+
   × Property '["a"]' has no initializer and is not definitely assigned in the
   │ constructor.
    ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:6:5]
@@ -17,12 +23,6 @@
  8 │ ["a"]
    · ─────
    ╰────
-
-  × Duplicate identifier 'a'.
-    ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:17:5]
- 17 │ a
-    · ─
-    ╰────
 
   × Property 'a' has no initializer and is not definitely assigned in the
   │ constructor.

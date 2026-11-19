@@ -1,0 +1,49 @@
+  × An implementation cannot be declared in ambient contexts.
+   ╭─[../../tests/compiler/functionsWithModifiersInBlocks1/index.ts:5:21]
+ 5 │ f
+   · ─
+   ╰────
+
+  × An export declaration can only be used at the top level of a namespace or
+  │ module.
+   ╭─[../../tests/compiler/functionsWithModifiersInBlocks1/index.ts:8:11]
+ 8 │ function
+   · ────────
+   ╰────
+
+  × 'export' modifier must precede 'declare' modifier.
+    ╭─[../../tests/compiler/functionsWithModifiersInBlocks1/index.ts:11:12]
+ 11 │ export
+    · ──────
+    ╰────
+
+  × An export declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/functionsWithModifiersInBlocks1/index.ts:11:19]
+ 11 │ function
+    · ────────
+    ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/functionsWithModifiersInBlocks1/index.ts:11:28]
+ 11 │ f
+    · ─
+    ╰────
+
+  × Duplicate function implementation.
+   ╭─[../../tests/compiler/functionsWithModifiersInBlocks1/index.ts:5:21]
+ 5 │ f
+   · ─
+   ╰────
+
+  × Duplicate function implementation.
+   ╭─[../../tests/compiler/functionsWithModifiersInBlocks1/index.ts:8:20]
+ 8 │ f
+   · ─
+   ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/functionsWithModifiersInBlocks1/index.ts:11:28]
+ 11 │ f
+    · ─
+    ╰────

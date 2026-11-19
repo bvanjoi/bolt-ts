@@ -1,0 +1,5 @@
+  × Type 'unknown' is not assignable to type 'Class'.
+    ╭─[../../tests/compiler/privateFieldAssignabilityFromUnknown/index.ts:11:7]
+ 11 │ task
+    · ────
+    ╰────

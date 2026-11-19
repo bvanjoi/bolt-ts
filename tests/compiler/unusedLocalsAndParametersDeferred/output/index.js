@@ -68,14 +68,14 @@ var E = class {
   });
 };
 new E();
-var o = // Object literal method declaration paramter
-{
+var o = {
+  // Object literal method declaration paramter
   method(a) {
     defered(() => {
       a;
     });
-  }// Accessor declaration paramter
-  ,
+  },
+  // Accessor declaration paramter
   set x(v) {
     defered(() => {
       v;

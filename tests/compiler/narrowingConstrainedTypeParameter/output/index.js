@@ -6,7 +6,7 @@ function isPet(pet) {
 }
 export function speak(pet, voice) {
   if (!isPet(pet)) {
-    throw new Error('Expected "pet" to be a Pet')
+    throw new Error('Expected "pet" to be a Pet');
   }
   
   return voice(pet);

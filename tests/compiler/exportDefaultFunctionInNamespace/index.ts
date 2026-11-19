@@ -1,4 +1,6 @@
-// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/exportDefaultFunctionInNamespace.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/exportDefaultFunctionInNamespace.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
 
 namespace ns_function {
     export default function () {}

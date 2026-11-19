@@ -836,8 +836,13 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_this_in_type_query(&self, mut id: ast::NodeID) -> bool {
-        let mut n = self.node(id);
-        if !n.is_this_expr() {
+        let n = self.node(id);
+        // type A = typeof this.xxx;
+        //                 ~~~~ current this node is `Identifier`, maybe a better way is mark this node to `ThisType`?
+        let Some(ident) = n.as_ident() else {
+            return false;
+        };
+        if ident.name != keyword::KW_THIS {
             return false;
         }
 
@@ -846,14 +851,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             if let Some(qualified) = p.as_qualified_name()
                 && qualified.left.id() == id
             {
-                n = p;
                 id = p_id;
                 continue;
             }
             break;
         }
 
-        n.is_type_alias_decl()
+        let Some(p_id) = self.parent(id) else {
+            return false;
+        };
+        self.node(p_id).is_typeof_ty()
     }
 
     pub fn access_kind(&self, id: ast::NodeID) -> AccessKind {
@@ -1144,11 +1151,11 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     pub fn get_control_flow_container(&self, node: ast::NodeID) -> ast::NodeID {
         let parent = self.parent(node).unwrap();
         self.find_ancestor(parent, |n| {
-            let n = self.node(n);
-            if (n.is_fn_like() && self.get_immediately_invoked_fn_expr(node).is_none())
-                || n.is_module_block()
-                || n.is_program()
-                || n.is_class_prop_elem()
+            let node = self.node(n);
+            if (node.is_fn_like() && self.get_immediately_invoked_fn_expr(n).is_none())
+                || node.is_module_block()
+                || node.is_program()
+                || node.is_class_prop_elem()
             {
                 Some(true)
             } else {
@@ -1583,9 +1590,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_class_instance_property(&self, node: ast::NodeID) -> bool {
-        if self.is_in_js_file(node) {
-            todo!()
-        }
+        // if self.is_in_js_file(node) {
+        //     todo!()
+        // }
         let Some(parent) = self.parent(node) else {
             return false;
         };

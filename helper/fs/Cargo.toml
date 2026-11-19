@@ -6,10 +6,11 @@ edition = "2024"
 [dependencies]
 bolt_ts_atom = { path = "../atom" }
 bolt_ts_utils = { path = "../utils" }
-serde = { workspace = true }
-serde_json = { workspace = true, features = ["preserve_order"] }
 nohash-hasher = { workspace = true }
 rustc-hash = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 glob = { workspace = true }
 vfs = { version = "0.13.0" }
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["preserve_order"] }

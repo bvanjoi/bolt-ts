@@ -1,0 +1,6 @@
+  × Property 'callableThing' has no initializer and is not definitely assigned
+  │ in the constructor.
+   ╭─[../../tests/compiler/genericWithCallSignatures1/genericWithCallSignatures_1.ts:3:12]
+ 3 │ callableThing
+   · ─────────────
+   ╰────

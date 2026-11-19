@@ -1,0 +1,5 @@
+  × Namespace 'X' has no exported member 'bar'.
+   ╭─[../../tests/compiler/exportSpecifierReferencingOuterDeclaration4/exportSpecifierReferencingOuterDeclaration2_B.ts:4:34]
+ 4 │ bar
+   · ───
+   ╰────

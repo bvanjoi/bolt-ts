@@ -1,0 +1,11 @@
+  × An import declaration cannot have modifiers.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingWithExport/client.ts:1:1]
+ 1 │ export
+   · ──────
+   ╰────
+
+  × An import declaration cannot have modifiers.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingWithExport/client.ts:4:1]
+ 4 │ export
+   · ──────
+   ╰────

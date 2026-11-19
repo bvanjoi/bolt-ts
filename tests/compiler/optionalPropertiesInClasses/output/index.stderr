@@ -1,14 +1,14 @@
+  × Property 'y' is missing.
+    ╭─[../../tests/compiler/optionalPropertiesInClasses/index.ts:15:7]
+ 15 │ C2
+    · ──
+    ╰────
+
   × Property 'y' has no initializer and is not definitely assigned in the
   │ constructor.
     ╭─[../../tests/compiler/optionalPropertiesInClasses/index.ts:11:9]
  11 │ y
     · ─
-    ╰────
-
-  × Property 'y' is missing.
-    ╭─[../../tests/compiler/optionalPropertiesInClasses/index.ts:15:7]
- 15 │ C2
-    · ──
     ╰────
 
   × Property 'x' has no initializer and is not definitely assigned in the

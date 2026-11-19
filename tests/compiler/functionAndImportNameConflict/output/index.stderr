@@ -1,0 +1,5 @@
+  × Import declaration conflicts with local declaration of 'f'.
+   ╭─[../../tests/compiler/functionAndImportNameConflict/f2.ts:1:9]
+ 1 │ f
+   · ─
+   ╰────

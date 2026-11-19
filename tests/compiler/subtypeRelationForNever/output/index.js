@@ -1,7 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/subtypeRelationForNever.ts`, Apache-2.0 License
 //@compiler-options: target=es2015
 function fail(message) {
-  throw new Error(message)
+  throw new Error(message);
 }
 function withFew(values, haveFew, haveNone) {
   return values.length > 0 ? haveFew(values) : haveNone('No values.');

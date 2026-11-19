@@ -1,0 +1,6 @@
+  × Property 'me' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/unusedImportDeclaration/unusedImportDeclaration_testerB.ts:2:5]
+ 2 │ me
+   · ──
+   ╰────

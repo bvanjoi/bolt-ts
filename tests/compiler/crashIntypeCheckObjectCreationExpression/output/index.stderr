@@ -1,0 +1,5 @@
+  × Cannot find name 'X'.
+   ╭─[../../tests/compiler/crashIntypeCheckObjectCreationExpression/index.ts:8:45]
+ 8 │ X
+   · ─
+   ╰────

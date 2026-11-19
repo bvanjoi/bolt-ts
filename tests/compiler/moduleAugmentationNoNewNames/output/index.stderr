@@ -1,0 +1,11 @@
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/moduleAugmentationNoNewNames/main.ts:5:9]
+ 5 │ x
+   · ─
+   ╰────
+
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/moduleAugmentationNoNewNames/main.ts:5:9]
+ 5 │ x
+   · ─
+   ╰────

@@ -36,7 +36,8 @@ fn main() {
     } else {
         RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()])
     };
-    let result = run(atoms, fs, tsconfig);
+    let default_lib_dir = current_exe_dir();
+    let result = run(default_lib_dir, atoms, fs, tsconfig);
     let duration = start.elapsed();
 
     println!("Files: {}", result.files);
@@ -52,11 +53,15 @@ struct Result {
     types: usize,
 }
 
-fn run(atoms: bolt_ts_atom::AtomIntern, fs: bolt_ts_fs::LocalFS, tsconfig: RawTsConfig) -> Result {
-    let exe_dir = current_exe_dir();
+fn run(
+    default_lib_dir: PathBuf,
+    atoms: bolt_ts_atom::AtomIntern,
+    fs: bolt_ts_fs::LocalFS,
+    tsconfig: RawTsConfig,
+) -> Result {
     let libs = bolt_ts_libs::LIBS
         .iter()
-        .map(|filename| exe_dir.join(filename))
+        .map(|filename| default_lib_dir.join(filename))
         .collect::<Vec<_>>();
 
     let cwd = env::current_dir().unwrap();
@@ -66,7 +71,7 @@ fn run(atoms: bolt_ts_atom::AtomIntern, fs: bolt_ts_fs::LocalFS, tsconfig: RawTs
     let mut compiler_result = eval_with_fs(
         cwd,
         tsconfig,
-        exe_dir,
+        default_lib_dir,
         libs,
         &parser_herd,
         &type_arena,
@@ -89,7 +94,10 @@ fn check_for_test_default_lib_file_count(target: bolt_ts_config::RawTarget) -> u
     let tsconfig = RawTsConfig::default()
         .with_include(vec![])
         .with_compiler_options(bolt_ts_config::RawCompilerOptions::default().with_target(target));
-    let result = run(atoms, fs, tsconfig);
+    let default_lib_dir = project_root::get_project_root()
+        .unwrap()
+        .join("target/debug/build");
+    let result = run(default_lib_dir, atoms, fs, tsconfig);
     result.files
 }
 
@@ -97,7 +105,7 @@ fn check_for_test_default_lib_file_count(target: bolt_ts_config::RawTarget) -> u
 fn check_for_test_default_lib_file_count_list() {
     use bolt_ts_config::RawTarget::*;
     let es5 = check_for_test_default_lib_file_count(ES5);
-    expect_test::expect!["3"].assert_eq(&es5.to_string());
+    expect_test::expect!["18"].assert_eq(&es5.to_string());
     let es2015 = check_for_test_default_lib_file_count(ES2015);
     expect_test::expect!["19"].assert_eq(&es2015.to_string());
     let es2016 = check_for_test_default_lib_file_count(ES2016);

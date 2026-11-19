@@ -164,18 +164,8 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
 
-    fn check_collisions_for_declaration_name(&mut self, node: ast::NodeID, name: &'cx ast::Ident) {
-        let n = self.p.node(node);
-        let kind = if n.is_class_like() {
-            Some(DeclKind::Class)
-        } else if n.is_interface_decl() {
-            Some(DeclKind::Interface)
-        } else {
-            None
-        };
-        if is_reserved_type_name(name.name)
-            && let Some(kind) = kind
-        {
+    fn check_collisions_for_declaration_name(&mut self, name: &'cx ast::Ident, kind: DeclKind) {
+        if is_reserved_type_name(name.name) {
             let error = errors::DeclNameCannotBe {
                 span: name.span,
                 name: pprint_ident(name, self.atoms),
@@ -187,7 +177,24 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
 
     fn check_class_like(&mut self, class: &impl ast::r#trait::ClassLike<'cx>) {
         if let Some(name) = class.name() {
-            self.check_collisions_for_declaration_name(class.id(), name);
+            self.check_collisions_for_declaration_name(name, DeclKind::Class);
+            if !self
+                .p
+                .node_flags(class.id())
+                .contains(ast::NodeFlags::AMBIENT)
+            {
+                // check_class_name_collision_with_object
+                if name.name == keyword::IDENT_OBJECT_CLASS
+                    && *self.compiler_options.module() < bolt_ts_config::Module::ES2015
+                {
+                    let error =
+                        errors::ClassNameCannotBeObjectWhenTargetingEs5AndAboveWithModuleX {
+                            span: name.span,
+                            module: format!("{}", self.compiler_options.module()),
+                        };
+                    self.push_error(Box::new(error));
+                }
+            }
         };
     }
 
@@ -274,29 +281,6 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         false
     }
 
-    fn check_implement_in_ambient(&mut self, node: ast::NodeID) {
-        let body = match self.p.node(node) {
-            ast::Node::GetterDecl(n) => n.body,
-            ast::Node::SetterDecl(n) => n.body,
-            ast::Node::ClassMethodElem(n) => n.body,
-            ast::Node::ClassCtor(n) => n.body,
-            _ => unreachable!(),
-        };
-        let node_flags = self.p.node_flags(node);
-        if node_flags.contains(ast::NodeFlags::AMBIENT)
-            && let Some(body) = body
-        {
-            let span = match self.p.node(node).name() {
-                Some(name) => name.span(),
-                None => {
-                    bolt_ts_span::Span::new(body.span.lo(), body.span.lo() + 1, body.span.module())
-                }
-            };
-            let error = errors::AnImplementationCannotBeDeclaredInAmbientContexts { span };
-            self.push_error(Box::new(error));
-        }
-    }
-
     fn check_ambient_initializer(&mut self, node: &impl self::VarLike<'cx>) {
         let Some(init) = node.init() else {
             return;
@@ -326,21 +310,23 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         }
     }
 
-    fn check_external_import_equals_declaration(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) {
-        let Some(module_name) = node.get_external_module_name() else {
-            return;
-        };
-        let parent = self.parent(node.id).unwrap();
+    fn check_external_import_like_declaration(
+        &mut self,
+        node: ast::NodeID,
+        module_span: bolt_ts_span::Span,
+    ) {
+        let parent = self.parent(node).unwrap();
         let parent_node = self.p.node(parent);
-        let is_ambient_external_module = parent_node.is_module_block() && {
+        // let is_ambient_external_module = parent_node.is_module_block() && {
+        //     let parent_parent = self.parent(parent).unwrap();
+        //     self.p.node(parent_parent).is_ambient_module()
+        // };
+        if !parent_node.is_program() && parent_node.is_module_block() && {
             let parent_parent = self.parent(parent).unwrap();
-            self.p.node(parent_parent).is_ambient_module()
-        };
-        if !parent_node.is_program() && !is_ambient_external_module {
+            !self.p.node(parent_parent).is_ambient_module()
+        } {
             let error = Box::new(
-                errors::ImportDeclarationsInANamespaceCannotReferenceAModule {
-                    span: module_name.span,
-                },
+                errors::ImportDeclarationsInANamespaceCannotReferenceAModule { span: module_span },
             );
             self.push_error(error);
         }
@@ -353,11 +339,10 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         };
         let parent = self.parent(node.id).unwrap();
         let parent_node = self.p.node(parent);
-        let is_ambient_external_module = parent_node.is_module_block() && {
+        if !parent_node.is_program() && parent_node.is_module_block() && {
             let parent_parent = self.parent(parent).unwrap();
-            self.p.node(parent_parent).is_ambient_module()
-        };
-        if !parent_node.is_program() && !is_ambient_external_module {
+            !self.p.node(parent_parent).is_ambient_module()
+        } {
             let error = Box::new(errors::ExportDeclarationsAreNotPermittedInANamespace {
                 span: module_name.span,
             });
@@ -390,16 +375,18 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
 
 impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
     type Result = ();
+    fn visit_bin_expr(&mut self, node: &'cx ast::BinExpr<'cx>) {
+        bolt_ts_utils::ensure_sufficient_stack(|| bolt_ts_ast_visitor::visit_bin_expr(self, node))
+    }
     fn visit_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
         self.check_class_like(class);
         bolt_ts_ast_visitor::visit_class_decl(self, class)
     }
     fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) {
-        self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_class_method_elem(self, node)
     }
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) {
-        self.check_collisions_for_declaration_name(node.id, node.name);
+        self.check_collisions_for_declaration_name(node.name, DeclKind::Interface);
         bolt_ts_ast_visitor::visit_interface_decl(self, node)
     }
     fn visit_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) {
@@ -457,15 +444,12 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
         bolt_ts_ast_visitor::visit_enum_decl(self, node)
     }
     fn visit_getter_decl(&mut self, node: &'cx ast::GetterDecl<'cx>) {
-        self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_getter_decl(self, node)
     }
     fn visit_setter_decl(&mut self, node: &'cx ast::SetterDecl<'cx>) {
-        self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_setter_decl(self, node)
     }
     fn visit_class_ctor(&mut self, node: &'cx ast::ClassCtor<'cx>) {
-        self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_class_ctor(self, node)
     }
     fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) {
@@ -513,6 +497,7 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
                         .potential_unused_renamed_binding_elements_in_types
                         .insert(node.id);
                     debug_assert!(prev);
+                    // TODO: is_reference
                     let error = Box::new(
                         errors::XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
                             span: name.span,
@@ -544,8 +529,14 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
         bolt_ts_ast_visitor::visit_object_binding_elem(self, node)
     }
     fn visit_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) -> Self::Result {
-        self.check_external_import_equals_declaration(node);
+        if let Some(module) = node.get_external_module_name() {
+            self.check_external_import_like_declaration(node.id, module.span);
+        }
         bolt_ts_ast_visitor::visit_import_equals_decl(self, node)
+    }
+    fn visit_import_decl(&mut self, node: &'cx bolt_ts_ast::ImportDecl<'cx>) -> Self::Result {
+        self.check_external_import_like_declaration(node.id, node.module.span);
+        bolt_ts_ast_visitor::visit_import_decl(self, node)
     }
     fn visit_ty_param(&mut self, node: &'cx ast::TyParam<'cx>) -> Self::Result {
         self.check_type_name_is_reserved(node.name, |this| {

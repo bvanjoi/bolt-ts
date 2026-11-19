@@ -870,12 +870,12 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         Ok(ty)
     }
 
-    fn parse_prop_or_method_sig(
+    fn parse_prop_or_method_sig<const ALLOW_PRIVATE_PROP_NAME: bool>(
         &mut self,
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
-        let name = self.parse_prop_name::<true>();
+        let name = self.parse_prop_name::<true, ALLOW_PRIVATE_PROP_NAME>();
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.parse_ty_params();
@@ -940,14 +940,22 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let modifiers = self.parse_modifiers::<false, false, false>(false);
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            let decl =
-                self.parse_getter_accessor_decl(start, modifiers, true, SignatureFlags::TYPE)?;
+            let decl = self.parse_getter_accessor_decl::<false>(
+                start,
+                modifiers,
+                true,
+                SignatureFlags::TYPE,
+            )?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::Getter(decl),
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            let decl =
-                self.parse_setter_accessor_decl(start, modifiers, true, SignatureFlags::TYPE)?;
+            let decl = self.parse_setter_accessor_decl::<false>(
+                start,
+                modifiers,
+                true,
+                SignatureFlags::TYPE,
+            )?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::Setter(decl),
             }))
@@ -967,7 +975,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 kind: ast::ObjectTyMemberKind::IndexSig(decl),
             }))
         } else {
-            self.parse_prop_or_method_sig(start, modifiers)
+            self.parse_prop_or_method_sig::<false>(start, modifiers)
         }
     }
 

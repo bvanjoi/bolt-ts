@@ -1,0 +1,9 @@
+  × Cannot find name 'field1'.
+   ╭─[../../tests/compiler/classMemberInitializerWithLamdaScoping4/classMemberInitializerWithLamdaScoping4_1.ts:8:21]
+ 8 │ field1
+   · ──────
+   ╰────
+
+Advice: 
+  ☞ Initializer of instance member variable 'messageHandler' cannot reference
+  │ identifier 'field1' declared in the constructor.

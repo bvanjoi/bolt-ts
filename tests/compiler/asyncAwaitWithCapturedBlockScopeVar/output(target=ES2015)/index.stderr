@@ -1,0 +1,6 @@
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
+    ╭─[../../tests/compiler/asyncAwaitWithCapturedBlockScopeVar/index.ts:34:23]
+ 34 │ Promise<number>
+    · ───────────────
+    ╰────

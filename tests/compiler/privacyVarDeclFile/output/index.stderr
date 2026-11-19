@@ -1,0 +1,363 @@
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+   ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:9:5]
+ 9 │ myPublicProperty
+   · ────────────────
+   ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:11:13]
+ 11 │ myPrivateProperty
+    · ─────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:50:13]
+ 50 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:52:21]
+ 52 │ myPrivateProperty
+    · ─────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:59:13]
+ 59 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:61:21]
+ 61 │ myPrivateProperty
+    · ─────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:68:13]
+ 68 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:70:21]
+ 70 │ myPrivateProperty
+    · ─────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:77:13]
+ 77 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:79:21]
+ 79 │ myPrivateProperty
+    · ─────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:98:13]
+ 98 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:109:13]
+ 109 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:135:9]
+ 135 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:137:17]
+ 137 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:144:9]
+ 144 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:146:17]
+ 146 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:153:9]
+ 153 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:155:17]
+ 155 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:162:9]
+ 162 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:164:17]
+ 164 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:183:9]
+ 183 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_GlobalFile.ts:194:9]
+ 194 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:26:5]
+ 26 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:28:13]
+ 28 │ myPrivateProperty
+    · ─────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:35:5]
+ 35 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:37:13]
+ 37 │ myPrivateProperty
+    · ─────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:44:5]
+ 44 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:46:13]
+ 46 │ myPrivateProperty
+    · ─────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:53:5]
+ 53 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:55:13]
+ 55 │ myPrivateProperty
+    · ─────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:74:5]
+ 74 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:85:5]
+ 85 │ myPublicProperty
+    · ────────────────
+    ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:117:9]
+ 117 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:119:17]
+ 119 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:126:9]
+ 126 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:128:17]
+ 128 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:135:9]
+ 135 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:137:17]
+ 137 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:144:9]
+ 144 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:146:17]
+ 146 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:165:9]
+ 165 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:176:9]
+ 176 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:209:9]
+ 209 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:211:17]
+ 211 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:218:9]
+ 218 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:220:17]
+ 220 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:227:9]
+ 227 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:229:17]
+ 229 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:236:9]
+ 236 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPrivateProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:238:17]
+ 238 │ myPrivateProperty
+     · ─────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:257:9]
+ 257 │ myPublicProperty
+     · ────────────────
+     ╰────
+
+  × Property 'myPublicProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+     ╭─[../../tests/compiler/privacyVarDeclFile/privacyVarDeclFile_externalModule.ts:268:9]
+ 268 │ myPublicProperty
+     · ────────────────
+     ╰────
