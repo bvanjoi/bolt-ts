@@ -1,0 +1,17 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorTypeLiteral/index.ts:31:21]
+ 31 │ x
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorTypeLiteral/index.ts:36:21]
+ 36 │ y
+    · ─
+    ╰────
+
+  × Variable 'z' is used before being assigned.
+    ╭─[../../tests/compiler/declFileTypeAnnotationVisibilityErrorTypeLiteral/index.ts:41:21]
+ 41 │ z
+    · ─
+    ╰────

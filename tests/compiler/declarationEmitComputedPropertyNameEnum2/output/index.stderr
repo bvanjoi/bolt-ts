@@ -1,0 +1,5 @@
+  × Cannot find name 'Enum'.
+   ╭─[../../tests/compiler/declarationEmitComputedPropertyNameEnum2/type.ts:1:29]
+ 1 │ Enum
+   · ────
+   ╰────

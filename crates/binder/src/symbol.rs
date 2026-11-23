@@ -14,6 +14,8 @@ pub enum SymbolName {
         symbol_id: SymbolID,
     },
     Atom(Atom),
+    // `"module_name"` in typescript
+    AmbientModule(Atom),
     EleNum(F64Represent),
     ClassExpr,
     Array,

@@ -1,0 +1,55 @@
+  × Type 'undefined' is not assignable to type '<T>(data: T) => T'.
+    ╭─[../../tests/compiler/isDeclarationVisibleNodeKinds/index.ts:10:16]
+ 10 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'new <T>(data: T) => T'.
+    ╭─[../../tests/compiler/isDeclarationVisibleNodeKinds/index.ts:18:16]
+ 18 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'number | (new <T>(data: T) =>
+  │ T)'.
+    ╭─[../../tests/compiler/isDeclarationVisibleNodeKinds/index.ts:26:16]
+ 26 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'new <T>(data: T) => T[]'.
+    ╭─[../../tests/compiler/isDeclarationVisibleNodeKinds/index.ts:34:16]
+ 34 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'new <T>(data: T) => T'.
+    ╭─[../../tests/compiler/isDeclarationVisibleNodeKinds/index.ts:43:16]
+ 43 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type '[new <T>(data: T) => T,
+  │ number]'.
+    ╭─[../../tests/compiler/isDeclarationVisibleNodeKinds/index.ts:51:16]
+ 51 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'new <T>(data: T) => T[]'.
+    ╭─[../../tests/compiler/isDeclarationVisibleNodeKinds/index.ts:59:16]
+ 59 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type '<T>(data: T) => T[]'.
+    ╭─[../../tests/compiler/isDeclarationVisibleNodeKinds/index.ts:67:16]
+ 67 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type '<T>(data: T) => T'.
+    ╭─[../../tests/compiler/isDeclarationVisibleNodeKinds/index.ts:76:20]
+ 76 │ undefined
+    · ─────────
+    ╰────

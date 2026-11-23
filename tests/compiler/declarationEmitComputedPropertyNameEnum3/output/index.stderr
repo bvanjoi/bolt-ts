@@ -1,0 +1,6 @@
+  × A computed property name must be of type 'string', 'number', 'symbol' or
+  │ 'any'.
+   ╭─[../../tests/compiler/declarationEmitComputedPropertyNameEnum3/type.ts:7:29]
+ 7 │ Foo.Enum
+   · ────────
+   ╰────

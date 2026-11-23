@@ -493,8 +493,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     _ => unreachable!(),
                 };
                 is_ambient
-                    && self.node(self.parent(p).unwrap()).is_program()
                     && self.parse_result.external_module_indicator.is_none()
+                    && self.node(self.parent(p).unwrap()).is_program()
             }
             _ => false,
         }

@@ -1,0 +1,6 @@
+  × Module './es6ImportDefaultBindingNoDefaultProperty_0' has no default
+  │ export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingNoDefaultProperty/es6ImportDefaultBindingNoDefaultProperty_1.ts:1:8]
+ 1 │ defaultBinding
+   · ──────────────
+   ╰────

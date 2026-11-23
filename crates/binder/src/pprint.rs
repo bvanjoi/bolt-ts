@@ -4,7 +4,8 @@ use bolt_ts_atom::AtomIntern;
 impl SymbolName {
     pub fn to_string(self, atoms: &AtomIntern) -> String {
         match self {
-            SymbolName::Atom(atom_id) => atoms.get(atom_id).to_string(),
+            SymbolName::Atom(atom) => atoms.get(atom).to_string(),
+            SymbolName::AmbientModule(atom) => atoms.get(atom).to_string(),
             SymbolName::EleNum(val) => val.val().to_string(),
             SymbolName::InstantiationExpression => "__InstantiationExpression".to_string(),
             SymbolName::Container => "__Container".to_string(),

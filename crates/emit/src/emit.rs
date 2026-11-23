@@ -43,7 +43,11 @@ fn emit_module<'cx>(module_id: ModuleID, checker: &mut TyChecker<'cx>) -> (Strin
     let declaration = options.declaration();
     let emit_declaration_only = options.emit_declaration_only();
     let target = match (declaration, emit_declaration_only) {
-        (true | false, true) => EmitTarget::DECLARATION,
+        (true, true) => EmitTarget::DECLARATION,
+        (false, true) => {
+            // TODO: delay bug: should emit error when `emitDeclarationOnly` is true but `declaration` is false.
+            EmitTarget::DECLARATION
+        }
         (true, false) => EmitTarget::all(),
         (false, false) => EmitTarget::JS,
     };
@@ -141,7 +145,7 @@ impl Emitter {
 }
 
 bitflags::bitflags! {
-    #[derive(Clone, Copy, PartialEq, Eq)]
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
     struct EmitTarget: u8 {
         const JS          = 0b01;
         const DECLARATION = 0b10;
@@ -2384,6 +2388,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
         }
     }
+
     fn emit_fn_decl(&mut self, node: &'cx ast::FnDecl<'cx>) {
         if self.target == EmitTarget::JS {
             let Some(body) = node.body else {
@@ -2525,6 +2530,7 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             }
         }
     }
+
     fn emit_class_decl(&mut self, node: &'cx ast::ClassDecl<'cx>) {
         if self.target == EmitTarget::JS {
             if node
@@ -3265,7 +3271,9 @@ impl<'cx, 'a> ModuleEmitter<'cx, 'a> {
             Do(n) => self.emit_do_while_stmt(n),
             Labeled(n) => self.emit_labeled_stmt(n),
             Empty(_) => {
-                self.js_emit_token(TokenKind::Semi);
+                if self.target.contains(EmitTarget::JS) {
+                    self.js_emit_token(TokenKind::Semi);
+                }
                 self.step_comment();
             }
             Switch(n) => self.emit_switch_stmt(n),

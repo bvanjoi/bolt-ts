@@ -21,12 +21,13 @@ use super::symbol_name_from_enum_member_name;
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_module_declaration(
         &mut self,
-        module_name: SymbolName,
+        module_name: bolt_ts_atom::Atom,
         module_declaration_id: ast::NodeID,
         module_block: Option<&'cx ast::ModuleBlock<'cx>>,
         is_ambient: bool,
     ) {
         let s = if is_ambient {
+            let module_name = SymbolName::AmbientModule(module_name);
             if self
                 .node_query()
                 .is_module_augmentation_external(module_declaration_id)
@@ -41,6 +42,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 )
             }
         } else {
+            let module_name = SymbolName::Atom(module_name);
             self.declare_module_symbol(module_name, module_declaration_id, module_block)
         };
         self.create_final_res(module_declaration_id, s);
@@ -654,7 +656,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             EnumDecl(node) => self.bind_enum_decl(node),
             NestedModuleDecl(n) => {
                 self.bind_module_declaration(
-                    SymbolName::Atom(n.name.name),
+                    n.name.name,
                     n.id,
                     Some(n.block.module_block()),
                     false,
@@ -662,10 +664,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             BlockModuleDecl(n) => {
                 let module_name = match n.name {
-                    ast::ModuleName::Ident(ident) => SymbolName::Atom(ident.name),
-                    ast::ModuleName::StringLit(lit) => SymbolName::Atom(lit.val),
+                    ast::ModuleName::Ident(ident) => ident.name,
+                    ast::ModuleName::StringLit(lit) => lit.val,
                 };
-                self.bind_module_declaration(module_name, n.id, n.block, n.is_ambient());
+                let is_ambient = n.is_ambient();
+                self.bind_module_declaration(module_name, n.id, n.block, is_ambient);
             }
             ImportEqualsDecl(ast::ImportEqualsDecl { id, name, .. })
             | ImportNamedSpec(ast::ImportNamedSpec { id, name, .. })

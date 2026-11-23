@@ -1,0 +1,23 @@
+  × Cannot find module 'module' or its corresponding type declarations.
+   ╭─[../../tests/compiler/isolatedModulesImportExportElision/index.ts:8:17]
+ 8 │ "module"
+   · ────────
+   ╰────
+
+  × Cannot find module 'module' or its corresponding type declarations.
+    ╭─[../../tests/compiler/isolatedModulesImportExportElision/index.ts:10:18]
+ 10 │ "module"
+    · ────────
+    ╰────
+
+  × Cannot find module 'module' or its corresponding type declarations.
+    ╭─[../../tests/compiler/isolatedModulesImportExportElision/index.ts:12:21]
+ 12 │ "module"
+    · ────────
+    ╰────
+
+  × Cannot find module 'module' or its corresponding type declarations.
+    ╭─[../../tests/compiler/isolatedModulesImportExportElision/index.ts:21:18]
+ 21 │ "module"
+    · ────────
+    ╰────

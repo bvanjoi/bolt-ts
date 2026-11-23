@@ -1271,9 +1271,10 @@ fn report_non_exported_member(
         use ast::Node::*;
         let span = match this.p.node(spec_name_id) {
             ImportShorthandSpec(n) => n.span,
+            ImportNamedSpec(n) => n.prop_name.span(),
             ExportShorthandSpec(n) => n.span,
             ExportNamedSpec(n) => n.prop_name.span(),
-            _ => unreachable!(),
+            n => unreachable!("Unexpected node kind: {:#?}", n),
         };
         let error = errors::ModuleXHasNoExportedMemberY {
             span,
