@@ -504,9 +504,9 @@ impl<'a, 'cx> PotentiallyUnusedIdentifierChecker<'a, 'cx> {
                             let kind = nq
                                 .get_combined_node_flags(declaration)
                                 .intersection(ast::NodeFlags::BLOCK_SCOPED);
-                            if kind != ast::NodeFlags::USING
-                                && kind != ast::NodeFlags::AWAIT_USING
-                                && nq.get_name_of_declaration(declaration).is_none_or(|name| {
+                            if (kind != ast::NodeFlags::USING
+                                && kind != ast::NodeFlags::AWAIT_USING)
+                                || nq.get_name_of_declaration(declaration).is_none_or(|name| {
                                     match name {
                                         ast::DeclarationName::Ident(name) => {
                                             !self.is_identifier_that_starts_with_underscore(name)

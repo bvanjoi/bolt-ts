@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'A.I'.
+   ╭─[../../tests/compiler/moduleSymbolMerging/B.ts:4:36]
+ 4 │ null
+   · ────
+   ╰────

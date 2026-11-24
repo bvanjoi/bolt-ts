@@ -1,0 +1,5 @@
+  × Variable 'server' is used before being assigned.
+   ╭─[../../tests/compiler/exportEqualCallable/exportEqualCallable_0.ts:4:10]
+ 4 │ server
+   · ──────
+   ╰────

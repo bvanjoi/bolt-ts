@@ -1,0 +1,623 @@
+  × Type 'null' is not assignable to type 'publicClassInGlobal'.
+   ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:6:16]
+ 6 │ null
+   · ────
+   ╰────
+
+  × Type 'null' is not assignable to type 'publicClassInGlobal'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:10:16]
+ 10 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClassInGlobal'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:14:16]
+ 14 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClassInGlobal'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:18:16]
+ 18 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:61:24]
+ 61 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:65:24]
+ 65 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:69:24]
+ 69 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:73:24]
+ 73 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:92:24]
+ 92 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:96:24]
+ 96 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:100:24]
+ 100 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:104:24]
+ 104 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:123:24]
+ 123 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:127:24]
+ 127 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:131:24]
+ 131 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:135:24]
+ 135 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:154:24]
+ 154 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:158:24]
+ 158 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:162:24]
+ 162 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:166:24]
+ 166 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:229:24]
+ 229 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:233:24]
+ 233 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:253:24]
+ 253 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:257:24]
+ 257 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:278:20]
+ 278 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:282:20]
+ 282 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:286:20]
+ 286 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:290:20]
+ 290 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:309:20]
+ 309 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:313:20]
+ 313 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:317:20]
+ 317 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:321:20]
+ 321 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:340:20]
+ 340 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:344:20]
+ 344 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:348:20]
+ 348 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:352:20]
+ 352 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:371:20]
+ 371 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:375:20]
+ 375 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:379:20]
+ 379 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:383:20]
+ 383 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:446:20]
+ 446 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:450:20]
+ 450 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:470:20]
+ 470 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_GlobalFile.ts:474:20]
+ 474 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+   ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:9:16]
+ 9 │ null
+   · ────
+   ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:13:16]
+ 13 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:17:16]
+ 17 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:21:16]
+ 21 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:40:16]
+ 40 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:44:16]
+ 44 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:48:16]
+ 48 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:52:16]
+ 52 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:71:16]
+ 71 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:75:16]
+ 75 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:79:16]
+ 79 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:83:16]
+ 83 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:102:16]
+ 102 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:106:16]
+ 106 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:110:16]
+ 110 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:114:16]
+ 114 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:177:16]
+ 177 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:181:16]
+ 181 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:201:16]
+ 201 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:205:16]
+ 205 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:231:20]
+ 231 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:235:20]
+ 235 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:239:20]
+ 239 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:243:20]
+ 243 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:262:20]
+ 262 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:266:20]
+ 266 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:270:20]
+ 270 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:274:20]
+ 274 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:293:20]
+ 293 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:297:20]
+ 297 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:301:20]
+ 301 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:305:20]
+ 305 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:324:20]
+ 324 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:328:20]
+ 328 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:332:20]
+ 332 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:336:20]
+ 336 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:399:20]
+ 399 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:403:20]
+ 403 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:423:20]
+ 423 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:427:20]
+ 427 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:454:20]
+ 454 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:458:20]
+ 458 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:462:20]
+ 462 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:466:20]
+ 466 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:485:20]
+ 485 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:489:20]
+ 489 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:493:20]
+ 493 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:497:20]
+ 497 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:516:20]
+ 516 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:520:20]
+ 520 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:524:20]
+ 524 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:528:20]
+ 528 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:547:20]
+ 547 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:551:20]
+ 551 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:555:20]
+ 555 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:559:20]
+ 559 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:622:20]
+ 622 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:626:20]
+ 626 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:646:20]
+ 646 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyAccessorDeclFile/privacyAccessorDeclFile_externalModule.ts:650:20]
+ 650 │ null
+     · ────
+     ╰────

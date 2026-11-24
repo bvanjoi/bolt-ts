@@ -1,0 +1,1 @@
+namespace A { export interface I {} }
