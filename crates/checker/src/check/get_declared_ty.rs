@@ -563,11 +563,27 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         member: &'cx ast::EnumMember<'cx>,
         auto_value: Option<f64>,
-        _previouss: Option<&ast::EnumMember>,
+        previous: Option<&'cx ast::EnumMember<'cx>>,
     ) -> EnumMemberValue {
         if let Some(init) = member.init {
             return self.compute_constant_enum_member_value(member, init);
         }
+
+        if self.config.compiler_options().isolated_modules()
+            && let Some(previous) = previous
+            && previous.init.is_some()
+        {
+            let prev = self.get_enum_member_value(previous);
+            if !matches!(prev, EnumMemberValue::Number(_)) {
+                // TODO: resolved_other_files
+                let error = errors::EnumMemberFollowingANonLiteralNumericMemberMustHaveAnInitializerWhenIsolatedModulesIsEnabled {
+                    span: member.name.span(),
+                };
+                self.push_error(Box::new(error));
+                return EnumMemberValue::Err;
+            }
+        }
+
         match auto_value {
             Some(i) => EnumMemberValue::Number(i),
             None => {
@@ -593,7 +609,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_enum_literal_ty(
         &mut self,
         value: EnumMemberValue,
-        _symboll: SymbolID,
+        _symbol: SymbolID,
         member_symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: enum_literal_cache

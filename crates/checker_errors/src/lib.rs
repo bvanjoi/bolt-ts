@@ -2465,3 +2465,13 @@ pub struct ExponentiationCannotBePerformedOnBigintValuesUnlessTheTargetOptionIsS
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Enum member following a non-literal numeric member must have an initializer when 'isolatedModules' is enabled."
+)]
+pub struct EnumMemberFollowingANonLiteralNumericMemberMustHaveAnInitializerWhenIsolatedModulesIsEnabled
+{
+    #[label(primary)]
+    pub span: Span,
+}
