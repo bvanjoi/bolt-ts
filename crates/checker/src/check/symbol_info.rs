@@ -1086,7 +1086,7 @@ fn handle_members_for_label_symbol<'cx>(
 fn get_target_of_ns_import<'cx>(
     this: &mut TyChecker<'cx>,
     n: &'cx ast::NsImport<'cx>,
-    _dont_resolve_aliass: bool,
+    _dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let p = &this.p;
     let p_id = this.parent(n.id).unwrap();

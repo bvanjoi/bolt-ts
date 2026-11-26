@@ -464,6 +464,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             )
         {
             let modifier_kind = m.kind();
+            self.mark_error_for_invalid_modifier_in_javascript(Some((m.span(), modifier_kind)));
             let modifier_flag = modifier_kind.into_flag();
 
             match modifier_kind {
@@ -759,7 +760,13 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let name = self.parse_name_of_param()?;
         self.check_contextual_binding(name);
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
+        self.mark_error_for_invalid_token_in_javascript(
+            question.map(|t| (t, ast::TokenKind::Question)),
+        );
         let ty = self.parse_ty_anno()?;
+        if let Some(ty) = ty {
+            self.mark_error_for_return_type_in_javascript(ty);
+        }
         let init = self.parse_init()?;
 
         let modifier_contain_parameter_property_modifier = modifiers.is_some_and(|ms| {

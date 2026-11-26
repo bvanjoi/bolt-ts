@@ -99,9 +99,9 @@ impl<'cx, 'p, const VARIANT: u8> ClassLike<'cx, 'p, VARIANT> for ParseClassExpr 
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ClassImplementsClause<'cx>>,
-        elems: &'cx ast::ClassElems<'cx>,
+        elements: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
-        state.create_class_expression(span, name, ty_params, extends, implements, elems)
+        state.create_class_expression(span, name, ty_params, extends, implements, elements)
     }
 }
 
@@ -358,15 +358,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         let asterisk = self.parse_optional(TokenKind::Asterisk).map(|t| t.span);
         let name = self.parse_prop_name::<true, true>();
         let question_token = self.parse_optional(TokenKind::Question);
-        if is_js_like_variant(VARIANT)
-            && let Some(t) = question_token
-        {
-            let error = errors::TheXModifierCanOnlyBeUsedInTypeScriptFiles {
-                span: t.span,
-                modifier: "?",
-            };
-            self.push_error(Box::new(error));
-        }
+        self.mark_error_for_invalid_token_in_javascript(question_token.map(|t| (t.span, t.kind)));
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let flags = if asterisk.is_some() {
@@ -460,15 +452,16 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                 };
                 let body = this.p().parse_fn_block_or_semi(flags);
                 for p in params {
-                    if let Some(ms) = p.modifiers
-                        && ms.flags.intersects(ast::ModifierFlags::ACCESSIBILITY)
-                        && let ast::BindingKind::Ident(name) = p.name.kind
-                        && name.name == keyword::KW_CONSTRUCTOR
-                    {
-                        let error = errors::ConstructorCannotBeUsedAsAParameterPropertyName {
-                            span: p.span,
-                        };
-                        this.p().push_error(Box::new(error));
+                    if let Some(ms) = p.modifiers {
+                        if ms.flags.intersects(ast::ModifierFlags::ACCESSIBILITY)
+                            && let ast::BindingKind::Ident(name) = p.name.kind
+                            && name.name == keyword::KW_CONSTRUCTOR
+                        {
+                            let error = errors::ConstructorCannotBeUsedAsAParameterPropertyName {
+                                span: p.span,
+                            };
+                            this.p().push_error(Box::new(error));
+                        }
                     }
                 }
                 let span = this.p().new_span(start);

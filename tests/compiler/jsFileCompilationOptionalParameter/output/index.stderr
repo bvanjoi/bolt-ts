@@ -1,0 +1,11 @@
+  × The '?' modifier can only be used in TypeScript files.
+   ╭─[../../tests/compiler/jsFileCompilationOptionalParameter/index.js:6:13]
+ 6 │ ?
+   · ─
+   ╰────
+
+  × Parameter 'p' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/jsFileCompilationOptionalParameter/index.js:6:12]
+ 6 │ p?
+   · ──
+   ╰────

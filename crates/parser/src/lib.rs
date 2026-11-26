@@ -18,6 +18,7 @@ mod scan_pragma;
 mod state;
 mod stmt;
 mod touch;
+mod ts_syntax_in_js_file;
 mod ty;
 mod utils;
 mod visitor_collect_dependencies;

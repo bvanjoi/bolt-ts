@@ -935,6 +935,27 @@ impl ModifierKind {
             ModifierKind::Decorator => ModifierFlags::DECORATOR,
         }
     }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            ModifierKind::Public => "public",
+            ModifierKind::Private => "private",
+            ModifierKind::Protected => "protected",
+            ModifierKind::Readonly => "readonly",
+            ModifierKind::Override => "override",
+            ModifierKind::Export => "export",
+            ModifierKind::Abstract => "abstract",
+            ModifierKind::Ambient => "ambient",
+            ModifierKind::Static => "static",
+            ModifierKind::Accessor => "accessor",
+            ModifierKind::Async => "async",
+            ModifierKind::Default => "default",
+            ModifierKind::Const => "const",
+            ModifierKind::In => "in",
+            ModifierKind::Out => "out",
+            ModifierKind::Decorator => "decorator",
+        }
+    }
 }
 
 bitflags::bitflags! {
