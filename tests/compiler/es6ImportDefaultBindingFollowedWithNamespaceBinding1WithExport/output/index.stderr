@@ -1,0 +1,5 @@
+  × An import declaration cannot have modifiers.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamespaceBinding1WithExport/client.ts:1:1]
+ 1 │ export
+   · ──────
+   ╰────

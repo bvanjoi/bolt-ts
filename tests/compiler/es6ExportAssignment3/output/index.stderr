@@ -1,0 +1,5 @@
+  × Cannot find module 'a' or its corresponding type declarations.
+   ╭─[../../tests/compiler/es6ExportAssignment3/b.ts:1:20]
+ 1 │ "a"
+   · ───
+   ╰────

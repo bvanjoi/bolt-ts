@@ -1,0 +1,6 @@
+  × Cannot export 'undefined'. Only local declarations can be exported from a
+  │ module.
+   ╭─[../../tests/compiler/reExportUndefined1/index.ts:6:10]
+ 6 │ undefined
+   · ─────────
+   ╰────

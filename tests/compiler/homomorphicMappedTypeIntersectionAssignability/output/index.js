@@ -2,8 +2,8 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict
 function f(a, b, c) {
-  c = a;
-  // Works
-  b = a;
-// Should also work
+  c = a;// Works
+  
+  b = a;// Should also work
+  
 }

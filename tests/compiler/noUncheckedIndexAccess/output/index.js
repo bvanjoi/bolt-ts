@@ -11,8 +11,8 @@ var Meat = {};
 })(Meat);
 var sausage = Meat.Sausage;
 var valueSausage = Meat[sausage];
-var bacon //Avoiding a false positive
-= Meat.Bacon;
+var bacon = Meat//Avoiding a false positive
+.Bacon;
 var valueBacon = Meat[bacon];
 var union = Meat.Bacon;
 var valueUnion = Meat[union];

@@ -4,7 +4,7 @@
 function f() {
   var x = 100;
   try {
-    throw 'WAT'
+    throw 'WAT';
   } catch (e) {}finally {
     return x;
   }

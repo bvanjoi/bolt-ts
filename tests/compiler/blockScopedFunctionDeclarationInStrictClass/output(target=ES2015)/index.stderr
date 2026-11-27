@@ -1,0 +1,5 @@
+  × Cannot find name 'foo'.
+    ╭─[../../tests/compiler/blockScopedFunctionDeclarationInStrictClass/index.ts:13:9]
+ 13 │ foo
+    · ───
+    ╰────

@@ -34,16 +34,18 @@ fn eval_in_test<'cx>(
     let mut atoms = bolt_ts_compiler::init_atom();
     // ==== fs init ====
     let fs = LocalFS::new(&mut atoms);
-    let exe_dir = bolt_ts_compiler::current_exe_dir();
+    let default_lib_dir = project_root::get_project_root()
+        .unwrap()
+        .join("target/debug");
     let default_libs = bolt_ts_libs::LIBS
         .iter()
-        .map(|filename| exe_dir.join(filename))
+        .map(|filename| default_lib_dir.join(filename))
         .collect::<Vec<_>>();
 
     bolt_ts_compiler::eval_with_fs(
         root,
         tsconfig,
-        exe_dir,
+        default_lib_dir,
         default_libs,
         parser_arena,
         type_arena,
@@ -158,7 +160,9 @@ fn run_test_with(
                 let code = module_arena.get_content(diag.inner.module_id());
                 let start =
                     bolt_ts_errors::miette_label_span_to_line_position(primary_label, code).0;
+                let file = module_arena.get_path(diag.inner.module_id()).to_path_buf();
                 Some(compile_test::errors::Error {
+                    file,
                     line_num: start.line + 1,
                     kind: Some(kind),
                     msg,

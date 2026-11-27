@@ -1,4 +1,4 @@
-  × Duplicate identifier 'var1'.
+  × Cannot redeclare block-scoped variable 'var1'.
    ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:7:5]
  6 │ var1 = 0;
    · ──┬─
@@ -7,7 +7,7 @@
    ·     ────
    ╰────
 
-  × Duplicate identifier 'var2'.
+  × Cannot redeclare block-scoped variable 'var2'.
     ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:11:7]
  10 │ var2 = 0;
     · ──┬─
@@ -16,7 +16,7 @@
     ·       ────
     ╰────
 
-  × Duplicate identifier 'var3'.
+  × Cannot redeclare block-scoped variable 'var3'.
     ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:15:5]
  14 │ var3 = 0;
     · ──┬─
@@ -25,7 +25,7 @@
     ·     ────
     ╰────
 
-  × Duplicate identifier 'var4'.
+  × Cannot redeclare block-scoped variable 'var4'.
     ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:19:7]
  18 │ var4 = 0;
     · ──┬─
@@ -43,7 +43,7 @@
     ·     ────
     ╰────
 
-  × Duplicate identifier 'var6'.
+  × Cannot redeclare block-scoped variable 'var6'.
     ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:27:5]
  26 │ var6 = 0;
     · ──┬─
@@ -52,7 +52,7 @@
     ·     ────
     ╰────
 
-  × Duplicate identifier 'var7'.
+  × Cannot redeclare block-scoped variable 'var7'.
     ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:32:9]
  31 │ var7 = 0;
     · ──┬─
@@ -61,7 +61,7 @@
     ·         ────
     ╰────
 
-  × Duplicate identifier 'var8'.
+  × Cannot redeclare block-scoped variable 'var8'.
     ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:36:15]
  35 │ var8 = 0;
     · ──┬─
@@ -70,7 +70,7 @@
     ·               ────
     ╰────
 
-  × Duplicate identifier 'var9'.
+  × Cannot redeclare block-scoped variable 'var9'.
     ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:44:13]
  43 │ var9 = 0;
     · ──┬─
@@ -79,7 +79,7 @@
     ·             ────
     ╰────
 
-  × Duplicate identifier 'var10'.
+  × Cannot redeclare block-scoped variable 'var10'.
     ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:50:11]
  49 │ var10 = 0;
     · ──┬──
@@ -88,7 +88,7 @@
     ·           ─────
     ╰────
 
-  × Duplicate identifier 'var11'.
+  × Cannot redeclare block-scoped variable 'var11'.
     ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:55:9]
  54 │ var11 = 0;
     · ──┬──
@@ -97,7 +97,7 @@
     ·         ─────
     ╰────
 
-  × Duplicate identifier 'var12'.
+  × Cannot redeclare block-scoped variable 'var12'.
     ╭─[../../tests/compiler/letDeclarations-scopes-duplicates/index.ts:61:9]
  60 │ var12;
     · ──┬──

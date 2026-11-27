@@ -1,0 +1,11 @@
+  × Variable 'a' is used before being assigned.
+   ╭─[../../tests/compiler/exportDefaultInterface/a.ts:4:1]
+ 4 │ a
+   · ─
+   ╰────
+
+  × Variable 'a' is used before being assigned.
+   ╭─[../../tests/compiler/exportDefaultInterface/b.ts:4:1]
+ 4 │ a
+   · ─
+   ╰────

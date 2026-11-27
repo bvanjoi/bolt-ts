@@ -16,7 +16,7 @@ export function evaluate(expression) {
       
       default:
         {
-          throw new Error(`${operator} is not a supported operator`)
+          throw new Error(`${operator} is not a supported operator`);
         }
       
     }

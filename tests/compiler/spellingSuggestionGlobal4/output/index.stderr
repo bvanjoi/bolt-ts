@@ -1,0 +1,5 @@
+  × Cannot find name 'global'.
+   ╭─[../../tests/compiler/spellingSuggestionGlobal4/index.ts:8:1]
+ 8 │ global
+   · ──────
+   ╰────

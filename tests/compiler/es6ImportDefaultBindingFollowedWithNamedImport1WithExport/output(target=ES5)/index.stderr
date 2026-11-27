@@ -1,0 +1,113 @@
+  × An import declaration cannot have modifiers.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:1:1]
+ 1 │ export
+   · ──────
+   ╰────
+
+  × An import declaration cannot have modifiers.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:5:1]
+ 5 │ export
+   · ──────
+   ╰────
+
+  × An import declaration cannot have modifiers.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:10:1]
+ 10 │ export
+    · ──────
+    ╰────
+
+  × An import declaration cannot have modifiers.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:15:1]
+ 15 │ export
+    · ──────
+    ╰────
+
+  × An import declaration cannot have modifiers.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:21:1]
+ 21 │ export
+    · ──────
+    ╰────
+
+  × An import declaration cannot have modifiers.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:26:1]
+ 26 │ export
+    · ──────
+    ╰────
+
+  × Module '"./server"' has no exported member 'a'. Did you mean to use
+  │ 'import a from "./server"' instead?
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:5:34]
+ 5 │ a
+   · ─
+   ╰────
+
+  × Module '"./server"' has no exported member 'a'. Did you mean to use
+  │ 'import a from "./server"' instead?
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:10:34]
+ 10 │ a as b
+    · ──────
+    ╰────
+
+  × Module '"./server"' has no exported member 'x'. Did you mean to use
+  │ 'import x from "./server"' instead?
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:15:34]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Module '"./server"' has no exported member 'a'. Did you mean to use
+  │ 'import a from "./server"' instead?
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:15:37]
+ 15 │ a as y
+    · ──────
+    ╰────
+
+  × Module '"./server"' has no exported member 'x'. Did you mean to use
+  │ 'import x from "./server"' instead?
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:21:34]
+ 21 │ x as z
+    · ──────
+    ╰────
+
+  × Module '"./server"' has no exported member 'm'. Did you mean to use
+  │ 'import m from "./server"' instead?
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:26:34]
+ 26 │ m
+    · ─
+    ╰────
+
+  × Cannot redeclare exported variable 'x1'.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:3:12]
+ 3 │ x1: number = defaultBinding1
+   · ────────────────────────────
+   ╰────
+
+  × Cannot redeclare exported variable 'x1'.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:8:12]
+ 8 │ x1: number = defaultBinding2
+   · ────────────────────────────
+   ╰────
+
+  × Cannot redeclare exported variable 'x1'.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:13:12]
+ 13 │ x1: number = defaultBinding3
+    · ────────────────────────────
+    ╰────
+
+  × Cannot redeclare exported variable 'x1'.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:19:12]
+ 19 │ x1: number = defaultBinding4
+    · ────────────────────────────
+    ╰────
+
+  × Cannot redeclare exported variable 'x1'.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:24:12]
+ 24 │ x1: number = defaultBinding5
+    · ────────────────────────────
+    ╰────
+
+  × Cannot redeclare exported variable 'x1'.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport/client.ts:29:12]
+ 29 │ x1: number = defaultBinding6
+    · ────────────────────────────
+    ╰────

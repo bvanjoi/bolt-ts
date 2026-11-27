@@ -223,7 +223,15 @@ impl<'cx> TyChecker<'cx> {
             return resolved_base_ctor_ty;
         }
         let symbol = ty.symbol().unwrap();
-        let decl = self.get_class_like_decl_of_symbol(symbol).unwrap();
+        let Some(decl) = self.get_class_like_decl_of_symbol(symbol) else {
+            // return early for this this function in js file:
+            // ```
+            // function f() { `f` had been mark class symbol flags so the typeof `f` is reference type.
+            //   this.a = 1;
+            // }
+            // ```
+            return self.undefined_ty;
+        };
         let Some(extends) = self.get_effective_base_type_node(decl) else {
             return self.undefined_ty;
         };
@@ -555,11 +563,27 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         member: &'cx ast::EnumMember<'cx>,
         auto_value: Option<f64>,
-        _previouss: Option<&ast::EnumMember>,
+        previous: Option<&'cx ast::EnumMember<'cx>>,
     ) -> EnumMemberValue {
         if let Some(init) = member.init {
             return self.compute_constant_enum_member_value(member, init);
         }
+
+        if self.config.compiler_options().isolated_modules()
+            && let Some(previous) = previous
+            && previous.init.is_some()
+        {
+            let prev = self.get_enum_member_value(previous);
+            if !matches!(prev, EnumMemberValue::Number(_)) {
+                // TODO: resolved_other_files
+                let error = errors::EnumMemberFollowingANonLiteralNumericMemberMustHaveAnInitializerWhenIsolatedModulesIsEnabled {
+                    span: member.name.span(),
+                };
+                self.push_error(Box::new(error));
+                return EnumMemberValue::Err;
+            }
+        }
+
         match auto_value {
             Some(i) => EnumMemberValue::Number(i),
             None => {
@@ -585,7 +609,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_enum_literal_ty(
         &mut self,
         value: EnumMemberValue,
-        _symboll: SymbolID,
+        _symbol: SymbolID,
         member_symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: enum_literal_cache
@@ -631,6 +655,7 @@ impl<'cx> TyChecker<'cx> {
                         }
                         EnumMemberValue::Err => self.create_computed_enum_ty(member_symbol),
                     };
+                    let member_ty = self.get_fresh_ty_of_literal_ty(member_ty);
                     self.get_mut_symbol_links(member_symbol)
                         .set_declared_ty(member_ty);
                     member_ty_list.push(self.get_regular_ty_of_literal_ty(member_ty))

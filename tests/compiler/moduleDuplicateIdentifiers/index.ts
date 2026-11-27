@@ -4,9 +4,9 @@
 //@compiler-options: module=commonjs
 
 export var Foo = 2;
-//~^ ERROR: Cannot redeclare exported variable 'default'.
+//~^ ERROR: Cannot redeclare exported variable 'Foo'.
 export var Foo = 42; // Should error
-//~^ ERROR: Cannot redeclare exported variable 'default'.
+//~^ ERROR: Cannot redeclare exported variable 'Foo'.
 
 export interface Bar {
 	_brand1: any;

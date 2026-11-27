@@ -1,0 +1,12 @@
+  × Type annotations can only be used in TypeScript files.
+   ╭─[../../tests/compiler/jsFileCompilationReturnTypeSyntaxOfFunction/index.js:6:15]
+ 6 │ number
+   · ──────
+   ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+   ╭─[../../tests/compiler/jsFileCompilationReturnTypeSyntaxOfFunction/index.js:6:15]
+ 6 │ number
+   · ──────
+   ╰────

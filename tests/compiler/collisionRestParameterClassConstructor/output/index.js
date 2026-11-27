@@ -4,27 +4,27 @@
 // Constructors
 class c1 {
   constructor(_i, ...restParameters) {//_i is error
-    var _i = 10;// no error
-  }
+  var _i = 10;// no error
+    }
 }
 class c1NoError {
   constructor(_i) {// no error
-    var _i = 10;// no error
-  }
+  var _i = 10;// no error
+    }
 }
 class c2 {
   constructor(...restParameters) {var _i = 10;// no error
-  }
+    }
 }
 class c2NoError {
   constructor() {var _i = 10;// no error
-  }
+    }
 }
 class c3 {
-  constructor(_i, ...restParameters) {
-    //_i is error
-    var _i = 10;
-    // no error
+  constructor(_i, ...restParameters) {//_i is error
+  
+    var _i = 10;// no error
+    
     this._i = _i
     
     }
@@ -32,8 +32,8 @@ class c3 {
 class c3NoError {
   constructor(_i// no error
   ) {
-    var _i = // no error
-    10;
+    var _i =// no error
+     10;
     this._i = _i
     }
 }// No error - no code gen
@@ -43,15 +43,15 @@ class c5 {
   // no codegen no error
   // no codegen no error
   constructor(_i, ...rest) {// error
-    var _i;// no error
-  }
+  var _i;// no error
+    }
 }
 class c5NoError {
   // no error
   // no error
   constructor(_i) {// no error
-    var _i;// no error
-  }
+  var _i;// no error
+    }
 }// no codegen no error
 // no codegen no error
 // no error

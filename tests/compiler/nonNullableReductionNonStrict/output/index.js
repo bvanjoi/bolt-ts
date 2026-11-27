@@ -6,10 +6,10 @@ function test(f1, f2) {
   f2('hello');
 }
 function f1(x) {
-  var z = x;
-// NonNullable<T>
+  var z = x;// NonNullable<T>
+  
 }
 function f2(x) {
-  var z = x;
-// NonNullable<T>
+  var z = x;// NonNullable<T>
+  
 }

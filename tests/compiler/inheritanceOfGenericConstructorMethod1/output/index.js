@@ -7,5 +7,5 @@ var a = new A();
 var b1 = new B();
 var b2// no error
  = new B();
-var b3 = // no error
-new B();
+var b3 =// no error
+ new B();

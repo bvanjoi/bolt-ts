@@ -23,3 +23,10 @@
  38 │ emptyObj[hi]
     · ────────────
     ╰────
+
+  × Element implicitly has an 'any' type because expression of type 'string'
+  │ can't be used to index type '{ }'.
+    ╭─[../../tests/compiler/noImplicitAnyIndexing/index.ts:57:38]
+ 57 │ q[k]
+    · ────
+    ╰────

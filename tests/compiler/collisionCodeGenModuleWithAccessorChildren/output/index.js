@@ -21,8 +21,8 @@ var M = {};
   class d {
     y;
     set Z(p) {
-      var // Shouldnt be _M
-      M = 10;
+      var// Shouldnt be _M
+       M = 10;
       this.y = x;
     }
   }

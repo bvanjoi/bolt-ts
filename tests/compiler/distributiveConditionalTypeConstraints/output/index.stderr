@@ -10,19 +10,19 @@
     · ─
     ╰────
 
-  × Type 'IsArray' is not assignable to type 'false'.
+  × Type 'IsArray<T>' is not assignable to type 'false'.
     ╭─[../../tests/compiler/distributiveConditionalTypeConstraints/index.ts:18:9]
  18 │ f
     · ─
     ╰────
 
-  × Type 'IsArray' is not assignable to type 'false'.
+  × Type 'IsArray<T>' is not assignable to type 'false'.
     ╭─[../../tests/compiler/distributiveConditionalTypeConstraints/index.ts:24:9]
  24 │ f
     · ─
     ╰────
 
-  × Type 'IsArray' is not assignable to type 'true'.
+  × Type 'IsArray<T>' is not assignable to type 'true'.
     ╭─[../../tests/compiler/distributiveConditionalTypeConstraints/index.ts:29:9]
  29 │ t
     · ─

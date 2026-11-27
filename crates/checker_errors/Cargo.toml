@@ -6,5 +6,6 @@ edition = "2024"
 [dependencies]
 bolt_ts_errors = { path = "../../helper/errors" }
 bolt_ts_span = { path = "../../helper/span" }
+bolt_ts_parser_errors = { path = "../parser_errors" }
 bolt_ts_ast = { path = "../ast" }
 thiserror = { workspace = true }

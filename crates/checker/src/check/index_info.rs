@@ -17,19 +17,39 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_index_infos_of_symbol(&mut self, symbol: SymbolID) -> ty::IndexInfos<'cx> {
         self.get_index_symbol(symbol)
-            .map(|index_symbol| self.get_index_infos_of_index_symbol(index_symbol))
+            .map(|index_symbol| {
+                let sibling_symbols = self
+                    .get_members_of_symbol(symbol)
+                    .0
+                    .values()
+                    .copied()
+                    .collect::<Vec<_>>();
+                self.get_index_infos_of_index_symbol(index_symbol, Some(sibling_symbols))
+            })
             .unwrap_or_default()
     }
 
     pub(super) fn get_index_infos_of_index_symbol(
         &mut self,
-        symbol: SymbolID,
+        index_symbol: SymbolID,
+        // TODO: don't use Vector
+        sibling_symbols: Option<Vec<SymbolID>>,
     ) -> ty::IndexInfos<'cx> {
-        let s = self.symbol(symbol);
+        let s = self.symbol(index_symbol);
+        let parent = s.parent;
         let Some(decls) = s.decls.clone() else {
             return self.empty_array();
         };
-        // TODO: sibling_symbols;
+        let sibling_symbols = sibling_symbols.unwrap_or_else(|| {
+            let Some(parent) = parent else {
+                return Vec::new();
+            };
+            self.get_members_of_symbol(parent)
+                .0
+                .values()
+                .copied()
+                .collect::<Vec<_>>()
+        });
         let mut index_infos = Vec::with_capacity(decls.len() * 2);
         let mut has_computed_number_property = false;
         let mut readonly_computed_number_property = true;
@@ -50,7 +70,7 @@ impl<'cx> TyChecker<'cx> {
                     self.alloc(ty::IndexInfo {
                         key_ty,
                         val_ty,
-                        symbol,
+                        symbol: index_symbol,
                         is_readonly,
                         declaration: Some(declaration),
                     })
@@ -98,7 +118,11 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let all_property_symbols = computed_property_symbols;
+        let all_property_symbols = {
+            let mut all = computed_property_symbols;
+            all.extend(sibling_symbols.into_iter().filter(|&s| s != index_symbol));
+            all
+        };
         if has_computed_string_property
             && self.find_index_info(&index_infos, self.string_ty).is_none()
         {

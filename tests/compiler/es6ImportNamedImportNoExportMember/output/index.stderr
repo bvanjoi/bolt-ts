@@ -1,0 +1,13 @@
+  × Module './es6ImportNamedImportNoExportMember_0' has no exported member
+  │ 'a1'.
+   ╭─[../../tests/compiler/es6ImportNamedImportNoExportMember/es6ImportNamedImport_1.ts:1:10]
+ 1 │ a1
+   · ──
+   ╰────
+
+  × Module './es6ImportNamedImportNoExportMember_0' has no exported member
+  │ 'x1'.
+   ╭─[../../tests/compiler/es6ImportNamedImportNoExportMember/es6ImportNamedImport_1.ts:3:10]
+ 3 │ x1
+   · ──
+   ╰────

@@ -3,28 +3,28 @@
 //@compiler-options: strict
 //@run-fail
 function f1(a, b) {
-  var x1 = cast(a, isC);
-  // cast<A, C>
-  var x2 = cast(b, isC);
-// cast<A, C>
+  var x1 = cast(a, isC);// cast<A, C>
+  
+  var x2 = cast(b, isC);// cast<A, C>
+  
 }
 function f2(b, c) {
-  consume(b, c, useA);
-  // consume<A, C>
-  consume(c, b, useA);
-  // consume<A, B>
-  consume(b, b, useA);
-  // consume<B, B>
-  consume(c, c, useA);
-// consume<C, C>
+  consume(b, c, useA);// consume<A, C>
+  
+  consume(c, b, useA);// consume<A, B>
+  
+  consume(b, b, useA);// consume<B, B>
+  
+  consume(c, c, useA);// consume<C, C>
+  
 }
 function f3(arr) {
   if (every(arr, isC)) {
-    arr;
-  // readonly C[]
+    arr;// readonly C[]
+    
   } else {
-    arr;
-  // readonly B[]
+    arr;// readonly B[]
+    
   }
   
 }
@@ -39,14 +39,14 @@ var SyntaxKind = {};
   SyntaxKind[SyntaxKind['FunctionDeclaration'] = 0] = 'FunctionDeclaration'
 })(SyntaxKind);
 function foo(node) {
-  assertNode(node, canHaveLocals);
-  // assertNode<Node, HasLocals>
-  node;
-// FunctionDeclaration
+  assertNode(node, canHaveLocals);// assertNode<Node, HasLocals>
+  
+  node;// FunctionDeclaration
+  
 }
 function bar(node) {
-  var a = tryCast(node, isExpression);
-// tryCast<Expression, Node>
+  var a = tryCast(node, isExpression);// tryCast<Expression, Node>
+  
 }
 // Repro from #49924
 var SyntaxKind1 = {};

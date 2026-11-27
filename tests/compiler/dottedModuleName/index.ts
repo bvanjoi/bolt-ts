@@ -10,6 +10,7 @@ namespace M {
   //~| ERROR: Declaration or statement expected.
 	export namespace X.Y.Z {
   //~^ ERROR: A namespace declaration is only allowed at the top level of a namespace or module.
+  //~| ERROR: An export declaration can only be used at the top level of a namespace or module.
 	    export var v2=f(v);
       //~^ ERROR: Cannot find name 'v'.
 	}

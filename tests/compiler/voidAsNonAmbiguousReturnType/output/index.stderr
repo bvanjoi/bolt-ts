@@ -1,0 +1,20 @@
+  × This overload signature is not compatible with its implementation
+  │ signature.
+   ╭─[../../tests/compiler/voidAsNonAmbiguousReturnType/voidAsNonAmbiguousReturnType_0.ts:1:17]
+ 1 │ mkdirSync
+   · ─────────
+   ╰────
+
+  × This overload signature is not compatible with its implementation
+  │ signature.
+   ╭─[../../tests/compiler/voidAsNonAmbiguousReturnType/voidAsNonAmbiguousReturnType_0.ts:1:17]
+ 1 │ mkdirSync
+   · ─────────
+   ╰────
+
+  × This overload signature is not compatible with its implementation
+  │ signature.
+   ╭─[../../tests/compiler/voidAsNonAmbiguousReturnType/voidAsNonAmbiguousReturnType_0.ts:1:17]
+ 1 │ mkdirSync
+   · ─────────
+   ╰────

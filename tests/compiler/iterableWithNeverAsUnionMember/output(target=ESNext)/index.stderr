@@ -1,0 +1,20 @@
+  × Type 'never' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+   ╭─[../../tests/compiler/iterableWithNeverAsUnionMember/index.ts:9:7]
+ 9 │ [el1]
+   · ─────
+   ╰────
+
+  × Type 'T' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+    ╭─[../../tests/compiler/iterableWithNeverAsUnionMember/index.ts:33:7]
+ 33 │ [y]
+    · ───
+    ╰────
+
+  × Type 'never' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+    ╭─[../../tests/compiler/iterableWithNeverAsUnionMember/index.ts:38:7]
+ 38 │ [el3]
+    · ─────
+    ╰────

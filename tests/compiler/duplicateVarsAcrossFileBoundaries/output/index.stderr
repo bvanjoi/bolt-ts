@@ -1,0 +1,27 @@
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type 'number', but here has type 'boolean'.
+   ╭─[../../tests/compiler/duplicateVarsAcrossFileBoundaries/duplicateVarsAcrossFileBoundaries_1.ts:1:5]
+ 1 │ x
+   · ─
+   ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type 'number', but here has type 'string'.
+   ╭─[../../tests/compiler/duplicateVarsAcrossFileBoundaries/duplicateVarsAcrossFileBoundaries_2.ts:1:5]
+ 1 │ x
+   · ─
+   ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'y'
+  │ must be of type 'string', but here has type 'number'.
+   ╭─[../../tests/compiler/duplicateVarsAcrossFileBoundaries/duplicateVarsAcrossFileBoundaries_2.ts:3:5]
+ 3 │ y
+   · ─
+   ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'z'
+  │ must be of type 'number', but here has type 'boolean'.
+   ╭─[../../tests/compiler/duplicateVarsAcrossFileBoundaries/duplicateVarsAcrossFileBoundaries_2.ts:5:5]
+ 5 │ z
+   · ─
+   ╰────

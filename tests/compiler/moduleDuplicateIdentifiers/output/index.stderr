@@ -10,13 +10,13 @@
     ·              ──────
     ╰────
 
-  × Cannot redeclare exported variable 'default'.
+  × Cannot redeclare exported variable 'Foo'.
    ╭─[../../tests/compiler/moduleDuplicateIdentifiers/index.ts:6:12]
  6 │ Foo = 2
    · ───────
    ╰────
 
-  × Cannot redeclare exported variable 'default'.
+  × Cannot redeclare exported variable 'Foo'.
    ╭─[../../tests/compiler/moduleDuplicateIdentifiers/index.ts:8:12]
  8 │ Foo = 42
    · ────────

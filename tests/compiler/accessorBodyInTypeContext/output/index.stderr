@@ -22,27 +22,51 @@
     · ───
     ╰────
 
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:27:9]
+ 27 │ foo
+    · ───
+    ╰────
+
   × An implementation cannot be declared in type contexts.
     ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:27:21]
  27 │ { }
     · ───
     ╰────
 
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:28:15]
- 28 │ { return 0 }
-    · ────────────
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:33:19]
- 33 │ { }
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:30:9]
+ 30 │ foo
     · ───
     ╰────
 
   × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:34:13]
- 34 │ { return 0 }
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:30:15]
+ 30 │ { return 0 }
+    · ────────────
+    ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:37:7]
+ 37 │ foo
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:37:19]
+ 37 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:40:7]
+ 40 │ foo
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:40:13]
+ 40 │ { return 0 }
     · ────────────
     ╰────
 

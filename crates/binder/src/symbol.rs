@@ -14,6 +14,8 @@ pub enum SymbolName {
         symbol_id: SymbolID,
     },
     Atom(Atom),
+    // `"module_name"` in typescript
+    AmbientModule(Atom),
     EleNum(F64Represent),
     ClassExpr,
     Array,
@@ -313,6 +315,11 @@ impl Symbol {
                 .as_block_module_decl()
                 .is_some_and(|ns| ns.block.is_none())
         })
+    }
+    pub fn has_export_assignment_symbol(&self) -> bool {
+        self.exports
+            .as_ref()
+            .is_some_and(|exports| exports.0.contains_key(&SymbolName::ExportEquals))
     }
 }
 

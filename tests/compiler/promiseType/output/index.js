@@ -31,7 +31,7 @@ async function E() {
     var a = await p;
     return 1;
   } catch (e) {
-    throw Error()
+    throw Error();
   }
 }
 async function F() {
@@ -55,7 +55,7 @@ async function H() {
     var a = await p;
     return a;
   } catch (e) {
-    throw Error()
+    throw Error();
   }
 }
 async function I() {
@@ -67,8 +67,8 @@ async function I() {
   }
 }
 var p00 = p.catch();
-var p01 = p.then()// addresses github issue #4903:
-;
+var p01 = p.then// addresses github issue #4903:
+();
 var p10 = p.catch(undefined);
 var p11 = p.catch(null);
 var p12 = p.catch(() => (1));
@@ -77,7 +77,7 @@ var p14 = p.catch(() => (undefined));
 var p15 = p.catch(() => (null));
 var p16 = p.catch(() => {});
 var p17 = p.catch(() => {
-  throw 1
+  throw 1;
 });
 var p18 = p.catch(() => (Promise.reject(1)));
 var p19 = p.catch(() => (Promise.resolve(1)));
@@ -89,7 +89,7 @@ var p24 = p.then(() => (undefined));
 var p25 = p.then(() => (null));
 var p26 = p.then(() => {});
 var p27 = p.then(() => {
-  throw 1
+  throw 1;
 });
 var p28 = p.then(() => (Promise.resolve(1)));
 var p29 = p.then(() => (Promise.reject(1)));
@@ -101,7 +101,7 @@ var p34 = p.then(undefined, () => (undefined));
 var p35 = p.then(undefined, () => (null));
 var p36 = p.then(undefined, () => {});
 var p37 = p.then(undefined, () => {
-  throw 1
+  throw 1;
 });
 var p38 = p.then(undefined, () => (Promise.resolve(1)));
 var p39 = p.then(undefined, () => (Promise.reject(1)));
@@ -113,7 +113,7 @@ var p44 = p.then(null, () => (undefined));
 var p45 = p.then(null, () => (null));
 var p46 = p.then(null, () => {});
 var p47 = p.then(null, () => {
-  throw 1
+  throw 1;
 });
 var p48 = p.then(null, () => (Promise.resolve(1)));
 var p49 = p.then(null, () => (Promise.reject(1)));
@@ -125,7 +125,7 @@ var p54 = p.then(() => ('1'), () => (undefined));
 var p55 = p.then(() => ('1'), () => (null));
 var p56 = p.then(() => ('1'), () => {});
 var p57 = p.then(() => ('1'), () => {
-  throw 1
+  throw 1;
 });
 var p58 = p.then(() => ('1'), () => (Promise.resolve(1)));
 var p59 = p.then(() => ('1'), () => (Promise.reject(1)));
@@ -137,7 +137,7 @@ var p64 = p.then(() => (x), () => (undefined));
 var p65 = p.then(() => (x), () => (null));
 var p66 = p.then(() => (x), () => {});
 var p67 = p.then(() => (x), () => {
-  throw 1
+  throw 1;
 });
 var p68 = p.then(() => (x), () => (Promise.resolve(1)));
 var p69 = p.then(() => (x), () => (Promise.reject(1)));
@@ -149,7 +149,7 @@ var p74 = p.then(() => (undefined), () => (undefined));
 var p75 = p.then(() => (undefined), () => (null));
 var p76 = p.then(() => (undefined), () => {});
 var p77 = p.then(() => (undefined), () => {
-  throw 1
+  throw 1;
 });
 var p78 = p.then(() => (undefined), () => (Promise.resolve(1)));
 var p79 = p.then(() => (undefined), () => (Promise.reject(1)));
@@ -161,7 +161,7 @@ var p84 = p.then(() => (null), () => (undefined));
 var p85 = p.then(() => (null), () => (null));
 var p86 = p.then(() => (null), () => {});
 var p87 = p.then(() => (null), () => {
-  throw 1
+  throw 1;
 });
 var p88 = p.then(() => (null), () => (Promise.resolve(1)));
 var p89 = p.then(() => (null), () => (Promise.reject(1)));
@@ -173,41 +173,41 @@ var p94 = p.then(() => {}, () => (undefined));
 var p95 = p.then(() => {}, () => (null));
 var p96 = p.then(() => {}, () => {});
 var p97 = p.then(() => {}, () => {
-  throw 1
+  throw 1;
 });
 var p98 = p.then(() => {}, () => (Promise.resolve(1)));
 var p99 = p.then(() => {}, () => (Promise.reject(1)));
 var pa0 = p.then(() => {
-  throw 1
+  throw 1;
 }, undefined);
 var pa1 = p.then(() => {
-  throw 1
+  throw 1;
 }, null);
 var pa2 = p.then(() => {
-  throw 1
+  throw 1;
 }, () => (1));
 var pa3 = p.then(() => {
-  throw 1
+  throw 1;
 }, () => (x));
 var pa4 = p.then(() => {
-  throw 1
+  throw 1;
 }, () => (undefined));
 var pa5 = p.then(() => {
-  throw 1
+  throw 1;
 }, () => (null));
 var pa6 = p.then(() => {
-  throw 1
+  throw 1;
 }, () => {});
 var pa7 = p.then(() => {
-  throw 1
+  throw 1;
 }, () => {
-  throw 1
+  throw 1;
 });
 var pa8 = p.then(() => {
-  throw 1
+  throw 1;
 }, () => (Promise.resolve(1)));
 var pa9 = p.then(() => {
-  throw 1
+  throw 1;
 }, () => (Promise.reject(1)));
 var pb0 = p.then(() => (Promise.resolve('1')), undefined);
 var pb1 = p.then(() => (Promise.resolve('1')), null);
@@ -217,7 +217,7 @@ var pb4 = p.then(() => (Promise.resolve('1')), () => (undefined));
 var pb5 = p.then(() => (Promise.resolve('1')), () => (null));
 var pb6 = p.then(() => (Promise.resolve('1')), () => {});
 var pb7 = p.then(() => (Promise.resolve('1')), () => {
-  throw 1
+  throw 1;
 });
 var pb8 = p.then(() => (Promise.resolve('1')), () => (Promise.resolve(1)));
 var pb9 = p.then(() => (Promise.resolve('1')), () => (Promise.reject(1)));
@@ -229,7 +229,7 @@ var pc4 = p.then(() => (Promise.reject('1')), () => (undefined));
 var pc5 = p.then(() => (Promise.reject('1')), () => (null));
 var pc6 = p.then(() => (Promise.reject('1')), () => {});
 var pc7 = p.then(() => (Promise.reject('1')), () => {
-  throw 1
+  throw 1;
 });
 var pc8 = p.then(() => (Promise.reject('1')), () => (Promise.resolve(1)));
 var pc9 = p.then(() => (Promise.reject('1')), () => (Promise.reject(1)));

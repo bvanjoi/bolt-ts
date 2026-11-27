@@ -4,19 +4,19 @@
 // this should be an error
 function nullWidenFunction() {
   return null;
-}
-// error at "nullWidenFunction"
+}// error at "nullWidenFunction"
+
 function undefinedWidenFunction() {
   return undefined;
-}
-// error at "undefinedWidenFunction"
+}// error at "undefinedWidenFunction"
+
 class C {
-  nullWidenFuncOfC() {
-    // error at "nullWidenFuncOfC"
+  nullWidenFuncOfC() {// error at "nullWidenFuncOfC"
+  
     return null;
   }
-  underfinedWidenFuncOfC() {
-    // error at "underfinedWidenFuncOfC"
+  underfinedWidenFuncOfC() {// error at "underfinedWidenFuncOfC"
+  
     return undefined;
   }
 }

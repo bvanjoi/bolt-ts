@@ -1,0 +1,47 @@
+  × 'g' is declared but its value is never read.
+    ╭─[../../tests/compiler/noUnusedLocals_selfReference/index.ts:13:14]
+ 13 │ g
+    · ─
+    ╰────
+
+  × 'm' is declared but its value is never read.
+    ╭─[../../tests/compiler/noUnusedLocals_selfReference/index.ts:36:19]
+ 36 │ m
+    · ─
+    ╰────
+
+  × 'f' is declared but its value is never read.
+    ╭─[../../tests/compiler/noUnusedLocals_selfReference/index.ts:10:10]
+ 10 │ f
+    · ─
+    ╰────
+
+  × 'C' is declared but never used.
+    ╭─[../../tests/compiler/noUnusedLocals_selfReference/index.ts:18:7]
+ 18 │ C
+    · ─
+    ╰────
+
+  × 'E' is declared but never used.
+    ╭─[../../tests/compiler/noUnusedLocals_selfReference/index.ts:22:6]
+ 22 │ E
+    · ─
+    ╰────
+
+  × 'I' is declared but never used.
+    ╭─[../../tests/compiler/noUnusedLocals_selfReference/index.ts:24:11]
+ 24 │ I
+    · ─
+    ╰────
+
+  × 'T' is declared but never used.
+    ╭─[../../tests/compiler/noUnusedLocals_selfReference/index.ts:26:6]
+ 26 │ T
+    · ─
+    ╰────
+
+  × 'N' is declared but its value is never read.
+    ╭─[../../tests/compiler/noUnusedLocals_selfReference/index.ts:28:11]
+ 28 │ N
+    · ─
+    ╰────

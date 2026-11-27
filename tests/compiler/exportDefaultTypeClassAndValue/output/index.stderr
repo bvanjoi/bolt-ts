@@ -11,7 +11,7 @@
    ╰────
 
   × Cannot redeclare exported variable 'default'.
-   ╭─[../../tests/compiler/exportDefaultTypeClassAndValue/index.ts:9:22]
- 9 │ Foo
-   · ───
+   ╭─[../../tests/compiler/exportDefaultTypeClassAndValue/index.ts:9:16]
+ 9 │ class Foo {}
+   · ────────────
    ╰────

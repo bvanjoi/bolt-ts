@@ -1,0 +1,35 @@
+  × All imports in import declaration are unused.
+   ╭─[../../tests/compiler/unusedImports_entireImportDeclaration/b.ts:1:8]
+ 1 │ d1, { a as a1, b as b1 }
+   · ────────────────────────
+   ╰────
+
+  × All imports in import declaration are unused.
+   ╭─[../../tests/compiler/unusedImports_entireImportDeclaration/b.ts:3:8]
+ 3 │ d2, * as ns
+   · ───────────
+   ╰────
+
+  × 'a2' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedImports_entireImportDeclaration/b.ts:6:14]
+ 6 │ a as a2
+   · ───────
+   ╰────
+
+  × 'b2' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedImports_entireImportDeclaration/b.ts:6:23]
+ 6 │ b as b2
+   · ───────
+   ╰────
+
+  × 'ns2' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedImports_entireImportDeclaration/b.ts:10:12]
+ 10 │ * as ns2
+    · ────────
+    ╰────
+
+  × 'd5' is declared but its value is never read.
+    ╭─[../../tests/compiler/unusedImports_entireImportDeclaration/b.ts:13:8]
+ 13 │ d5, * as ns3
+    · ────────────
+    ╰────

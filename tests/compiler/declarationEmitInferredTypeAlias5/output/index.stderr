@@ -1,0 +1,5 @@
+  × This kind of expression is always truthy.
+   ╭─[../../tests/compiler/declarationEmitInferredTypeAlias5/1.ts:3:9]
+ 3 │ "str"
+   · ─────
+   ╰────

@@ -1,0 +1,809 @@
+  × Type 'null' is not assignable to type 'publicClassInGlobal'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:11:16]
+ 11 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClassInGlobal'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:15:16]
+ 15 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClassInGlobal'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:19:16]
+ 19 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClassInGlobal'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:23:16]
+ 23 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClassInGlobal'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:40:12]
+ 40 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:92:24]
+ 92 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:96:24]
+ 96 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:100:24]
+ 100 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:104:24]
+ 104 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:123:24]
+ 123 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:127:24]
+ 127 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:131:24]
+ 131 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:135:24]
+ 135 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:154:24]
+ 154 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:158:24]
+ 158 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:162:24]
+ 162 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:166:24]
+ 166 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:185:24]
+ 185 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:189:24]
+ 189 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:193:24]
+ 193 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:197:24]
+ 197 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:215:20]
+ 215 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:219:20]
+ 219 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:223:20]
+ 223 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:227:20]
+ 227 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:256:24]
+ 256 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:260:24]
+ 260 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:271:20]
+ 271 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:287:24]
+ 287 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:291:24]
+ 291 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:302:20]
+ 302 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:341:20]
+ 341 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:345:20]
+ 345 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:349:20]
+ 349 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:353:20]
+ 353 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:372:20]
+ 372 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:376:20]
+ 376 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:380:20]
+ 380 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:384:20]
+ 384 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:403:20]
+ 403 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:407:20]
+ 407 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:411:20]
+ 411 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:415:20]
+ 415 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:434:20]
+ 434 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:438:20]
+ 438 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:442:20]
+ 442 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:446:20]
+ 446 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:464:16]
+ 464 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:468:16]
+ 468 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:472:16]
+ 472 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModuleInGlobal.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:476:16]
+ 476 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:505:20]
+ 505 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:509:20]
+ 509 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:520:16]
+ 520 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:536:20]
+ 536 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:540:20]
+ 540 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_GlobalFile.ts:551:16]
+ 551 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:37:16]
+ 37 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:41:16]
+ 41 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:45:16]
+ 45 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:49:16]
+ 49 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:68:16]
+ 68 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:72:16]
+ 72 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:76:16]
+ 76 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:80:16]
+ 80 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+    ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:99:16]
+ 99 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:103:16]
+ 103 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:107:16]
+ 107 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:111:16]
+ 111 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:130:16]
+ 130 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:134:16]
+ 134 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:138:16]
+ 138 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:142:16]
+ 142 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:160:12]
+ 160 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:164:12]
+ 164 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:168:12]
+ 168 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:172:12]
+ 172 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:201:16]
+ 201 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:205:16]
+ 205 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:216:12]
+ 216 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:232:16]
+ 232 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:236:16]
+ 236 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:247:12]
+ 247 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:292:20]
+ 292 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:296:20]
+ 296 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:300:20]
+ 300 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:304:20]
+ 304 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:323:20]
+ 323 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:327:20]
+ 327 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:331:20]
+ 331 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:335:20]
+ 335 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:354:20]
+ 354 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:358:20]
+ 358 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:362:20]
+ 362 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:366:20]
+ 366 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:385:20]
+ 385 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:389:20]
+ 389 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:393:20]
+ 393 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:397:20]
+ 397 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:415:16]
+ 415 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:419:16]
+ 419 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:423:16]
+ 423 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'publicModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:427:16]
+ 427 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:456:20]
+ 456 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:460:20]
+ 460 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:471:16]
+ 471 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:487:20]
+ 487 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:491:20]
+ 491 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:502:16]
+ 502 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:548:20]
+ 548 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:552:20]
+ 552 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:556:20]
+ 556 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:560:20]
+ 560 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:579:20]
+ 579 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:583:20]
+ 583 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:587:20]
+ 587 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:591:20]
+ 591 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:610:20]
+ 610 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:614:20]
+ 614 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:618:20]
+ 618 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:622:20]
+ 622 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:641:20]
+ 641 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:645:20]
+ 645 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:649:20]
+ 649 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:653:20]
+ 653 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:671:16]
+ 671 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:675:16]
+ 675 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:679:16]
+ 679 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:683:16]
+ 683 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:712:20]
+ 712 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:716:20]
+ 716 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:727:16]
+ 727 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:743:20]
+ 743 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:747:20]
+ 747 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'privateModule.publicClass'.
+     ╭─[../../tests/compiler/privacyFunctionReturnTypeDeclFile/privacyFunctionReturnTypeDeclFile_externalModule.ts:758:16]
+ 758 │ null
+     · ────
+     ╰────

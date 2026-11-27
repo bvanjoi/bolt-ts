@@ -1,0 +1,11 @@
+  × Invalid use of 'arguments' in strict mode.
+   ╭─[../../tests/compiler/alwaysStrictModule2/a.ts:3:13]
+ 3 │ arguments
+   · ─────────
+   ╰────
+
+  × Invalid use of 'arguments' in strict mode.
+   ╭─[../../tests/compiler/alwaysStrictModule2/b.ts:3:13]
+ 3 │ arguments
+   · ─────────
+   ╰────

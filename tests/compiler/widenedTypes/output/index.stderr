@@ -1,0 +1,48 @@
+  × The left-hand side of an 'instanceof' expression must be of type 'any', an
+  │ object type or a type parameter.
+   ╭─[../../tests/compiler/widenedTypes/index.ts:7:1]
+ 7 │ null
+   · ────
+   ╰────
+
+  × The value 'null' cannot be used here.
+    ╭─[../../tests/compiler/widenedTypes/index.ts:11:1]
+ 11 │ null
+    · ────
+    ╰────
+
+  × The value 'null' cannot be used here.
+    ╭─[../../tests/compiler/widenedTypes/index.ts:13:7]
+ 13 │ null
+    · ────
+    ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+    ╭─[../../tests/compiler/widenedTypes/index.ts:18:14]
+ 18 │ 3
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/widenedTypes/index.ts:20:1]
+ 20 │ t[3]
+    · ────
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/widenedTypes/index.ts:27:1]
+ 27 │ u[3]
+    · ────
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/widenedTypes/index.ts:33:22]
+ 33 │ 3
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/widenedTypes/index.ts:35:39]
+ 35 │ x
+    · ─
+    ╰────

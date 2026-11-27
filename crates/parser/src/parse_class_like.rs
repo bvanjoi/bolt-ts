@@ -4,7 +4,7 @@ use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
 use super::CheckParameterFlags;
-use super::const_variant::is_js_variant;
+use super::const_variant::is_js_like_variant;
 use super::errors;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
@@ -99,9 +99,9 @@ impl<'cx, 'p, const VARIANT: u8> ClassLike<'cx, 'p, VARIANT> for ParseClassExpr 
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ClassImplementsClause<'cx>>,
-        elems: &'cx ast::ClassElems<'cx>,
+        elements: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
-        state.create_class_expression(span, name, ty_params, extends, implements, elems)
+        state.create_class_expression(span, name, ty_params, extends, implements, elements)
     }
 }
 
@@ -356,8 +356,9 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
         let asterisk = self.parse_optional(TokenKind::Asterisk).map(|t| t.span);
-        let name = self.parse_prop_name::<true>();
+        let name = self.parse_prop_name::<true, true>();
         let question_token = self.parse_optional(TokenKind::Question);
+        self.mark_error_for_invalid_token_in_javascript(question_token.map(|t| (t.span, t.kind)));
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let flags = if asterisk.is_some() {
@@ -374,13 +375,15 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             let params = self.parse_parameters(flags);
             let ty = self.parse_return_ty::<true, false>()?;
             let body = self.parse_fn_block_or_semi(flags);
+            let span = self.new_span(start);
             if let Some(body) = body {
+                self.check_fn_implement_in_ambient(Some(name.span()), body);
                 self.check_use_strict_simple_parameters(params, body);
                 self.check_parameters(params, CheckParameterFlags::empty());
             } else {
                 self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
+                self.check_signature_declaration_in_js_file(span);
             }
-            let span = self.new_span(start);
             let method = self.create_class_method_element(
                 span, modifiers, asterisk, name, ty_params, params, ty, body,
             );
@@ -414,6 +417,13 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         }
     }
 
+    fn check_signature_declaration_in_js_file(&mut self, span: Span) {
+        if is_js_like_variant(VARIANT) {
+            let error = errors::SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles { span };
+            self.push_error(Box::new(error));
+        }
+    }
+
     fn try_parse_ctor(
         &mut self,
         start: u32,
@@ -442,19 +452,22 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                 };
                 let body = this.p().parse_fn_block_or_semi(flags);
                 for p in params {
-                    if let Some(ms) = p.modifiers
-                        && ms.flags.intersects(ast::ModifierFlags::ACCESSIBILITY)
-                        && let ast::BindingKind::Ident(name) = p.name.kind
-                        && name.name == keyword::KW_CONSTRUCTOR
-                    {
-                        let error = errors::ConstructorCannotBeUsedAsAParameterPropertyName {
-                            span: p.span,
-                        };
-                        this.p().push_error(Box::new(error));
+                    if let Some(ms) = p.modifiers {
+                        if ms.flags.intersects(ast::ModifierFlags::ACCESSIBILITY)
+                            && let ast::BindingKind::Ident(name) = p.name.kind
+                            && name.name == keyword::KW_CONSTRUCTOR
+                        {
+                            let error = errors::ConstructorCannotBeUsedAsAParameterPropertyName {
+                                span: p.span,
+                            };
+                            this.p().push_error(Box::new(error));
+                        }
                     }
                 }
                 let span = this.p().new_span(start);
                 if let Some(body) = body {
+                    this.p()
+                        .check_fn_implement_in_ambient(Some(name_span), body);
                     this.p().check_use_strict_simple_parameters(params, body);
                     this.p()
                         .check_parameters(params, CheckParameterFlags::CONSTRUCTOR);
@@ -463,11 +476,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                         params,
                         CheckParameterFlags::CONSTRUCTOR.union(CheckParameterFlags::MISSING_BODY),
                     );
-                    if is_js_variant(VARIANT) {
-                        let error =
-                            errors::SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles { span };
-                        this.p().push_error(Box::new(error));
-                    }
+                    this.p().check_signature_declaration_in_js_file(span);
                 };
                 let ctor = this
                     .p()
@@ -535,7 +544,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         }
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            let decl = self.parse_getter_accessor_decl(
+            let decl = self.parse_getter_accessor_decl::<true>(
                 start,
                 modifiers,
                 under_type_context(self),
@@ -545,7 +554,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                 kind: ast::ClassElemKind::Getter(decl),
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            let decl = self.parse_setter_accessor_decl(
+            let decl = self.parse_setter_accessor_decl::<true>(
                 start,
                 modifiers,
                 under_type_context(self),

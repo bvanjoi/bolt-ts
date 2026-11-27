@@ -5,6 +5,6 @@ function fn(one, two) {
   var three = Boolean() ? one : two;
   foo(one);
   foo(two);
-  foo(three);
-// this line is the important one
+  foo(three);// this line is the important one
+  
 }

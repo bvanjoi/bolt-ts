@@ -1,0 +1,5 @@
+  × Type 'undefined' is not assignable to type 'Foo<T>'.
+    ╭─[../../tests/compiler/privacyCheckExportAssignmentOnExportedGenericInterface2/index.ts:13:12]
+ 13 │ undefined
+    · ─────────
+    ╰────

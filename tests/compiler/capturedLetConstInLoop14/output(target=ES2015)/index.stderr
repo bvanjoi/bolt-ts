@@ -1,0 +1,6 @@
+  × Subsequent variable declarations must have the same type. Variable 'v'
+  │ must be of type 'number', but here has type 'any'.
+    ╭─[../../tests/compiler/capturedLetConstInLoop14/index.ts:13:9]
+ 13 │ v
+    · ─
+    ╰────

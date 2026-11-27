@@ -87,7 +87,7 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!()
             }
         } else if let Some(links) = ty.fresh_ty_links_id() {
-            self.fresh_ty_links_arena[links].get_fresh_ty()
+            self.fresh_regular_ty_links_arena[links].get_fresh_ty()
         } else {
             unreachable!()
         }
@@ -95,7 +95,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn set_fresh_ty(&mut self, ty: &'cx ty::Ty<'cx>, fresh_ty: &'cx ty::Ty<'cx>) {
         let links = ty.fresh_ty_links_id().unwrap();
-        self.fresh_ty_links_arena[links].set_fresh_ty(fresh_ty);
+        self.fresh_regular_ty_links_arena[links].set_fresh_ty(fresh_ty);
     }
 
     pub(super) fn get_regular_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
@@ -108,7 +108,7 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!()
             }
         } else if let Some(links) = ty.fresh_ty_links_id() {
-            self.fresh_ty_links_arena[links].get_regular_ty()
+            self.fresh_regular_ty_links_arena[links].get_regular_ty()
         } else {
             unreachable!()
         }
@@ -116,7 +116,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn set_regular_ty(&mut self, ty: &'cx ty::Ty<'cx>, regular_ty: &'cx ty::Ty<'cx>) {
         let links = ty.fresh_ty_links_id().unwrap();
-        self.fresh_ty_links_arena[links].set_regular_ty(regular_ty);
+        self.fresh_regular_ty_links_arena[links].set_regular_ty(regular_ty);
     }
 
     pub(super) fn get_fresh_ty_of_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -124,7 +124,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(fresh_ty) = self.get_fresh_ty(ty) {
                 fresh_ty
             } else {
-                let links = self.fresh_ty_links_arena.alloc(Default::default());
+                let links = self.fresh_regular_ty_links_arena.alloc(Default::default());
                 let fresh_ty = match ty.kind {
                     ty::TyKind::NumberLit(lit) => {
                         let t = self.alloc(ty::NumberLitTy {
@@ -152,8 +152,8 @@ impl<'cx> TyChecker<'cx> {
                     }
                     _ => unreachable!(),
                 };
-                self.fresh_ty_links_arena[links].set_fresh_ty(fresh_ty);
-                self.fresh_ty_links_arena[links].set_regular_ty(ty);
+                self.fresh_regular_ty_links_arena[links].set_fresh_ty(fresh_ty);
+                self.fresh_regular_ty_links_arena[links].set_regular_ty(ty);
                 self.set_fresh_ty(ty, fresh_ty);
                 assert!(self.get_regular_ty(ty).is_some_and(|t| t == ty));
                 fresh_ty
@@ -354,14 +354,15 @@ impl<'cx> TyChecker<'cx> {
                 ast::TokenKind::Plus,
                 node.span,
             ),
-            Sub | Mul | Div | Mod => self.check_binary_like_expr_for_sub_or_mul_or_div_or_mod(
-                left,
-                left_ty,
-                right,
-                right_ty,
-                op.into(),
-                node.span,
-            ),
+            Sub | Mul | Div | Mod | Exp => self
+                .check_binary_like_expr_for_sub_or_mul_or_div_or_mod(
+                    left,
+                    left_ty,
+                    right,
+                    right_ty,
+                    op.into(),
+                    node.span,
+                ),
             BitOr => {
                 let _leftt = self.check_non_null_type(left_ty, left.id());
                 let _rightt = self.check_non_null_type(right_ty, right.id());
@@ -494,7 +495,6 @@ impl<'cx> TyChecker<'cx> {
             Instanceof => self.check_instanceof_expr(left, left_ty, right, right_ty),
             In => self.check_in_expr(left, left_ty, right, right_ty),
             Satisfies => todo!(),
-
             Comma => {
                 if !matches!(
                     self.config.compiler_options().allow_unreachable_code(),
@@ -510,7 +510,6 @@ impl<'cx> TyChecker<'cx> {
                 right_ty
             }
             BitXor => self.number_ty,
-            Exp => self.number_ty,
             Nullish => {
                 self.check_nullish_coalesce_op_left(node);
                 if self.has_type_facts(left_ty, TypeFacts::EQ_UNDEFINED_OR_NULL) {
@@ -1151,7 +1150,8 @@ impl<'cx> TyChecker<'cx> {
         let iterable_exists = self.get_global_iterable_ty::<false>() != self.empty_object_ty();
         let uplevel_iteration =
             iterable_exists && *self.config.compiler_options().target() >= Target::ES2015;
-        let downlevel_iteration = !uplevel_iteration; // TODO: config.downlevel_iteration;
+        let downlevel_iteration =
+            !uplevel_iteration && self.config.compiler_options().downlevel_iteration();
         let possible_out_of_bounds = self.config.compiler_options().no_unchecked_indexed_access()
             && mode.contains(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
         if uplevel_iteration || downlevel_iteration || allow_async_iterables {
@@ -1198,11 +1198,81 @@ impl<'cx> TyChecker<'cx> {
         let has_string_constituent = false;
         if !self.is_array_like_ty(array_ty) {
             if let Some(error_node) = error_node {
-                let error = errors::TypeXIsNotAnArrayType {
-                    span: self.p.node(error_node).span(),
-                    ty: self.print_ty(input_ty, None).to_string(),
-                };
-                self.push_error(Box::new(error));
+                // get_iteration_diagnostic_details
+                let allow_strings =
+                    has_string_constituent && mode.contains(IterationUse::ALLOWS_STRING_INPUT_FLAG);
+                let maybe_missing_await: bool;
+                let error_span = self.p.node(error_node).span();
+                if downlevel_iteration {
+                    maybe_missing_await = self.get_awaited_ty_of_promise(array_ty).is_some();
+                    if allow_async_iterables {
+                        let error = Box::new(errors::TypeXIsNotAnArrayTypeOrAStringTypeOrDoesNotHaveASymbolIteratorMethodThatReturnsAnIterator {
+                            span: error_span,
+                            ty: self.print_ty(input_ty, None).to_string(),
+                            did_you_forget_to_use_await: maybe_missing_await.then_some(error_span),
+                        });
+                        self.push_error(error);
+                    } else {
+                        let error = Box::new(errors::TypeXIsNotAnArrayTypeOrDoesNotHaveASymbolIteratorMethodThatReturnsAnIterator {
+                            span: error_span,
+                            ty: self.print_ty(input_ty, None).to_string(),
+                            did_you_forget_to_use_await: maybe_missing_await.then_some(error_span),
+                        });
+                        self.push_error(error);
+                    }
+                } else if self
+                    .get_iteration_ty_of_iterable(mode, IterationTypeKind::Yield, input_ty, None)
+                    .is_some()
+                {
+                    let error = Box::new(errors::TypeXCanOnlyBeIteratedThroughWhenUsingTheDownlevelIterationFlagOrWithATargetOfEs2015OrHigher {
+                        span: error_span,
+                        ty: self.print_ty(input_ty, None).to_string(),
+                        did_you_forget_to_use_await: None,
+                    });
+                    self.push_error(error);
+                } else if input_ty.symbol().is_some_and(|s| {
+                    // is_es2015or_later_iterable
+                    let SymbolName::Atom(name) = self.symbol(s).name else {
+                        return false;
+                    };
+                    name == keyword::IDENT_FLOAT32_ARRAY_CLASS
+                        || name == keyword::IDENT_FLOAT64_ARRAY_CLASS
+                        || name == keyword::IDENT_INT8_ARRAY_CLASS
+                        || name == keyword::IDENT_INT16_ARRAY_CLASS
+                        || name == keyword::IDENT_INT32_ARRAY_CLASS
+                        || name == keyword::IDENT_UINT8_ARRAY_CLASS
+                        || name == keyword::IDENT_UINT8_CLAMPED_ARRAY_CLASS
+                        || name == keyword::IDENT_UINT16_ARRAY_CLASS
+                        || name == keyword::IDENT_UINT32_ARRAY_CLASS
+                        || name == keyword::IDENT_NODE_LIST_CLASS
+                }) {
+                    maybe_missing_await = self.get_awaited_ty_of_promise(array_ty).is_some();
+                    let error = Box::new(errors::TypeXCanOnlyBeIteratedThroughWhenUsingTheDownlevelIterationFlagOrWithATargetOfEs2015OrHigher {
+                        span: error_span,
+                        ty: self.print_ty(input_ty, None).to_string(),
+                        did_you_forget_to_use_await: maybe_missing_await.then_some(error_span),
+                    });
+                    self.push_error(error);
+                } else {
+                    maybe_missing_await = self.get_awaited_ty_of_promise(array_ty).is_some();
+                    if allow_strings {
+                        let error = errors::TypeXIsNotAnArrayTypeOrAStringType {
+                            span: self.p.node(error_node).span(),
+                            ty: self.print_ty(input_ty, None).to_string(),
+                            did_you_forget_to_use_await: maybe_missing_await
+                                .then_some(self.p.node(error_node).span()),
+                        };
+                        self.push_error(Box::new(error));
+                    } else {
+                        let error = errors::TypeXIsNotAnArrayType {
+                            span: self.p.node(error_node).span(),
+                            ty: self.print_ty(input_ty, None).to_string(),
+                            did_you_forget_to_use_await: maybe_missing_await
+                                .then_some(self.p.node(error_node).span()),
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
             }
 
             if has_string_constituent {
@@ -1286,7 +1356,7 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let fresh_ty_links = a.fresh_ty_links;
-        if let Some(ty) = self.fresh_ty_links_arena[fresh_ty_links].get_regular_ty() {
+        if let Some(ty) = self.fresh_regular_ty_links_arena[fresh_ty_links].get_regular_ty() {
             return ty;
         }
 
@@ -1320,7 +1390,7 @@ impl<'cx> TyChecker<'cx> {
             None,
             None,
         );
-        self.fresh_ty_links_arena[fresh_ty_links].set_regular_ty(regular);
+        self.fresh_regular_ty_links_arena[fresh_ty_links].set_regular_ty(regular);
         regular
     }
 
@@ -1747,8 +1817,7 @@ impl<'cx> TyChecker<'cx> {
 
             if ty.flags.contains(TypeFlags::ENUM_LITERAL)
                 && let ast::ExprKind::PropAccess(access) = loc.kind
-                && let s = this.final_res(access.expr.id())
-                // && let Some(s) = this.get_node_links(access.expr.id()).get_resolved_symbol()
+                && let Some(s) = this.get_node_links(access.expr.id()).get_resolved_symbol()
                 && this.binder.symbol(s).flags.intersects(SymbolFlags::ENUM)
             {
                 let result = match ty.kind {
@@ -2654,7 +2723,7 @@ impl<'cx> TyChecker<'cx> {
                 ast::TokenKind::PlusEq,
                 assign.span,
             ),
-            SubEq | MulEq | DivEq | ModEq => self
+            SubEq | MulEq | DivEq | ModEq | AsteriskAsteriskEq => self
                 .check_binary_like_expr_for_sub_or_mul_or_div_or_mod(
                     assign.left,
                     l,
@@ -2666,7 +2735,6 @@ impl<'cx> TyChecker<'cx> {
             ShlEq => self.undefined_ty,
             ShrEq => self.undefined_ty,
             UShrEq => self.undefined_ty,
-            AsteriskAsteriskEq => self.undefined_ty,
             BitOrEq | BitAndEq | BitXorEq => self.check_bin_expr_for_normal(
                 assign.span,
                 l,
@@ -3216,6 +3284,8 @@ impl<'cx> TyChecker<'cx> {
                 || op_kind == ast::TokenKind::MinusEq
                 || op_kind == ast::TokenKind::Asterisk
                 || op_kind == ast::TokenKind::AsteriskEq
+                || op_kind == ast::TokenKind::AsteriskAsterisk
+                || op_kind == ast::TokenKind::AsteriskAsteriskEq
                 || op_kind == ast::TokenKind::Slash
                 || op_kind == ast::TokenKind::SlashEq
                 || op_kind == ast::TokenKind::Percent
@@ -3238,7 +3308,7 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(Box::new(error));
             self.number_ty
         } else {
-            let _left_okk = self.check_arithmetic_op_ty(left_ty, true, |this| {
+            let _left_ok = self.check_arithmetic_op_ty(left_ty, true, |this| {
                 let error =
                     errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
                         span: left.span(),
@@ -3246,7 +3316,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                 this.push_error(Box::new(error));
             });
-            let _right_okk = self.check_arithmetic_op_ty(right_ty, true, |this| {
+            let _right_ok = self.check_arithmetic_op_ty(right_ty, true, |this| {
                 let error =
                     errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
                         span: right.span(),
@@ -3254,7 +3324,31 @@ impl<'cx> TyChecker<'cx> {
                     };
                 this.push_error(Box::new(error));
             });
-            self.number_ty
+
+            if (self.is_type_assignable_to_kind::<false>(left_ty, TypeFlags::ANY_OR_UNKNOWN)
+                && self.is_type_assignable_to_kind::<false>(right_ty, TypeFlags::ANY_OR_UNKNOWN))
+                || !(left_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LIKE)
+                    || right_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LIKE))
+            {
+                self.number_ty
+            } else if self.is_type_assignable_to_kind::<false>(left_ty, TypeFlags::BIG_INT_LIKE)
+                && self.is_type_assignable_to_kind::<false>(right_ty, TypeFlags::BIG_INT_LIKE)
+            {
+                match op_kind {
+                    ast::TokenKind::AsteriskAsterisk | ast::TokenKind::AsteriskAsteriskEq
+                        if *self.options().target() < Target::ES2016 =>
+                    {
+                        let error = errors::ExponentiationCannotBePerformedOnBigintValuesUnlessTheTargetOptionIsSetToEs2016OrLater {
+                            span: op_span,
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                    _ => {}
+                }
+                self.bigint_ty
+            } else {
+                self.error_ty
+            }
         }
     }
 }

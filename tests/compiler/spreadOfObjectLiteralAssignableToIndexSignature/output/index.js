@@ -13,33 +13,33 @@ recordOfRecords.propA = {
   ...(foo !== undefined ? {
       foo    
   } : {})  
-// OK
-};
+}// OK
+;
 recordOfRecords.propB = {
   ...(foo && {
       foo    
-  }// OK
-  )  
-};
+  })  
+}// OK
+;
 recordOfRecords.propC = {
   ...(foo !== undefined && {
       foo    
-  // error'd in 3.7 beta, should be OK
   })  
-};
+}// error'd in 3.7 beta, should be OK
+;
 var recordsOfRecordsOrEmpty = {};
 recordsOfRecordsOrEmpty.propA = {
   ...(foo !== undefined ? {
       foo    
   } : {})  
-// OK
-};
+}// OK
+;
 recordsOfRecordsOrEmpty.propB = {
   ...(foo && {
       foo    
-  }// OK
-  )  
-};
+  })  
+}// OK
+;
 recordsOfRecordsOrEmpty.propC = {
   ...(foo !== undefined && {
       foo    

@@ -1,0 +1,38 @@
+  × Class 'Base' used before its declaration.
+   ╭─[../../tests/compiler/complexClassRelationships/index.ts:6:23]
+ 6 │ Base
+   · ────
+   ╰────
+
+Advice: 
+  ☞ Class 'Base' is defined here
+    ╭─[../../tests/compiler/complexClassRelationships/index.ts:19:7]
+ 19 │ Base
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'ComponentCollection<any>'.
+    ╭─[../../tests/compiler/complexClassRelationships/index.ts:25:64]
+ 25 │ null
+    · ────
+    ╰────
+
+  × Class 'Base' used before its declaration.
+   ╭─[../../tests/compiler/complexClassRelationships/index.ts:6:23]
+ 6 │ Base
+   · ────
+   ╰────
+
+Advice: 
+  ☞ Class 'Base' is defined here
+    ╭─[../../tests/compiler/complexClassRelationships/index.ts:19:7]
+ 19 │ Base
+    · ────
+    ╰────
+
+  × Property 'ownerCollection' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/complexClassRelationships/index.ts:20:5]
+ 20 │ ownerCollection
+    · ───────────────
+    ╰────

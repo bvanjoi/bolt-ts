@@ -17,8 +17,8 @@ var editor = // If you just use p1:modes, the compiler accepts it - should be an
   var i;
   
   class Bug {
-    constructor(// should be an error on p2 - it's not exported
-    p1, p2) {}
+    constructor// should be an error on p2 - it's not exported
+    (p1, p2) {}
     foo(p1) {}
   }
   
@@ -30,8 +30,8 @@ var editor2 = {};
   var i;
   
   class Bug {
-    constructor(p1, p2) {// no error here, since modesOuter is declared externally
-    }
+    constructor(p1, p2)// no error here, since modesOuter is declared externally
+     {}
   }
   
   var Foo = {};

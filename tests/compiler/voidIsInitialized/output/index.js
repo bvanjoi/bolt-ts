@@ -9,6 +9,6 @@ if (typeof x === 'undefined') {
 }
 
 if (typeof y !== 'undefined') {
-  // no error: do not narrow void
-  y;
+  y// no error: do not narrow void
+  ;
 }

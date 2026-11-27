@@ -12,14 +12,14 @@ class A {
   }
 }
 class B extends Tagged(A) {
-  toString() {
-    // Should not be an error
+  toString() {// Should not be an error
+  
     return 'class B';
   }
 }
 class C extends A {
-  toString() {
-    // Should not be an error
+  toString() {// Should not be an error
+  
     return 'class C';
   }
 }

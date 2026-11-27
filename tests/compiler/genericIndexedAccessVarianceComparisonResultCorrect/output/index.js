@@ -10,11 +10,11 @@ class B {
   z = true;
 }// true
 // true
-
-
-
-
-
 // should be true
+
+
+
+
+
 b = a;
 c = d;

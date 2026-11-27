@@ -1,0 +1,41 @@
+  × Module '"./server"' has no exported member 'a'. Did you mean to use
+  │ 'import a from "./server"' instead?
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts1/client.ts:3:27]
+ 3 │ a
+   · ─
+   ╰────
+
+  × Module '"./server"' has no exported member 'a'. Did you mean to use
+  │ 'import a from "./server"' instead?
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts1/client.ts:6:27]
+ 6 │ a as b
+   · ──────
+   ╰────
+
+  × Module '"./server"' has no exported member 'x'. Did you mean to use
+  │ 'import x from "./server"' instead?
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts1/client.ts:9:27]
+ 9 │ x
+   · ─
+   ╰────
+
+  × Module '"./server"' has no exported member 'a'. Did you mean to use
+  │ 'import a from "./server"' instead?
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts1/client.ts:9:30]
+ 9 │ a as y
+   · ──────
+   ╰────
+
+  × Module '"./server"' has no exported member 'x'. Did you mean to use
+  │ 'import x from "./server"' instead?
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts1/client.ts:13:27]
+ 13 │ x as z
+    · ──────
+    ╰────
+
+  × Module '"./server"' has no exported member 'm'. Did you mean to use
+  │ 'import m from "./server"' instead?
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts1/client.ts:16:27]
+ 16 │ m
+    · ─
+    ╰────

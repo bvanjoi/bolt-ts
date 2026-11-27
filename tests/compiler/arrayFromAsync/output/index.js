@@ -36,11 +36,11 @@ var mapArr3 = await Array.fromAsync([0, 2, 4, 6], (v) => (v ** 2));
 var err = new Error();
 var badIterable = {
   [Symbol.iterator]() {
-    throw err
+    throw err;
   }  
 };
-var // This returns a promise that will reject with `err`.
-badArray = await Array.fromAsync(badIterable);
+// This returns a promise that will reject with `err`.
+var badArray = await Array.fromAsync(badIterable);
 var withIndexResult = await Array.fromAsync(['a', 'b'], (str, index) => (({
   index,
   str  

@@ -1,0 +1,5 @@
+  × Property 'yadda' does not exist on type 'toString<toString>'.
+   ╭─[../../tests/compiler/inexistentPropertyInsideToStringType/index.js:8:10]
+ 8 │ yadda
+   · ─────
+   ╰────

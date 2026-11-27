@@ -16,4 +16,4 @@ declare class D  implements I, J {
   foo(): void;
   bar(): void;
 }
-interface I extends AB {}
+interface I extends A, B {}

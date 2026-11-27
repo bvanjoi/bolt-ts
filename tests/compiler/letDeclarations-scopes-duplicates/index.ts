@@ -5,19 +5,19 @@
 // Errors: redeclaration
 let var1 = 0;
 let var1 = 0; // error
-//~^ ERROR: Duplicate identifier 'var1'.
+//~^ ERROR: Cannot redeclare block-scoped variable 'var1'.
 
 let var2 = 0;
 const var2 = 0;
-//~^ ERROR: Duplicate identifier 'var2'.
+//~^ ERROR: Cannot redeclare block-scoped variable 'var2'.
 
 const var3 = 0;
 let var3 = 0;
-//~^ ERROR: Duplicate identifier 'var3'.
+//~^ ERROR: Cannot redeclare block-scoped variable 'var3'.
 
 const var4 = 0;
 const var4 = 0;
-//~^ ERROR: Duplicate identifier 'var4'.
+//~^ ERROR: Cannot redeclare block-scoped variable 'var4'.
 
 var var5 = 0;
 let var5 = 0;
@@ -25,16 +25,16 @@ let var5 = 0;
 
 let var6 = 0;
 var var6 = 0;
-//~^ ERROR: Duplicate identifier 'var6'.
+//~^ ERROR: Cannot redeclare block-scoped variable 'var6'.
 
 {
     let var7 = 0;
     let var7 = 0;
-    //~^ ERROR: Duplicate identifier 'var7'.
+    //~^ ERROR: Cannot redeclare block-scoped variable 'var7'.
     {
         let var8 = 0;
         const var8 = 0;
-        //~^ ERROR: Duplicate identifier 'var8'.
+        //~^ ERROR: Cannot redeclare block-scoped variable 'var8'.
     }
 }
 
@@ -42,24 +42,24 @@ switch (0) {
     default:
         let var9 = 0;
         let var9 = 0;
-        //~^ ERROR: Duplicate identifier 'var9'.
+        //~^ ERROR: Cannot redeclare block-scoped variable 'var9'.
 }
 
 try {
     const var10 = 0;
     const var10 = 0;
-    //~^ ERROR: Duplicate identifier 'var10'.
+    //~^ ERROR: Cannot redeclare block-scoped variable 'var10'.
 }
 catch (e) {
     let var11 = 0;
     let var11 = 0;
-    //~^ ERROR: Duplicate identifier 'var11'.
+    //~^ ERROR: Cannot redeclare block-scoped variable 'var11'.
 }
 
 function F1() {
     let var12;
     let var12;
-    //~^ ERROR: Duplicate identifier 'var12'.
+    //~^ ERROR: Cannot redeclare block-scoped variable 'var12'.
 }
 
 // OK

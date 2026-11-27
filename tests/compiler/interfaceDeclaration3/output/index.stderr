@@ -5,6 +5,19 @@
     · ────
     ╰────
 
+  × Property 'item' in type 'C1<C1>' is not assignable to the same property in
+  │ base type 'M2.I1'.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:43:16]
+ 43 │ item
+    · ────
+    ╰────
+
+  × Interface 'I2' incorrectly extends interface 'I1'.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:72:11]
+ 72 │ I2
+    · ──
+    ╰────
+
   × Property 'item' has no initializer and is not definitely assigned in the
   │ constructor.
     ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:12:16]
@@ -37,13 +50,6 @@
   │ constructor.
     ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:31:16]
  31 │ item
-    · ────
-    ╰────
-
-  × Property 'item' in type 'C1<C1>' is not assignable to the same property in
-  │ base type 'M2.I1'.
-    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:43:16]
- 43 │ item
     · ────
     ╰────
 
@@ -87,10 +93,4 @@
     ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:68:12]
  68 │ item
     · ────
-    ╰────
-
-  × Interface 'I2' incorrectly extends interface 'I1'.
-    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:72:11]
- 72 │ I2
-    · ──
     ╰────

@@ -1,0 +1,83 @@
+  × An enum member cannot have a numeric name.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:45:5]
+ 45 │ 1
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:46:5]
+ 46 │ [
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:46:5]
+ 46 │ [
+    · ─
+    ╰────
+
+  × An enum member cannot have a numeric name.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:46:6]
+ 46 │ 2
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:46:7]
+ 46 │ ]
+    · ─
+    ╰────
+
+  × An enum member cannot have a numeric name.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:46:11]
+ 46 │ 2
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:48:5]
+ 48 │ [
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:48:5]
+ 48 │ [
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:48:9]
+ 48 │ ]
+    · ─
+    ╰────
+
+  × An enum member cannot have a numeric name.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:48:13]
+ 48 │ 4
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:50:5]
+ 50 │ [
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:50:5]
+ 50 │ [
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:50:11]
+ 50 │ ]
+    · ─
+    ╰────
+
+  × An enum member cannot have a numeric name.
+    ╭─[../../tests/compiler/literalsInComputedProperties1/index.ts:50:15]
+ 50 │ 6
+    · ─
+    ╰────

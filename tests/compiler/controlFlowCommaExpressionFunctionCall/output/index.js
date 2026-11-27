@@ -3,11 +3,11 @@
 var otherValue = () => (true);
 var value = null;
 function isNumber(obj) {
-  return true;
-// method implementation irrelevant
+  return true;// method implementation irrelevant
+  
 }
 // Bad case - fails
 if (isNumber((otherValue() , value))) {
-  var b = value;
-// string | number , but should be number
+  var b = value;// string | number , but should be number
+  
 }

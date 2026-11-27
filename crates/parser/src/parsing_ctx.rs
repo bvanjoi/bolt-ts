@@ -54,6 +54,7 @@ bitflags::bitflags! {
         const TYPE_LITERAL_MEMBERS                = 1 << 15;
         const TOP_LEVEL                           = 1 << 16;
         const DISALLOW_BLOCK_DECLARATION          = 1 << 17;
+        const MODULE_BLOCK_TOP_LEVEL              = 1 << 18;
 
         const ALLOW_RETURN                              = Self::CLASS_STATIC_BLOCK.bits()
                                                             | Self::FN_BLOCK.bits();

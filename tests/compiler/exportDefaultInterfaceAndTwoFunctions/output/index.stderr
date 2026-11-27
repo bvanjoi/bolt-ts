@@ -11,9 +11,9 @@
    ╰────
 
   × Cannot redeclare exported variable 'default'.
-   ╭─[../../tests/compiler/exportDefaultInterfaceAndTwoFunctions/index.ts:3:26]
- 3 │ A
-   · ─
+   ╭─[../../tests/compiler/exportDefaultInterfaceAndTwoFunctions/index.ts:3:16]
+ 3 │ interface A { a: string; }
+   · ──────────────────────────
    ╰────
 
   × Cannot redeclare exported variable 'default'.

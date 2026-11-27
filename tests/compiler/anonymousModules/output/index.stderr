@@ -4,15 +4,29 @@
    · ──────
    ╰────
 
+  × An export declaration can only be used at the top level of a namespace or
+  │ module.
+   ╭─[../../tests/compiler/anonymousModules/index.ts:8:9]
+ 8 │ var
+   · ───
+   ╰────
+
   × Unexpected keyword or identifier.
-    ╭─[../../tests/compiler/anonymousModules/index.ts:10:2]
- 10 │ module
+    ╭─[../../tests/compiler/anonymousModules/index.ts:11:2]
+ 11 │ module
     · ──────
     ╰────
 
+  × An export declaration can only be used at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/anonymousModules/index.ts:14:10]
+ 14 │ var
+    · ───
+    ╰────
+
   × Unexpected keyword or identifier.
-    ╭─[../../tests/compiler/anonymousModules/index.ts:18:2]
- 18 │ module
+    ╭─[../../tests/compiler/anonymousModules/index.ts:20:2]
+ 20 │ module
     · ──────
     ╰────
 
@@ -23,13 +37,13 @@
    ╰────
 
   × Cannot find name 'module'.
-    ╭─[../../tests/compiler/anonymousModules/index.ts:10:2]
- 10 │ module
+    ╭─[../../tests/compiler/anonymousModules/index.ts:11:2]
+ 11 │ module
     · ──────
     ╰────
 
   × Cannot find name 'module'.
-    ╭─[../../tests/compiler/anonymousModules/index.ts:18:2]
- 18 │ module
+    ╭─[../../tests/compiler/anonymousModules/index.ts:20:2]
+ 20 │ module
     · ──────
     ╰────

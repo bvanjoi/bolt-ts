@@ -1,0 +1,35 @@
+  × Type 'String' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorNarrowAny/index.ts:10:9]
+ 10 │ a
+    · ─
+    ╰────
+
+  × Type 'Number' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorNarrowAny/index.ts:15:9]
+ 15 │ a
+    · ─
+    ╰────
+
+  × Type 'Boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorNarrowAny/index.ts:20:9]
+ 20 │ a
+    · ─
+    ╰────
+
+  × Type 'any[]' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorNarrowAny/index.ts:25:9]
+ 25 │ a
+    · ─
+    ╰────
+
+  × Type 'Symbol' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorNarrowAny/index.ts:30:9]
+ 30 │ a
+    · ─
+    ╰────
+
+  × Type 'BigInt' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorNarrowAny/index.ts:35:9]
+ 35 │ a
+    · ─
+    ╰────

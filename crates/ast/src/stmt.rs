@@ -224,6 +224,13 @@ impl<'cx> CaseOrDefaultClause<'cx> {
             CaseOrDefaultClause::Default(c) => c.id,
         }
     }
+
+    pub fn span(&self) -> Span {
+        match self {
+            CaseOrDefaultClause::Case(c) => c.span,
+            CaseOrDefaultClause::Default(c) => c.span,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -928,6 +935,27 @@ impl ModifierKind {
             ModifierKind::Decorator => ModifierFlags::DECORATOR,
         }
     }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            ModifierKind::Public => "public",
+            ModifierKind::Private => "private",
+            ModifierKind::Protected => "protected",
+            ModifierKind::Readonly => "readonly",
+            ModifierKind::Override => "override",
+            ModifierKind::Export => "export",
+            ModifierKind::Abstract => "abstract",
+            ModifierKind::Ambient => "ambient",
+            ModifierKind::Static => "static",
+            ModifierKind::Accessor => "accessor",
+            ModifierKind::Async => "async",
+            ModifierKind::Default => "default",
+            ModifierKind::Const => "const",
+            ModifierKind::In => "in",
+            ModifierKind::Out => "out",
+            ModifierKind::Decorator => "decorator",
+        }
+    }
 }
 
 bitflags::bitflags! {
@@ -1123,6 +1151,22 @@ pub struct ImportClause<'cx> {
     pub kind: Option<ImportClauseKind<'cx>>,
 }
 
+impl<'cx> ImportClause<'cx> {
+    pub fn declaration_count(&self) -> usize {
+        let mut count = 0;
+        if self.name.is_some() {
+            count += 1;
+        }
+        if let Some(kind) = &self.kind {
+            match kind {
+                ImportClauseKind::Ns(_) => count += 1,
+                ImportClauseKind::Specs(specs) => count += specs.len(),
+            }
+        }
+        count
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ImportClauseKind<'cx> {
     Ns(&'cx NsImport<'cx>),
@@ -1217,6 +1261,10 @@ pub struct ImportNamedSpec<'cx> {
     pub name: &'cx Ident,
 }
 
+/// ```txt
+/// import { a } from 'xxxx'
+///                    ~~~~ module
+/// ```
 #[derive(Debug, Clone)]
 pub struct ImportDecl<'cx> {
     pub id: NodeID,

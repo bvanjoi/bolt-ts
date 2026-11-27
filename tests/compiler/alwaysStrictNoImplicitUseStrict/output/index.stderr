@@ -1,0 +1,5 @@
+  × Invalid use of 'arguments' in strict mode.
+    ╭─[../../tests/compiler/alwaysStrictNoImplicitUseStrict/index.ts:10:13]
+ 10 │ arguments
+    · ─────────
+    ╰────

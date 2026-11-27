@@ -4,15 +4,15 @@ use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_fs::PathId;
 use bolt_ts_middle::Extension;
-use bolt_ts_module_resolve::ResolveFlags;
-use bolt_ts_module_resolve::{RResult, ResolveError, get_resolution_mode_for_usage_location};
+use bolt_ts_module_resolve::get_resolution_mode_for_usage_location;
+use bolt_ts_module_resolve::{ResolutionMode, ResolveFlags};
 use bolt_ts_parser::ParsedMapState;
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
 use rayon::prelude::*;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use std::sync::{Arc, Mutex};
 
@@ -53,10 +53,39 @@ impl ModuleGraph {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ResolveKey<'cx> {
+    module_name_node_id: ast::NodeID,
+    module_name: Atom,
+    containing_file: bolt_ts_module_resolve::ContainingFile,
+    mode: Option<ResolutionMode>,
+    options: bolt_ts_module_resolve::ResolverOptions<'cx>,
+}
+
+impl std::hash::Hash for ResolveKey<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.module_name.hash(state);
+        self.containing_file.hash(state);
+        self.mode.hash(state);
+        self.options.hash(state);
+    }
+}
+
+impl PartialEq for ResolveKey<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.module_name == other.module_name
+            && self.containing_file == other.containing_file
+            && self.mode == other.mode
+            && self.options == other.options
+    }
+}
+
+impl Eq for ResolveKey<'_> {}
+
 #[allow(clippy::too_many_arguments)]
 pub fn build_graph<'cx>(
     module_arena: &mut ModuleArena,
-    list: &[ModuleID],
+    modules: &[ModuleID],
     atoms: Arc<Mutex<AtomIntern>>,
     default_lib_dir: &std::path::Path,
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
@@ -87,19 +116,16 @@ pub fn build_graph<'cx>(
     let cache = bolt_ts_module_resolve::ModuleResolutionCache::new();
 
     let mut resolved = fx_hashmap_with_capacity(2048);
-    let mut resolving = list.to_vec();
+    let mut resolving = modules.to_vec();
     let mut mg = ModuleGraph {
-        deps: fx_hashmap_with_capacity(list.len() * 32),
+        deps: fx_hashmap_with_capacity(modules.len() * 32),
         diags: vec![],
     };
+    let module_resolution = *options.compiler_options().module_resolution();
     while !resolving.is_empty() {
         debug_assert!(resolving.is_sorted_by_key(|m| m.as_u32()));
-        struct ResolvedModule<'cx> {
-            id: ModuleID,
-            parse_result: bolt_ts_parser::ParseResultForGraph<'cx>,
-            deps: Vec<(ast::NodeID, RResult<PathId>)>,
-        }
-        let modules = bolt_ts_parser::parse_parallel(
+
+        let list = bolt_ts_parser::parse_parallel(
             atoms.clone(),
             herd,
             resolving.as_slice(),
@@ -117,46 +143,44 @@ pub fn build_graph<'cx>(
             debug_assert!(base_dir.is_normalized());
             let base_dir = PathId::get(base_dir, atoms.lock().as_mut().unwrap());
             let imports = std::mem::take(&mut parse_result.imports);
-
-            let mut group =
-                fx_hashmap_with_capacity::<Atom, Vec<&'cx ast::Lit<Atom>>>(imports.len() / 2);
-            for item in imports {
-                // TODO: the key should not only depend on the module name, but also the resolution mode
-                let entry = group.entry(item.module_name.val);
-                entry.or_default().push(item.module_name);
-            }
             let resolution_mode =
                 get_resolution_mode_for_usage_location(file_ext, Some(options.compiler_options()));
-            let module_resolution = *options.compiler_options().module_resolution();
-            let deps: Vec<(ast::NodeID, Result<PathId, ResolveError>)> = group
-                .into_par_iter()
-                .flat_map(|(atom, lits)| {
-                    let containing_file = bolt_ts_module_resolve::ContainingFile::new(base_dir);
-
-                    let options = bolt_ts_module_resolve::ResolverOptions {
+            let group = imports
+                .iter()
+                .map(|import| ResolveKey {
+                    module_name: import.module_name.val,
+                    module_name_node_id: import.module_name.id,
+                    containing_file: bolt_ts_module_resolve::ContainingFile::new(base_dir),
+                    mode: resolution_mode,
+                    options: bolt_ts_module_resolve::ResolverOptions {
                         module_resolution,
                         custom_conditions: options.compiler_options().custom_conditions(),
                         flags,
-                    };
-                    let res = bolt_ts_module_resolve::Resolver::resolve_module_name(
-                        atom,
-                        containing_file,
-                        options,
-                        &cache,
-                        &atoms,
-                        &fs,
-                        resolution_mode,
-                    );
-                    lits.iter().map(|item| (item.id, res)).collect::<Vec<_>>()
+                    },
                 })
                 .collect::<Vec<_>>();
-            ResolvedModule {
-                id: module_id,
-                parse_result,
-                deps,
-            }
+            (module_id, parse_result, group)
         })
         .collect::<Vec<_>>();
+        let resolving_dependencies = list
+            .iter()
+            .flat_map(|(_, _, group)| group.clone())
+            .collect::<FxHashSet<_>>();
+        let resolved_dependencies = resolving_dependencies
+            .into_par_iter()
+            .map(|key| {
+                let res = bolt_ts_module_resolve::Resolver::resolve_module_name(
+                    key.module_name,
+                    key.containing_file,
+                    key.options,
+                    &cache,
+                    &atoms,
+                    &fs,
+                    key.mode,
+                );
+                (key, res)
+            })
+            .collect::<FxHashMap<_, _>>();
 
         for item in resolving {
             let p = module_arena.get_path(item);
@@ -168,13 +192,8 @@ pub fn build_graph<'cx>(
         let atoms = &mut atoms.lock().unwrap();
         let fs = &mut fs.lock().unwrap();
 
-        let mut next = indexmap::IndexMap::with_capacity(modules.len() * 32);
-        for ResolvedModule {
-            id,
-            parse_result,
-            deps,
-        } in modules
-        {
+        let mut next = indexmap::IndexMap::with_capacity(list.len() * 4);
+        for (id, parse_result, group) in list {
             for lib_reference in &parse_result.lib_references {
                 debug_assert!(lib_reference.is_normalized());
                 let id = PathId::new(lib_reference, atoms);
@@ -202,7 +221,9 @@ pub fn build_graph<'cx>(
                 parsed.insert(id, parse_result);
             }
 
-            for (ast_id, dep) in deps {
+            for item in group {
+                let ast_id = item.module_name_node_id;
+                let dep = resolved_dependencies[&item];
                 let module_name_node = parsed.node(ast_id);
                 let module_name = match module_name_node {
                     ast::Node::StringLit(lit) => lit.val,

@@ -39,7 +39,7 @@ pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
 
 pub fn atom_to_token(id: Atom) -> Option<TokenKind> {
     // The order of token kind in `KW_LIST` is same as with `TokenKind`.
-    const KW_LIST: [TokenKind; 68] = [
+    const KW_LIST: [TokenKind; 69] = [
         TokenKind::Null,
         TokenKind::False,
         TokenKind::True,
@@ -77,6 +77,7 @@ pub fn atom_to_token(id: Atom) -> Option<TokenKind> {
         TokenKind::For,
         TokenKind::Of,
         TokenKind::While,
+        TokenKind::With,
         TokenKind::Do,
         TokenKind::Switch,
         TokenKind::Case,
@@ -273,6 +274,7 @@ pub enum TokenKind {
     For,
     Of,
     While,
+    With,
     Do,
     Switch,
     Case,
@@ -326,7 +328,7 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         use TokenKind::*;
         match self {
             EqGreat => "=>",
@@ -451,7 +453,7 @@ impl TokenKind {
             Undefined => "undefined",
             Override => "override",
             Accessor => "accessor",
-            _ => unreachable!("{:#?}", self),
+            _ => unreachable!(),
         }
     }
 }

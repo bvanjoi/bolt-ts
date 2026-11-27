@@ -1,0 +1,11 @@
+  × The '?' modifier can only be used in TypeScript files.
+   ╭─[../../tests/compiler/jsFileCompilationOptionalClassElementSyntaxOfClass/index.js:7:8]
+ 7 │ ?
+   · ─
+   ╰────
+
+  × The '?' modifier can only be used in TypeScript files.
+   ╭─[../../tests/compiler/jsFileCompilationOptionalClassElementSyntaxOfClass/index.js:9:8]
+ 9 │ ?
+   · ─
+   ╰────

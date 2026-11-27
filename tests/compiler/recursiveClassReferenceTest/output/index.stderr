@@ -1,0 +1,23 @@
+  × Cannot find name 'Element'.
+    ╭─[../../tests/compiler/recursiveClassReferenceTest/index.ts:21:19]
+ 21 │ Element
+    · ───────
+    ╰────
+
+  × Cannot find name 'domNode'.
+    ╭─[../../tests/compiler/recursiveClassReferenceTest/index.ts:62:11]
+ 62 │ domNode
+    · ───────
+    ╰────
+
+  × Cannot find name 'mode'.
+    ╭─[../../tests/compiler/recursiveClassReferenceTest/index.ts:95:36]
+ 95 │ mode
+    · ────
+    ╰────
+
+  × Property 'getInitialState' is missing.
+     ╭─[../../tests/compiler/recursiveClassReferenceTest/index.ts:103:21]
+ 103 │ self
+     · ────
+     ╰────

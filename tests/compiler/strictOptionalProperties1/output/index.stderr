@@ -1,0 +1,165 @@
+  × Cannot redeclare block-scoped variable 'e'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:232:13]
+ 213 │ e: string | boolean | undefined
+     · ┬
+     · ╰── Previous definition here
+ 214 │ declare const u1: U1
+ 215 │ declare let u2: U2
+ 216 │ u1.email = e // error, but only because boolean isn't in email's type
+ 217 │ //~^ ERROR: Type 'undefined | false | true | string' is not assignable to type 'undefined | number | string'.
+ 218 │ u2.email = e // error, and suggest adding undefined
+ 219 │ //~^ ERROR: Type 'undefined | false | true | string' is not assignable to type 'number | string'.
+ 220 │ u2 = {
+ 221 │ //~^ ERROR: Type '{ name: string; email: undefined; }' is not assignable to type 'U2'.
+ 222 │     name: 'hi',
+ 223 │     email: undefined
+ 224 │ }
+ 225 │ 
+ 226 │ // Repro from #44437
+ 227 │ 
+ 228 │ declare var a: {[x: string]: number | string }
+ 229 │ declare var b: {a: number, b: string}
+ 230 │ declare var c: {a: number, b?: string}
+ 231 │ declare var d: {a: number, b: string | undefined }
+ 232 │ declare var e
+     ·             ─
+     ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:13:5]
+ 13 │ obj.a
+    · ─────
+    ╰────
+
+  × Type 'undefined | string' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:20:5]
+ 20 │ obj.a
+    · ─────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:29:9]
+ 29 │ obj.a
+    · ─────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:38:9]
+ 38 │ obj.a
+    · ─────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:64:5]
+ 64 │ obj.a
+    · ─────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:72:5]
+ 72 │ t[0]
+    · ────
+    ╰────
+
+  × Type '[number, undefined | string?, undefined | string?]' is not
+  │ assignable to type '[number, undefined | string?]'.
+    ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:77:5]
+ 77 │ t1
+    · ──
+    ╰────
+
+  × Type '[number, undefined?, undefined?, undefined?]' is not assignable to
+  │ type '[number, undefined | string?, undefined | false | true?]'.
+    ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:87:5]
+ 87 │ t
+    · ─
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:89:10]
+ 89 │ ,
+    · ─
+    ╰────
+
+  × Type '[number, undefined, true]' is not assignable to type '[number,
+  │ undefined | string?, undefined | false | true?]'.
+    ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:91:5]
+ 91 │ t
+    · ─
+    ╰────
+
+  × Type '{ foo: undefined; bar: string; }' is not assignable to type
+  │ 'InputProps'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:116:7]
+ 116 │ inputProps
+     · ──────────
+     ╰────
+
+  × Type '[number, undefined]' is not assignable to type '[number, undefined |
+  │ string?, undefined | false | true?]'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:123:7]
+ 123 │ t2
+     · ──
+     ╰────
+
+  × Type '[number, string, undefined]' is not assignable to type '[number,
+  │ undefined | string?, undefined | false | true?]'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:125:7]
+ 125 │ t3
+     · ──
+     ╰────
+
+  × Type '[number, undefined, undefined]' is not assignable to type '[number,
+  │ undefined | string?, undefined | false | true?]'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:127:7]
+ 127 │ t4
+     · ──
+     ╰────
+
+  × Type '{ foo: undefined; }' is not assignable to type '{ foo: undefined |
+  │ number; }'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:132:7]
+ 132 │ x
+     · ─
+     ╰────
+
+  × Property 'bar' of type 'undefined | string' is not assignable to 'string'
+  │ index type 'string'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:141:5]
+ 141 │ bar
+     · ───
+     ╰────
+
+  × Type 'undefined | false | true | string' is not assignable to type
+  │ 'undefined | number | string'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:216:1]
+ 216 │ u1.email
+     · ────────
+     ╰────
+
+  × Type 'undefined | false | true | string' is not assignable to type 'number
+  │ | string'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:218:1]
+ 218 │ u2.email
+     · ────────
+     ╰────
+
+  × Type '{ name: string; email: undefined; }' is not assignable to type 'U2'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:220:1]
+ 220 │ u2
+     · ──
+     ╰────
+
+  × Type '{ a: number; b: undefined | string; }' is not assignable to type
+  │ '{ [x: string]: number | string }'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:237:1]
+ 237 │ a
+     · ─
+     ╰────
+
+  × Type 'undefined | false | true | string' is not assignable to type '{ [x:
+  │ string]: number | string }'.
+     ╭─[../../tests/compiler/strictOptionalProperties1/index.ts:239:1]
+ 239 │ a
+     · ─
+     ╰────

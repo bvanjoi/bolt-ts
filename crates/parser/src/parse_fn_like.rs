@@ -138,6 +138,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
                 let ret_ty = this.parse_fn_decl_ret_type()?;
                 let body = this.parse_fn_block_or_semi(flags);
                 if let Some(body) = body {
+                    this.check_fn_implement_in_ambient(name.map(|n| n.span), body);
                     this.check_use_strict_simple_parameters(params, body);
                     this.check_parameters(params, CheckParameterFlags::empty());
                 } else {
@@ -161,7 +162,9 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
 
     fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.parse_optional(TokenKind::Colon).is_some() {
-            self.parse_ty_or_ty_predicate().map(Some)
+            let ty = self.parse_ty_or_ty_predicate()?;
+            self.mark_error_for_return_type_in_javascript(ty);
+            Ok(Some(ty))
         } else {
             Ok(None)
         }

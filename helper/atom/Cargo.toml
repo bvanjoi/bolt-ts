@@ -7,5 +7,4 @@ edition = "2024"
 bolt_ts_utils = { path = "../utils" }
 
 rustc-hash = { workspace = true }
-paste = { workspace = true }
 nohash-hasher = { workspace = true }

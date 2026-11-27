@@ -1,0 +1,17 @@
+  × A 'get' accessor cannot have parameters.
+    ╭─[../../tests/compiler/complicatedPrivacy/index.ts:17:24]
+ 17 │ p1
+    · ──
+    ╰────
+
+  × Cannot find name 'number'.
+    ╭─[../../tests/compiler/complicatedPrivacy/index.ts:42:6]
+ 42 │ number
+    · ──────
+    ╰────
+
+  × Namespace 'mglo5' has no exported member 'i6'.
+    ╭─[../../tests/compiler/complicatedPrivacy/index.ts:81:55]
+ 81 │ i6
+    · ──
+    ╰────

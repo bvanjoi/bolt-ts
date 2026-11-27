@@ -37,13 +37,6 @@
     ·         ──
     ╰────
 
-  × Property 'test' has no initializer and is not definitely assigned in the
-  │ constructor.
-    ╭─[../../tests/compiler/nameCollisions/index.ts:11:13]
- 11 │ test
-    · ────
-    ╰────
-
   × A namespace declaration cannot be located prior to a class or function
   │ with which it is merged.
     ╭─[../../tests/compiler/nameCollisions/index.ts:22:15]
@@ -73,4 +66,11 @@
     ╭─[../../tests/compiler/nameCollisions/index.ts:50:11]
  50 │ C2
     · ──
+    ╰────
+
+  × Property 'test' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/nameCollisions/index.ts:11:13]
+ 11 │ test
+    · ────
     ╰────

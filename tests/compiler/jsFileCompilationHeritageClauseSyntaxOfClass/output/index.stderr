@@ -1,0 +1,11 @@
+  × 'implements' clauses can only be used in TypeScript files.
+   ╭─[../../tests/compiler/jsFileCompilationHeritageClauseSyntaxOfClass/index.js:6:9]
+ 6 │ implements D
+   · ────────────
+   ╰────
+
+  × Cannot find name 'D'.
+   ╭─[../../tests/compiler/jsFileCompilationHeritageClauseSyntaxOfClass/index.js:6:20]
+ 6 │ D
+   · ─
+   ╰────

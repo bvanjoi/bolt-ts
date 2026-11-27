@@ -1,0 +1,11 @@
+  × '_' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedLocalsStartingWithUnderscore/a.ts:9:9]
+ 9 │ _
+   · ─
+   ╰────
+
+  × '_ns' is declared but its value is never read.
+   ╭─[../../tests/compiler/unusedLocalsStartingWithUnderscore/a.ts:7:11]
+ 7 │ _ns
+   · ───
+   ╰────

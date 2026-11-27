@@ -1,0 +1,12 @@
+  × Type 'null' is not assignable to type 'D'.
+    ╭─[../../tests/compiler/derivedClassConstructorWithExplicitReturns01/index.ts:37:20]
+ 37 │ null
+    · ────
+    ╰────
+
+  × 'Return type of constructor signature must be assignable to the instance
+  │ type of the class.
+    ╭─[../../tests/compiler/derivedClassConstructorWithExplicitReturns01/index.ts:37:20]
+ 37 │ null
+    · ────
+    ╰────

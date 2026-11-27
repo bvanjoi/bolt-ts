@@ -51,9 +51,32 @@ pub enum Module {
     NodeNext = 199,
     Preserve = 200,
 }
+
 impl Module {
     pub fn is_non_node_esm(self) -> bool {
         Self::ES2015 <= self && self <= Self::ES2022 || self == Self::ESNext
+    }
+}
+
+impl std::fmt::Display for Module {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Module::None => "None",
+            Module::CommonJS => "CommonJS",
+            Module::AMD => "AMD",
+            Module::UMD => "UMD",
+            Module::System => "System",
+            Module::ES2015 => "ES2015",
+            Module::ES2020 => "ES2020",
+            Module::ES2022 => "ES2022",
+            Module::ESNext => "ESNext",
+            Module::Node16 => "Node16",
+            Module::Node18 => "Node18",
+            Module::Node20 => "Node20",
+            Module::NodeNext => "NodeNext",
+            Module::Preserve => "Preserve",
+        };
+        write!(f, "{s}")
     }
 }
 

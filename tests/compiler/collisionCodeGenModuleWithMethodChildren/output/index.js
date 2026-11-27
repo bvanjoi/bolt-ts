@@ -24,8 +24,8 @@ var M = {};
   
 })(M);
 
-(function (M) // Shouldnt bn _M
-{
+(function (M)// Shouldnt bn _M
+ {
 
   class e {
     fn3() {

@@ -1,3 +1,15 @@
+  × Variable 'd' is used before being assigned.
+    ╭─[../../tests/compiler/superWithGenericSpecialization/index.ts:18:17]
+ 18 │ d
+    · ─
+    ╰────
+
+  × Variable 'd' is used before being assigned.
+    ╭─[../../tests/compiler/superWithGenericSpecialization/index.ts:20:18]
+ 20 │ d
+    · ─
+    ╰────
+
   × Property 'x' has no initializer and is not definitely assigned in the
   │ constructor.
    ╭─[../../tests/compiler/superWithGenericSpecialization/index.ts:5:5]
@@ -9,17 +21,5 @@
   │ constructor.
     ╭─[../../tests/compiler/superWithGenericSpecialization/index.ts:10:5]
  10 │ y
-    · ─
-    ╰────
-
-  × Variable 'd' is used before being assigned.
-    ╭─[../../tests/compiler/superWithGenericSpecialization/index.ts:18:17]
- 18 │ d
-    · ─
-    ╰────
-
-  × Variable 'd' is used before being assigned.
-    ╭─[../../tests/compiler/superWithGenericSpecialization/index.ts:20:18]
- 20 │ d
     · ─
     ╰────

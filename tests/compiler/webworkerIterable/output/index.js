@@ -4,8 +4,8 @@
 //@compiler-options: target=es2020
 //@run-fail
 // This API is only in webworker
-importScripts('')// This should not raise a compiler error
-;
+importScripts('');
+// This should not raise a compiler error
 var f = new FormData();
 for ( var element of f) {
   element.length;

@@ -451,6 +451,6 @@ impl<'cx> TyChecker<'cx> {
         decl: &impl crate::r#trait::VarLike<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let decl_ty = self.get_ty_for_var_like_decl::<true>(decl, CheckMode::empty());
-        self.widen_ty_for_variable_like_declaration::<REPORT_ERROR>(decl_ty, decl)
+        self.widen_ty_for_variable_like_declaration::<REPORT_ERROR>(decl_ty, decl.id())
     }
 }

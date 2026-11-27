@@ -1,0 +1,6 @@
+  × Export assignment cannot be used when targeting ECMAScript modules.
+  │ Consider using 'export default' or another module format instead.
+   ╭─[../../tests/compiler/exportAssignmentWithoutAllowSyntheticDefaultImportsError/bar.ts:1:1]
+ 1 │ export = bar;
+   · ─────────────
+   ╰────

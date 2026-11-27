@@ -1,0 +1,121 @@
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+   ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:9:17]
+ 9 │ public foo: string
+   · ──────────────────
+   ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:33:6]
+ 33 │ NotLegalEnum
+    · ────────────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:38:1]
+ 38 │ import NoGoodAlias = NotLegalEnum.B;
+    · ────────────────────────────────────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:41:12]
+ 41 │ NotLegalConstEnum
+    · ─────────────────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:81:6]
+ 81 │ <any>{}
+    · ───────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:83:6]
+ 83 │ < any >{}
+    · ─────────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:85:7]
+ 85 │ < any > {}
+    · ──────────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:89:6]
+ 89 │ <any>({})
+    · ─────────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:91:7]
+ 91 │ <any>{}
+    · ───────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:93:1]
+ 93 │ <any>{}
+    · ───────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+     ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:99:11]
+  99 │ ╭─▶ <any>
+ 100 │ │       //~^ ERROR: This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+ 101 │ ╰─▶         1
+     ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+     ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:102:12]
+ 102 │ ╭─▶ <any>
+ 103 │ │       //~^ ERROR: This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+ 104 │ ╰─▶         1
+     ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+     ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:108:1]
+ 108 │ <unknown>{foo() {}}.foo()
+     · ─────────────────────────
+     ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+     ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:112:1]
+ 112 │ <unknown>function() {}()
+     · ────────────────────────
+     ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+     ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:114:1]
+ 114 │ <unknown>function() {}
+     · ──────────────────────
+     ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+     ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:119:1]
+ 119 │ <unknown>class {}
+     · ─────────────────
+     ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:13:11]
+ 13 │ IllegalBecauseInstantiated
+    · ──────────────────────────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:18:11]
+ 18 │ AlsoIllegalBecauseInstantiated
+    · ──────────────────────────────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:27:15]
+ 27 │ Nested
+    · ──────
+    ╰────
+
+  × This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+    ╭─[../../tests/compiler/erasableSyntaxOnly/index.ts:25:11]
+ 25 │ IllegalBecauseNestedInstantiated
+    · ────────────────────────────────
+    ╰────

@@ -1,0 +1,35 @@
+  × Module './server' has no default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts/client.ts:1:8]
+ 1 │ defaultBinding1
+   · ───────────────
+   ╰────
+
+  × Module './server' has no default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts/client.ts:3:8]
+ 3 │ defaultBinding2
+   · ───────────────
+   ╰────
+
+  × Module './server' has no default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts/client.ts:6:8]
+ 6 │ defaultBinding3
+   · ───────────────
+   ╰────
+
+  × Module './server' has no default export.
+   ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts/client.ts:9:8]
+ 9 │ defaultBinding4
+   · ───────────────
+   ╰────
+
+  × Module './server' has no default export.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts/client.ts:13:8]
+ 13 │ defaultBinding5
+    · ───────────────
+    ╰────
+
+  × Module './server' has no default export.
+    ╭─[../../tests/compiler/es6ImportDefaultBindingFollowedWithNamedImportDts/client.ts:16:8]
+ 16 │ defaultBinding6
+    · ───────────────
+    ╰────

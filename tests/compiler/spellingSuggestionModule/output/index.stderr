@@ -1,0 +1,17 @@
+  × Cannot find name 'foobar'.
+   ╭─[../../tests/compiler/spellingSuggestionModule/index.ts:6:1]
+ 6 │ foobar
+   · ──────
+   ╰────
+
+  × Cannot find name 'barfoo'.
+    ╭─[../../tests/compiler/spellingSuggestionModule/index.ts:10:1]
+ 10 │ barfoo
+    · ──────
+    ╰────
+
+  × Cannot find name 'faroo'.
+    ╭─[../../tests/compiler/spellingSuggestionModule/index.ts:14:1]
+ 14 │ faroo
+    · ─────
+    ╰────

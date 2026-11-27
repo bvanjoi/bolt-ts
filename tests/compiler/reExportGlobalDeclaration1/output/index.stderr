@@ -1,0 +1,71 @@
+  × Cannot export 'x'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:1:9]
+ 1 │ x
+   · ─
+   ╰────
+
+  × Cannot export 'x'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:1:12]
+ 1 │ x
+   · ─
+   ╰────
+
+  × Cannot export 'x1'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:4:9]
+ 4 │ x1
+   · ──
+   ╰────
+
+  × Cannot export 'x1'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:4:13]
+ 4 │ x1
+   · ──
+   ╰────
+
+  × Cannot export 'a'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:7:9]
+ 7 │ a
+   · ─
+   ╰────
+
+  × Cannot export 'a'. Only local declarations can be exported from a module.
+   ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:7:12]
+ 7 │ a
+   · ─
+   ╰────
+
+  × Cannot export 'b'. Only local declarations can be exported from a module.
+    ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:10:9]
+ 10 │ b
+    · ─
+    ╰────
+
+  × Cannot export 'b'. Only local declarations can be exported from a module.
+    ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:10:12]
+ 10 │ b
+    · ─
+    ╰────
+
+  × Cannot export 'x'. Only local declarations can be exported from a module.
+    ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:15:9]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Cannot export 'x1'. Only local declarations can be exported from a module.
+    ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:17:9]
+ 17 │ x1
+    · ──
+    ╰────
+
+  × Cannot export 'a'. Only local declarations can be exported from a module.
+    ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:19:9]
+ 19 │ a
+    · ─
+    ╰────
+
+  × Cannot export 'b'. Only local declarations can be exported from a module.
+    ╭─[../../tests/compiler/reExportGlobalDeclaration1/file2.ts:21:9]
+ 21 │ b
+    · ─
+    ╰────

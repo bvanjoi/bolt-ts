@@ -1,0 +1,108 @@
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/newOperator/index.ts:26:21]
+ 26 │ ]
+    · ─
+    ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/newOperator/index.ts:33:5]
+ 33 │ ]
+    · ─
+    ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/newOperator/index.ts:74:24]
+ 74 │ ]
+    · ─
+    ╰────
+
+  × Cannot find name 'ifc'.
+   ╭─[../../tests/compiler/newOperator/index.ts:7:13]
+ 7 │ ifc
+   · ───
+   ╰────
+
+Advice: 
+  ☞ 'ifc' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/newOperator/index.ts:7:13]
+ 5 │ ifc { }
+   · ─┬─
+   ·  ╰── 'ifc' is defined here.
+ 6 │ // Attempting to 'new' an interface yields poor error
+ 7 │ var i = new ifc
+   ·             ───
+   ╰────
+
+  × Cannot find name 'string'.
+    ╭─[../../tests/compiler/newOperator/index.ts:19:5]
+ 19 │ string
+    · ──────
+    ╰────
+
+  × Cannot find name 'string'.
+    ╭─[../../tests/compiler/newOperator/index.ts:26:14]
+ 26 │ string
+    · ──────
+    ╰────
+
+  × Cannot find name 'string'.
+    ╭─[../../tests/compiler/newOperator/index.ts:31:1]
+ 31 │ string
+    · ──────
+    ╰────
+
+  × Cannot find name 'q'.
+    ╭─[../../tests/compiler/newOperator/index.ts:40:13]
+ 40 │ q
+    · ─
+    ╰────
+
+  × This expression is not constructable.
+    ╭─[../../tests/compiler/newOperator/index.ts:15:14]
+ 15 │ 53
+    · ──
+    ╰────
+
+  × This expression is not constructable.
+    ╭─[../../tests/compiler/newOperator/index.ts:17:14]
+ 17 │ ''
+    · ──
+    ╰────
+
+  × This expression is not constructable.
+    ╭─[../../tests/compiler/newOperator/index.ts:44:14]
+ 44 │ new Date
+    · ────────
+    ╰────
+
+  × This expression is not constructable.
+    ╭─[../../tests/compiler/newOperator/index.ts:52:5]
+ 52 │ union
+    · ─────
+    ╰────
+
+  × This expression is not constructable.
+    ╭─[../../tests/compiler/newOperator/index.ts:57:5]
+ 57 │ ctorUnion
+    · ─────────
+    ╰────
+
+  × This expression is not constructable.
+    ╭─[../../tests/compiler/newOperator/index.ts:62:5]
+ 62 │ ctorUnion2
+    · ──────────
+    ╰────
+
+  × Element implicitly has an 'any' type because expression of type 'error'
+  │ can't be used to index type 'typeof T'.
+    ╭─[../../tests/compiler/newOperator/index.ts:74:16]
+ 74 │ new M.T[]
+    · ─────────
+    ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/newOperator/index.ts:67:9]
+ 67 │ x
+    · ─
+    ╰────

@@ -12,3 +12,5 @@ export const Color = {
 
 export type Color = typeof Color
 export type Colors = Color[keyof Color]
+
+Color;

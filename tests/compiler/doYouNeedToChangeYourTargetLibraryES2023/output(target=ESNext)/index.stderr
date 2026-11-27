@@ -1,0 +1,6 @@
+  × Argument of type 'undefined' is not assignable to parameter of type
+  │ 'number'.
+    ╭─[../../tests/compiler/doYouNeedToChangeYourTargetLibraryES2023/index.ts:36:42]
+ 36 │ undefined
+    · ─────────
+    ╰────

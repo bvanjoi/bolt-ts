@@ -1,0 +1,5 @@
+  × Variable 'i' is used before being assigned.
+   ╭─[../../tests/compiler/exportingContainingVisibleType/index.ts:9:16]
+ 9 │ i
+   · ─
+   ╰────

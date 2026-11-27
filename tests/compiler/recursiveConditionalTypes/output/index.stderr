@@ -4,19 +4,19 @@
     · ──────────────────────────────────
     ╰────
 
-  × Type '__Awaited' is not assignable to type '__Awaited'.
+  × Type '__Awaited<T>' is not assignable to type '__Awaited<U>'.
     ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:28:5]
  28 │ ua
     · ──
     ╰────
 
-  × Type 'T' is not assignable to type '__Awaited'.
+  × Type 'T' is not assignable to type '__Awaited<T>'.
     ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:30:5]
  30 │ ta
     · ──
     ╰────
 
-  × Type '__Awaited' is not assignable to type 'T'.
+  × Type '__Awaited<T>' is not assignable to type 'T'.
     ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:32:5]
  32 │ tx
     · ──
@@ -34,25 +34,26 @@
     · ─────────────────────
     ╰────
 
-  × Type 'TupleOf' is not assignable to type 'TupleOf'.
+  × Type 'TupleOf<number, M>' is not assignable to type 'TupleOf<number, N>'.
     ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:63:5]
  63 │ tn
     · ──
     ╰────
 
-  × Type 'TupleOf' is not assignable to type 'TupleOf'.
+  × Type 'TupleOf<number, N>' is not assignable to type 'TupleOf<number, M>'.
     ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:65:5]
  65 │ tm
     · ──
     ╰────
 
-  × Argument of type 'Grow2' is not assignable to parameter of type 'Grow1'.
+  × Argument of type 'Grow2<[], T>' is not assignable to parameter of type
+  │ 'Grow1<[], T>'.
      ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:132:9]
  132 │ y
      · ─
      ╰────
 
-  × Type 'number' is not assignable to type 'Enumerate'.
+  × Type 'number' is not assignable to type 'Enumerate<T["length"]>'.
      ╭─[../../tests/compiler/recursiveConditionalTypes/index.ts:185:12]
  185 │ value.length
      · ────────────

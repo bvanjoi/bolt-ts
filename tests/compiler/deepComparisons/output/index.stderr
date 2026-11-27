@@ -1,0 +1,17 @@
+  × Type 'T' is not assignable to type 'Extract<T, string>'.
+   ╭─[../../tests/compiler/deepComparisons/index.ts:6:9]
+ 6 │ v1
+   · ──
+   ╰────
+
+  × Type 'T[K1]' is not assignable to type 'Extract<T[K1], string>'.
+   ╭─[../../tests/compiler/deepComparisons/index.ts:8:9]
+ 8 │ v2
+   · ──
+   ╰────
+
+  × Type 'T[K1][K2]' is not assignable to type 'Extract<T[K1][K2], string>'.
+    ╭─[../../tests/compiler/deepComparisons/index.ts:10:9]
+ 10 │ v3
+    · ──
+    ╰────

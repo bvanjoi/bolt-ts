@@ -1,0 +1,5 @@
+  × Cannot assign to 'x' because it is a constant.
+   ╭─[../../tests/compiler/constDeclarations-access/file2.ts:1:1]
+ 1 │ x
+   · ─
+   ╰────
